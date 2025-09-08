@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "expo-linear-gradient": "^14.1.5"
+  },
+  "name": "go",
+  "version": "1.0.0",
+  "description": "Système de billetterie électronique pour les transports en commun SOTRAL.",
+  "main": "index.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
