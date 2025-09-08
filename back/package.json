@@ -1,0 +1,37 @@
+{
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "nativewind": "^4.1.23",
+    "nodemailer": "^7.0.5",
+    "pg": "^8.11.3",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.1",
+    "react-native-linear-gradient": "^2.8.3",
+    "uuid": "^11.1.0",
+    "zod": "^4.1.5"
+  },
+  "scripts": {
+    "dev": "ts-node src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "health": "node -e \"require('http').get('http://localhost:7000/health',res=>{process.exit(res.statusCode===200?0:1)}).on('error',()=>process.exit(1))\"",
+    "wait:health": "bash -lc 'for i in {1..60}; do curl -sSf http://localhost:7000/health >/dev/null && exit 0; echo waiting backend...; sleep 1; done; echo failed to start backend; exit 1'",
+    "test": "ts-node tests/run-admin-tests-native.ts",
+    "test:wait": "npm run wait:health && npm run test"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^7.0.1",
+    "@types/pg": "^8.10.1",
+    "@types/qrcode": "^1.5.5",
+    "@types/uuid": "^10.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

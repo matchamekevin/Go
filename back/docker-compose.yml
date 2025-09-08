@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "${API_PORT:-7000}:7000"
+    depends_on:
+      - db
+    command: npm run dev
+
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: gosotral_user
+      POSTGRES_PASSWORD: gosotral_pass
+      POSTGRES_DB: gosotral_db
+    ports:
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
