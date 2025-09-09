@@ -15,28 +15,12 @@ export default function HomeTab() {
       bgColor: theme.colors.primary[50],
     },
     {
-      id: 2,
-      title: 'Recharger carte',
-      subtitle: 'Carte transport',
-      icon: 'card' as const,
-      color: theme.colors.success[600],
-      bgColor: theme.colors.success[50],
-    },
-    {
       id: 3,
       title: 'Mes trajets',
       subtitle: 'Historique',
       icon: 'time' as const,
       color: theme.colors.warning[600],
       bgColor: theme.colors.warning[50],
-    },
-    {
-      id: 4,
-      title: 'Support',
-      subtitle: 'Aide & contact',
-      icon: 'help-circle' as const,
-      color: theme.colors.secondary[600],
-      bgColor: theme.colors.secondary[100],
     },
   ];
 
@@ -83,18 +67,7 @@ export default function HomeTab() {
             </TouchableOpacity>
           </View>
           
-          {/* Wallet Card */}
-          <View style={styles.walletCard}>
-            <View style={styles.walletHeader}>
-              <Text style={styles.walletTitle}>Solde transport</Text>
-              <Ionicons name="wallet" size={20} color={theme.colors.primary[600]} />
-            </View>
-            <Text style={styles.walletAmount}>15,000 FCFA</Text>
-            <TouchableOpacity style={styles.addMoneyButton}>
-              <Ionicons name="add" size={16} color={theme.colors.white} />
-              <Text style={styles.addMoneyText}>Recharger</Text>
-            </TouchableOpacity>
-          </View>
+    {/* Section solde supprimée */}
         </View>
 
         {/* Quick Actions */}
@@ -133,13 +106,13 @@ export default function HomeTab() {
                     </View>
                     <Text style={styles.routeTo}>{route.to}</Text>
                   </View>
-                  <Text style={styles.routePrice}>{route.price}</Text>
                 </View>
-                <View style={styles.routeDetails}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                   <View style={styles.routeTag}>
                     <Text style={styles.routeTagText}>{route.type}</Text>
                   </View>
                   <Text style={styles.routeDuration}>{route.duration}</Text>
+                  <Text style={styles.routePrice}>{route.price}</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.colors.secondary[300]} />
@@ -147,33 +120,7 @@ export default function HomeTab() {
           ))}
         </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Activité récente</Text>
-          <View style={styles.activityCard}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="checkmark-circle" size={24} color={theme.colors.success[600]} />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Voyage terminé</Text>
-              <Text style={styles.activitySubtitle}>Centre-ville → Université</Text>
-              <Text style={styles.activityTime}>Il y a 2 heures</Text>
-            </View>
-            <Text style={styles.activityAmount}>-1,500 FCFA</Text>
-          </View>
-          
-          <View style={styles.activityCard}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="add-circle" size={24} color={theme.colors.primary[600]} />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>Recharge effectuée</Text>
-              <Text style={styles.activitySubtitle}>Mobile Money</Text>
-              <Text style={styles.activityTime}>Hier à 14:30</Text>
-            </View>
-            <Text style={styles.activityAmount}>+10,000 FCFA</Text>
-          </View>
-        </View>
+  {/* Section activité récente supprimée */}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>

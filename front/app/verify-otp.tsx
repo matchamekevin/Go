@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -88,7 +88,7 @@ export default function VerifyOTPScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <LinearGradient
         colors={[theme.colors.primary[600], theme.colors.primary[700]]}
         style={styles.gradient}
@@ -183,16 +183,18 @@ export default function VerifyOTPScreen() {
           </View>
         </View>
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.primary[600],
   },
   gradient: {
     flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 50 : 25, // Remplace SafeAreaView
   },
   header: {
     flexDirection: 'row',

@@ -23,6 +23,20 @@ export const getApiBaseUrl = (): string => {
   }
   
   // En production, utilisez l'URL de votre serveur de production
+  // Runtime override (web): window.__API_URL__ can be injected into the HTML
+  try {
+    // @ts-ignore
+    const runtime = (typeof window !== 'undefined' && (window as any).__API_URL__) as string | undefined;
+    if (runtime && runtime.length > 0) return runtime;
+  } catch (e) {
+    // ignore
+  }
+
+  // Build-time override via environment (if your build pipeline injects REACT_APP_API_URL or VITE_API_URL)
+  // @ts-ignore
+  const buildTime = process?.env?.REACT_APP_API_URL || process?.env?.VITE_API_URL;
+  if (buildTime) return buildTime;
+
   return 'https://api.gosotral.com';
 };
 

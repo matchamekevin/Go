@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -51,102 +51,112 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
         style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 50 : 80}
       >
-        <LinearGradient
-          colors={[theme.colors.primary[600], theme.colors.primary[700]]}
-          style={styles.gradient}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: theme.spacing.lg }}
+          keyboardShouldPersistTaps="always"
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
-            </TouchableOpacity>
-            
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>Mot de passe oublié</Text>
-              <Text style={styles.subtitle}>Récupérez votre compte</Text>
+          <LinearGradient
+            colors={[theme.colors.primary[600], theme.colors.primary[700]]}
+            style={[styles.gradient, { flex: 1 }]}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => router.back()}
+              >
+                <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
+              </TouchableOpacity>
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>Mot de passe oublié</Text>
+                <Text style={styles.subtitle}>Récupérez votre compte</Text>
+              </View>
             </View>
-          </View>
 
-          {/* Content */}
-          <View style={styles.content}>
-            <View style={styles.formContainer}>
-              {/* Info */}
-              <View style={styles.infoContainer}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name="lock-closed" size={40} color={theme.colors.primary[600]} />
+            {/* Content */}
+            <View style={styles.content}>
+              <View style={[styles.formContainer, { marginBottom: theme.spacing.xl }] }>
+                {/* Info */}
+                <View style={styles.infoContainer}>
+                  <View style={styles.iconContainer}>
+                    <Ionicons name="lock-closed" size={40} color={theme.colors.primary[600]} />
+                  </View>
+                  <Text style={styles.infoTitle}>Réinitialiser votre mot de passe</Text>
+                  <Text style={styles.infoText}>
+                    Saisissez votre adresse email et nous vous enverrons un code pour réinitialiser votre mot de passe.
+                  </Text>
                 </View>
-                <Text style={styles.infoTitle}>Réinitialiser votre mot de passe</Text>
-                <Text style={styles.infoText}>
-                  Saisissez votre adresse email et nous vous enverrons un code pour réinitialiser votre mot de passe.
+
+                {/* Email Input */}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Adresse email</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="votre@email.com"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      placeholderTextColor={theme.colors.secondary[400]}
+                    />
+                  </View>
+                </View>
+
+                {/* Send Button */}
+                <TouchableOpacity
+                  style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+                  onPress={handleForgotPassword}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Text style={styles.sendButtonText}>Envoi en cours...</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.sendButtonText}>Envoyer le code</Text>
+                      <Ionicons name="send" size={20} color={theme.colors.white} />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Back to Login */}
+              <View style={{ alignItems: 'center', paddingTop: theme.spacing.md }}>
+                <Text style={styles.loginRow}>
+                  Vous vous souvenez de votre mot de passe ?{' '}
+                  <Text style={styles.loginLinkInline} onPress={handleBackToLogin}>
+                    Se connecter
+                  </Text>
                 </Text>
               </View>
-
-              {/* Email Input */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Adresse email</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="votre@email.com"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    placeholderTextColor={theme.colors.secondary[400]}
-                  />
-                </View>
-              </View>
-
-              {/* Send Button */}
-              <TouchableOpacity
-                style={[styles.sendButton, loading && styles.sendButtonDisabled]}
-                onPress={handleForgotPassword}
-                disabled={loading}
-              >
-                {loading ? (
-                  <Text style={styles.sendButtonText}>Envoi en cours...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.sendButtonText}>Envoyer le code</Text>
-                    <Ionicons name="send" size={20} color={theme.colors.white} />
-                  </>
-                )}
-              </TouchableOpacity>
             </View>
-
-            {/* Back to Login */}
-            <View style={styles.loginContainer}>
-              <Text style={styles.loginPrompt}>Vous vous souvenez de votre mot de passe ?</Text>
-              <TouchableOpacity onPress={handleBackToLogin}>
-                <Text style={styles.loginLink}>Se connecter</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </LinearGradient>
+          </LinearGradient>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.primary[600],
   },
   keyboardView: {
     flex: 1,
   },
   gradient: {
     flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 50 : 25, // Remplace SafeAreaView
   },
   header: {
     flexDirection: 'row',
@@ -256,15 +266,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    width: '100%',
+    paddingBottom: Platform.OS === 'ios' ? 50 : 25, // Padding pour la zone bottom
   },
   loginPrompt: {
     fontSize: theme.typography.fontSize.base,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginRight: theme.spacing.sm,
+  color: 'rgba(255, 255, 255, 0.9)',
+  marginRight: theme.spacing.xs,
+  lineHeight: 20,
   },
   loginLink: {
     fontSize: theme.typography.fontSize.base,
+    color: theme.colors.white,
+    fontWeight: theme.typography.fontWeight.bold,
+    textDecorationLine: 'underline',
+  lineHeight: 20,
+  marginLeft: theme.spacing.xs,
+  },
+  loginRow: {
+    fontSize: theme.typography.fontSize.base,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: 20,
+  },
+  loginLinkInline: {
     color: theme.colors.white,
     fontWeight: theme.typography.fontWeight.bold,
     textDecorationLine: 'underline',

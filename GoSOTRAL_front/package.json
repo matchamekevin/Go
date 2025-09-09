@@ -4,11 +4,11 @@
   "description": "Application mobile utilisateur pour le système de billetterie électronique SOTRAL",
   "main": "App.js",
   "scripts": {
-    "dev": "expo start --port 8084",
-    "start": "expo start --port 8084",
-    "android": "expo start --android --port 8084",
-    "ios": "expo start --ios --port 8084",
-    "web": "expo start --web --port 8084",
+  "dev": "expo start",
+  "start": "expo start",
+  "android": "expo start --android",
+  "ios": "expo start --ios",
+  "web": "expo start --web",
     "test": "jest"
   },
   "dependencies": {

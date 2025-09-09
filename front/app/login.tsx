@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +25,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [networkError, setNetworkError] = useState<string | null>(null);
   const { login } = useAuth();
 
   const handleLogin = async () => {
@@ -21,10 +36,19 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      setNetworkError(null);
       await login({ email, password });
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Erreur de connexion', error.message);
+      // Provide a clearer message for network issues
+      if (error?.message === 'Network Error') {
+        const msg = 'Impossible de contacter le serveur. Vérifiez que le backend est démarré et que votre appareil peut atteindre l\'URL de l\'API.';
+        setNetworkError(msg);
+        Alert.alert('Erreur de connexion', msg);
+      } else {
+        setNetworkError(null);
+        Alert.alert('Erreur de connexion', error?.message || 'Erreur lors de la connexion');
+      }
     } finally {
       setLoading(false);
     }
@@ -39,124 +63,153 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+    <View style={styles.container}>
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
         style={styles.keyboardView}
       >
-        <LinearGradient
-          colors={[theme.colors.primary[600], theme.colors.primary[700]]}
-          style={styles.gradient}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <View style={styles.logoIcon}>
-                <Ionicons name="bus" size={48} color={theme.colors.white} />
-              </View>
-              <Text style={styles.logoText}>GoSOTRAL</Text>
-              <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
-            </View>
-          </View>
-
-          {/* Form */}
-          <View style={styles.formContainer}>
-            <View style={styles.form}>
-              {/* Email Input */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="votre@email.com"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    placeholderTextColor={theme.colors.secondary[400]}
-                  />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <LinearGradient
+              colors={[theme.colors.primary[600], theme.colors.primary[700]]}
+              style={styles.gradient}
+            >
+              {/* Header */}
+              <View style={styles.header}>
+                <View style={styles.logoContainer}>
+                  <View style={styles.logoIcon}>
+                    <Ionicons name="bus" size={48} color={theme.colors.white} />
+                  </View>
+                  <Text style={styles.logoText}>GoSOTRAL</Text>
+                  <Text style={styles.subtitle}>Connectez-vous à votre compte</Text>
                 </View>
               </View>
 
-              {/* Password Input */}
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Mot de passe</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="lock-closed" size={20} color={theme.colors.secondary[400]} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Votre mot de passe"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    placeholderTextColor={theme.colors.secondary[400]}
-                  />
+              {/* Form */}
+              <View style={styles.formContainer}>
+                <View style={styles.form}>
+                  {/* Email Input */}
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Email</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="votre@email.com"
+                        value={email}
+                        onChangeText={setEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        placeholderTextColor={theme.colors.secondary[400]}
+                        returnKeyType="next"
+                        onSubmitEditing={() => {
+                          // move focus to password - but simple approach: nothing for now
+                        }}
+                      />
+                    </View>
+                  </View>
+
+                  {/* Password Input */}
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Mot de passe</Text>
+                    <View style={styles.inputWrapper}>
+                      <Ionicons name="lock-closed" size={20} color={theme.colors.secondary[400]} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Votre mot de passe"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry={!showPassword}
+                        placeholderTextColor={theme.colors.secondary[400]}
+                        returnKeyType="done"
+                        onSubmitEditing={handleLogin}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeButton}
+                      >
+                        <Ionicons
+                          name={showPassword ? 'eye-off' : 'eye'}
+                          size={20}
+                          color={theme.colors.secondary[400]}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Network error (visible above form) */}
+                  {networkError ? (
+                    <View style={{ paddingVertical: theme.spacing.sm }}>
+                      <Text style={{ color: '#FFD2D2', textAlign: 'center' }}>{networkError}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* Forgot Password */}
+                  <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
+                    <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+                  </TouchableOpacity>
+
+                  {/* Login Button */}
                   <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                    style={styles.eyeButton}
+                    style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+                    onPress={handleLogin}
+                    disabled={loading}
                   >
-                    <Ionicons
-                      name={showPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.colors.secondary[400]}
-                    />
+                    {loading ? (
+                      <ActivityIndicator color={theme.colors.white} />
+                    ) : (
+                      <>
+                        <Text style={styles.loginButtonText}>Se connecter</Text>
+                        <Ionicons name="arrow-forward" size={20} color={theme.colors.primary[600]} />
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Register Link */}
+                <View style={styles.registerContainer}>
+                  <Text style={styles.registerPrompt}>Pas encore de compte ?</Text>
+                  <TouchableOpacity onPress={handleRegister}>
+                    <Text style={styles.registerLink}>S'inscrire</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-
-              {/* Forgot Password */}
-              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
-                <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
-              </TouchableOpacity>
-
-              {/* Login Button */}
-              <TouchableOpacity
-                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                {loading ? (
-                  <Text style={styles.loginButtonText}>Connexion...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.loginButtonText}>Se connecter</Text>
-                    <Ionicons name="arrow-forward" size={20} color={theme.colors.primary[600]} />
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Register Link */}
-            <View style={styles.registerContainer}>
-              <Text style={styles.registerPrompt}>Pas encore de compte ?</Text>
-              <TouchableOpacity onPress={handleRegister}>
-                <Text style={styles.registerLink}>S'inscrire</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </LinearGradient>
+            </LinearGradient>
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.primary[600],
   },
   keyboardView: {
     flex: 1,
   },
   gradient: {
     flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 50 : 25, // Remplace SafeAreaView
+  },
+  scrollContent: {
+    flexGrow: 1,
+    minHeight: '100%',
   },
   header: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
+    paddingTop: Platform.OS === 'ios' ? theme.spacing.xxl : theme.spacing.lg,
   },
   logoContainer: {
     alignItems: 'center',
@@ -184,7 +237,8 @@ const styles = StyleSheet.create({
   formContainer: {
     flex: 1.5,
     paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    paddingBottom: theme.spacing.xxl, // Réduire le padding bottom
   },
   form: {
     backgroundColor: theme.colors.white,
@@ -251,7 +305,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: Platform.OS === 'ios' ? 50 : 25, // Padding pour la zone bottom
   },
   registerPrompt: {
     fontSize: theme.typography.fontSize.base,

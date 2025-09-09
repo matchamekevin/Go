@@ -18,17 +18,7 @@ export default function TabsLayout() {
           height: 80,
           paddingBottom: 20,
           paddingTop: 12,
-        },
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#94A3B8',
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 4,
-        },
-        tabBarIconStyle: {
-          marginTop: 4,
-        },
+  },
       }}
     >
       <Tabs.Screen
@@ -49,15 +39,7 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="tickets"
-        options={{
-          title: 'Billets',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="ticket" size={24} color={color} />
-          ),
-        }}
-      />
+  {/* Onglet Billets supprimé */}
       <Tabs.Screen
         name="profile"
         options={{

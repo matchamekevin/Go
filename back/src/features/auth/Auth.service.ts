@@ -14,13 +14,46 @@ export class AuthService {
       throw new Error('Champs manquants pour l\'inscription : email, name, password et phone sont requis');
     }
 
+    // Normalize and validate Togolese phone number
+    const normalizePhone = (raw: string) => {
+      if (!raw) return '';
+      // Remove spaces, dashes, parentheses
+      let s = raw.replace(/[^0-9+]/g, '');
+      // If starts with 00, convert to +
+      if (s.startsWith('00')) s = '+' + s.slice(2);
+      // If starts with +228, strip country code to keep local part
+      if (s.startsWith('+228')) s = s.slice(4);
+      // If starts with 228 (no plus) strip it
+      if (s.startsWith('228')) s = s.slice(3);
+      // Now s should be the local number (expected 8 digits)
+      return s;
+    };
+
+    const isValidTgPhone = (local: string) => {
+      // Expect exactly 8 digits for Togo
+      if (!/^[0-9]{8}$/.test(local)) return false;
+      // Reasonable assumption for operator prefixes (YAS / MOOV commonly use 90-99 range)
+      // We'll accept prefixes between 90 and 99 as mobile operators for this project.
+      const prefix = local.slice(0, 2);
+      const allowed = ['90','91','92','93','94','95','96','97','98','99'];
+      return allowed.includes(prefix);
+    };
+
+    const localPhone = normalizePhone(data.phone);
+    if (!isValidTgPhone(localPhone)) {
+      throw new Error('Numéro de téléphone invalide. Utilisez un numéro togolais (ex: +228 XX XX XX XX) pour YAS ou Moov.');
+    }
+
+    // Store normalized with country code in DB
+    const storedPhone = '+228' + localPhone;
+
     const existing = await UserRepository.findByEmail(data.email);
     if (existing) throw new Error('Email déjà utilisé');
 
     const hashed = await hashPassword(data.password);
   // Normaliser le nom
   const name = data.name.trim();
-  const user = await UserRepository.create({ email: data.email, name, password: hashed, phone: data.phone, is_verified: false });
+  const user = await UserRepository.create({ email: data.email, name, password: hashed, phone: storedPhone, is_verified: false });
 
     // generate OTP
     const otp = generateOTP(6);

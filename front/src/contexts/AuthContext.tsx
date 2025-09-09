@@ -121,9 +121,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshAuth,
   };
 
+  // Si le children n'est pas un élément React, on le met dans un fragment
+  const safeChildren = typeof children === 'string' || typeof children === 'number'
+    ? <React.Fragment>{children}</React.Fragment>
+    : children;
   return (
     <AuthContext.Provider value={contextValue}>
-      {children}
+      {safeChildren}
     </AuthContext.Provider>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
-import { theme } from '../../src/styles/theme';
+import { theme } from '../src/styles/theme';
 
 export default function TicketsTab() {
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
@@ -168,70 +168,13 @@ export default function TicketsTab() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mes billets</Text>
-        <TouchableOpacity style={styles.scanButton}>
-          <Ionicons name="qr-code" size={24} color={theme.colors.primary[600]} />
-        </TouchableOpacity>
       </View>
-
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'active' && styles.activeTab]}
-          onPress={() => setActiveTab('active')}
-        >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>
-            Actifs ({activeTickets.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'history' && styles.activeTab]}
-          onPress={() => setActiveTab('history')}
-        >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>
-            Historique ({historyTickets.length})
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.emptyState}>
+        <Ionicons name="ticket-outline" size={64} color={theme.colors.secondary[300]} />
+        <Text style={styles.emptyTitle}>Les billets sont maintenant affichés sur la page Recherche.</Text>
       </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {activeTab === 'active' ? (
-          <>
-            {activeTickets.length > 0 ? (
-              activeTickets.map(renderActiveTicket)
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="ticket-outline" size={64} color={theme.colors.secondary[300]} />
-                <Text style={styles.emptyTitle}>Aucun billet actif</Text>
-                <Text style={styles.emptySubtitle}>
-                  Vos billets achetés apparaîtront ici
-                </Text>
-                <TouchableOpacity style={styles.buyButton}>
-                  <Text style={styles.buyButtonText}>Acheter un billet</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
-        ) : (
-          <>
-            {historyTickets.length > 0 ? (
-              historyTickets.map(renderHistoryTicket)
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="time-outline" size={64} color={theme.colors.secondary[300]} />
-                <Text style={styles.emptyTitle}>Aucun historique</Text>
-                <Text style={styles.emptySubtitle}>
-                  Vos anciens billets apparaîtront ici
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
     </SafeAreaView>
   );
 }
