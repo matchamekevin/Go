@@ -5,6 +5,9 @@ import { AuthController } from './Auth.controller';
 const router = Router();
 
 router.post('/register', AuthController.register);
+router.get('/register', (req, res) => {
+	res.status(405).json({ error: 'Utilisez POST pour créer un compte.' });
+});
 router.post('/verify-otp', AuthController.verifyEmailOTP);
 router.post('/resend-otp', AuthController.resendEmailOTP);
 router.post('/login', AuthController.login);

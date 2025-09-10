@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../src/styles/theme';
 import { AuthService } from '../src/services/authService';
+import FeedbackMessage from '../src/components/FeedbackMessage';
+import AuthLayout from '../src/components/AuthLayout';
 
 export default function ResetPasswordScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
@@ -18,14 +19,6 @@ export default function ResetPasswordScreen() {
   const [resendTimer, setResendTimer] = useState(60);
   const [step, setStep] = useState<'otp' | 'password'>('otp');
   const inputRefs = useRef<Array<TextInput | null>>([]);
-
-  // Timer pour le renvoi d'OTP
-  useEffect(() => {
-    if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendTimer]);
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -286,54 +279,40 @@ export default function ResetPasswordScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <LinearGradient
-          colors={[theme.colors.primary[600], theme.colors.primary[700]]}
-          style={styles.gradient}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => step === 'password' ? setStep('otp') : router.back()}
-            >
-              <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
-            </TouchableOpacity>
-            
-            <View style={styles.headerContent}>
-              <Text style={styles.title}>
-                {step === 'otp' ? 'Vérification' : 'Nouveau mot de passe'}
-              </Text>
-              <Text style={styles.subtitle}>
-                {step === 'otp' ? 'Étape 1 sur 2' : 'Étape 2 sur 2'}
-              </Text>
-            </View>
-          </View>
+    <AuthLayout>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => (step === 'password' ? setStep('otp') : router.back())}
+          >
+                <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
+              </TouchableOpacity>
 
-          {/* Content */}
-          <View style={styles.content}>
-            <View style={styles.formContainer}>
-              {step === 'otp' ? renderOTPStep() : renderPasswordStep()}
+              <View style={styles.headerContent}>
+                <Text style={styles.title}>
+                  {step === 'otp' ? 'Vérification' : 'Nouveau mot de passe'}
+                </Text>
+                <Text style={styles.subtitle}>
+                  {step === 'otp' ? 'Étape 1 sur 2' : 'Étape 2 sur 2'}
+                </Text>
+              </View>
             </View>
-          </View>
-        </LinearGradient>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+
+            {/* Content */}
+            <View style={styles.content}>
+              <View style={styles.formContainer}>
+                {step === 'otp' ? renderOTPStep() : renderPasswordStep()}
+              </View>
+            </View>
+        </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  gradient: {
     flex: 1,
   },
   header: {
@@ -363,6 +342,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
   },
   formContainer: {
     backgroundColor: theme.colors.white,

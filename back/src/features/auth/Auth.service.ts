@@ -32,10 +32,11 @@ export class AuthService {
     const isValidTgPhone = (local: string) => {
       // Expect exactly 8 digits for Togo
       if (!/^[0-9]{8}$/.test(local)) return false;
-      // Reasonable assumption for operator prefixes (YAS / MOOV commonly use 90-99 range)
-      // We'll accept prefixes between 90 and 99 as mobile operators for this project.
+      // Élargi pour accepter plus de préfixes pendant les tests
+      // Préfixes togolais courants : 70-79 (Togocel), 90-99 (Moov/YAS)
       const prefix = local.slice(0, 2);
-      const allowed = ['90','91','92','93','94','95','96','97','98','99'];
+      const allowed = ['70','71','72','73','74','75','76','77','78','79',
+                       '90','91','92','93','94','95','96','97','98','99'];
       return allowed.includes(prefix);
     };
 
@@ -60,8 +61,66 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + Config.otpExpiryMinutes * 60 * 1000);
     await EmailOTPRepository.create(user.id, otp, expiresAt);
 
-    // send email
-    await sendEmail(user.email, 'Vérifiez votre compte', `Votre code de vérification est : ${otp}`);
+    // send email avec template HTML amélioré
+    const emailSubject = 'Votre code de vérification GoSOTRAL';
+    const emailText = `Votre code de vérification est : ${otp}`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px;">
+        <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #4F46E5; margin: 0; font-size: 24px;">GoSOTRAL</h1>
+            <p style="color: #6B7280; margin: 5px 0 0 0; font-size: 14px;">Système de transport public</p>
+          </div>
+          
+          <!-- Content -->
+          <div style="text-align: center;">
+            <h2 style="color: #1F2937; margin-bottom: 15px;">Votre code de vérification</h2>
+            <p style="color: #4B5563; font-size: 16px; margin-bottom: 25px;">
+              Utilisez ce code pour vérifier votre compte :
+            </p>
+            
+            <!-- Code OTP mis en évidence -->
+            <div style="background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); 
+                        border-radius: 12px; 
+                        padding: 25px; 
+                        margin: 25px 0; 
+                        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);">
+              <div style="color: white; 
+                          font-size: 32px; 
+                          font-weight: bold; 
+                          letter-spacing: 8px; 
+                          font-family: 'Courier New', monospace;
+                          text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${otp}</div>
+            </div>
+            
+            <!-- Instructions -->
+            <div style="background-color: #FEF3C7; 
+                        border-left: 4px solid #F59E0B; 
+                        padding: 15px; 
+                        margin: 20px 0; 
+                        border-radius: 5px;">
+              <p style="color: #92400E; margin: 0; font-size: 14px;">
+                ⚠️ Ce code expire dans 10 minutes pour votre sécurité
+              </p>
+            </div>
+            
+            <p style="color: #6B7280; font-size: 14px; margin-top: 25px;">
+              Si vous n'avez pas demandé ce code, ignorez cet email.
+            </p>
+          </div>
+          
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+            <p style="color: #9CA3AF; font-size: 12px; margin: 0;">
+              © 2025 GoSOTRAL - Transport public du Togo
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    await sendEmail(user.email, emailSubject, emailText, emailHtml);
 
     return { user: { id: user.id, email: user.email, name: user.name, phone: user.phone }, message: 'Utilisateur créé. Vérifiez votre email pour l OTP.' };
   }
@@ -101,7 +160,67 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + Config.otpExpiryMinutes * 60 * 1000);
     const record = await EmailOTPRepository.create(user.id, otp, expiresAt);
     console.log('[AuthService.resendEmailOTP] created OTP record:', { id: record.id, otp, expiresAt });
-    await sendEmail(user.email, 'Nouveau code de vérification', `Votre nouveau code est : ${otp}`);
+    
+    // Email de renvoi avec template HTML amélioré
+    const emailSubject = 'Nouveau code de vérification GoSOTRAL';
+    const emailText = `Votre nouveau code de vérification est : ${otp}`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px;">
+        <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #4F46E5; margin: 0; font-size: 24px;">GoSOTRAL</h1>
+            <p style="color: #6B7280; margin: 5px 0 0 0; font-size: 14px;">Système de transport public</p>
+          </div>
+          
+          <!-- Content -->
+          <div style="text-align: center;">
+            <h2 style="color: #1F2937; margin-bottom: 15px;">Nouveau code de vérification</h2>
+            <p style="color: #4B5563; font-size: 16px; margin-bottom: 25px;">
+              Voici votre nouveau code de vérification :
+            </p>
+            
+            <!-- Code OTP mis en évidence -->
+            <div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); 
+                        border-radius: 12px; 
+                        padding: 25px; 
+                        margin: 25px 0; 
+                        box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);">
+              <div style="color: white; 
+                          font-size: 32px; 
+                          font-weight: bold; 
+                          letter-spacing: 8px; 
+                          font-family: 'Courier New', monospace;
+                          text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${otp}</div>
+            </div>
+            
+            <!-- Instructions -->
+            <div style="background-color: #DBEAFE; 
+                        border-left: 4px solid #3B82F6; 
+                        padding: 15px; 
+                        margin: 20px 0; 
+                        border-radius: 5px;">
+              <p style="color: #1E40AF; margin: 0; font-size: 14px;">
+                🔄 Code renvoyé - Expire dans 10 minutes
+              </p>
+            </div>
+            
+            <p style="color: #6B7280; font-size: 14px; margin-top: 25px;">
+              Si vous n'avez pas demandé ce code, ignorez cet email.
+            </p>
+          </div>
+          
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+            <p style="color: #9CA3AF; font-size: 12px; margin: 0;">
+              © 2025 GoSOTRAL - Transport public du Togo
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    await sendEmail(user.email, emailSubject, emailText, emailHtml);
     return { message: 'OTP renvoyé' };
   }
 
@@ -140,7 +259,67 @@ export class AuthService {
     const otp = generateOTP(6);
     const expiresAt = new Date(Date.now() + Config.otpExpiryMinutes * 60 * 1000);
     await PasswordResetOTPRepository.create(user.id, otp, expiresAt);
-    await sendEmail(user.email, 'OTP de réinitialisation', `Votre code de réinitialisation est : ${otp}`);
+    
+    // Email de réinitialisation avec template HTML amélioré
+    const emailSubject = 'Réinitialisation de mot de passe - GoSOTRAL';
+    const emailText = `Votre code de réinitialisation est : ${otp}`;
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px;">
+        <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #4F46E5; margin: 0; font-size: 24px;">GoSOTRAL</h1>
+            <p style="color: #6B7280; margin: 5px 0 0 0; font-size: 14px;">Système de transport public</p>
+          </div>
+          
+          <!-- Content -->
+          <div style="text-align: center;">
+            <h2 style="color: #1F2937; margin-bottom: 15px;">🔐 Réinitialisation de mot de passe</h2>
+            <p style="color: #4B5563; font-size: 16px; margin-bottom: 25px;">
+              Utilisez ce code pour réinitialiser votre mot de passe :
+            </p>
+            
+            <!-- Code OTP mis en évidence -->
+            <div style="background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%); 
+                        border-radius: 12px; 
+                        padding: 25px; 
+                        margin: 25px 0; 
+                        box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);">
+              <div style="color: white; 
+                          font-size: 32px; 
+                          font-weight: bold; 
+                          letter-spacing: 8px; 
+                          font-family: 'Courier New', monospace;
+                          text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${otp}</div>
+            </div>
+            
+            <!-- Instructions -->
+            <div style="background-color: #FEE2E2; 
+                        border-left: 4px solid #EF4444; 
+                        padding: 15px; 
+                        margin: 20px 0; 
+                        border-radius: 5px;">
+              <p style="color: #DC2626; margin: 0; font-size: 14px;">
+                🔒 Code de sécurité - Expire dans 10 minutes
+              </p>
+            </div>
+            
+            <p style="color: #6B7280; font-size: 14px; margin-top: 25px;">
+              Si vous n'avez pas demandé cette réinitialisation, ignorez cet email et contactez-nous.
+            </p>
+          </div>
+          
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+            <p style="color: #9CA3AF; font-size: 12px; margin: 0;">
+              © 2025 GoSOTRAL - Transport public du Togo
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    await sendEmail(user.email, emailSubject, emailText, emailHtml);
     return { message: 'OTP envoyé pour réinitialisation' };
   }
 

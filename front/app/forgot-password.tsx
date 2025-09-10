@@ -1,48 +1,50 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../src/styles/theme';
 import { AuthService } from '../src/services/authService';
+import FeedbackMessage from '../src/components/FeedbackMessage';
+import AuthLayout from '../src/components/AuthLayout';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const lockRef = useRef(false);
 
   const handleForgotPassword = async () => {
+    if (loading || lockRef.current) return; // anti double tap
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
     // Validation
     if (!email) {
-      Alert.alert('Erreur', 'Veuillez saisir votre adresse email');
+      setErrorMsg('Veuillez saisir votre adresse email');
       return;
     }
-
+    const emailTrimmed = email.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Erreur', 'Veuillez saisir une adresse email valide');
+    if (!emailRegex.test(emailTrimmed)) {
+      setErrorMsg('Veuillez saisir une adresse email valide');
       return;
     }
 
+    lockRef.current = true;
     setLoading(true);
     try {
-      await AuthService.forgotPassword(email);
-      Alert.alert(
-        'Email envoyé',
-        'Un code de réinitialisation a été envoyé à votre adresse email.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.push({
-              pathname: '/reset-password',
-              params: { email }
-            })
-          }
-        ]
-      );
+      await AuthService.forgotPassword(emailTrimmed.toLowerCase());
+      setSuccessMsg('Code envoyé ! Vérifiez votre boîte mail.');
+      // Navigation différée pour laisser voir le message
+      setTimeout(() => {
+        router.push({ pathname: '/reset-password', params: { email: emailTrimmed } });
+      }, 800);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+      setErrorMsg(error?.message || 'Erreur lors de l\'envoi du code');
     } finally {
       setLoading(false);
+      lockRef.current = false;
     }
   };
 
@@ -51,37 +53,24 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-        style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 50 : 80}
-      >
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: theme.spacing.lg }}
-          keyboardShouldPersistTaps="always"
-        >
-          <LinearGradient
-            colors={[theme.colors.primary[600], theme.colors.primary[700]]}
-            style={[styles.gradient, { flex: 1 }]}
+    <AuthLayout>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
           >
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => router.back()}
-              >
-                <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
-              </TouchableOpacity>
-              <View style={styles.headerContent}>
-                <Text style={styles.title}>Mot de passe oublié</Text>
-                <Text style={styles.subtitle}>Récupérez votre compte</Text>
-              </View>
-            </View>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>Mot de passe oublié</Text>
+            <Text style={styles.subtitle}>Récupérez votre compte</Text>
+          </View>
+        </View>
 
-            {/* Content */}
-            <View style={styles.content}>
+        {/* Content */}
+        <View style={styles.content}>
               <View style={[styles.formContainer, { marginBottom: theme.spacing.xl }] }>
                 {/* Info */}
                 <View style={styles.infoContainer}>
@@ -93,6 +82,22 @@ export default function ForgotPasswordScreen() {
                     Saisissez votre adresse email et nous vous enverrons un code pour réinitialiser votre mot de passe.
                   </Text>
                 </View>
+
+                {/* Messages */}
+                {errorMsg && (
+                  <FeedbackMessage
+                    variant="error"
+                    message={errorMsg}
+                    onClose={() => setErrorMsg(null)}
+                  />
+                )}
+                {successMsg && (
+                  <FeedbackMessage
+                    variant="success"
+                    message={successMsg}
+                    onClose={() => setSuccessMsg(null)}
+                  />
+                )}
 
                 {/* Email Input */}
                 <View style={styles.inputContainer}>
@@ -139,24 +144,14 @@ export default function ForgotPasswordScreen() {
                 </Text>
               </View>
             </View>
-          </LinearGradient>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.primary[600],
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 50 : 25, // Remplace SafeAreaView
   },
   header: {
     flexDirection: 'row',
@@ -267,7 +262,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-    paddingBottom: Platform.OS === 'ios' ? 50 : 25, // Padding pour la zone bottom
   },
   loginPrompt: {
     fontSize: theme.typography.fontSize.base,

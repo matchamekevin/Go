@@ -23,9 +23,11 @@ if (fs.existsSync(envPath)) {
 import app from './app';
 import { Config } from './enviroment/env.config';
 
-const port = 7001; // Utilisation d'un port différent pour éviter les conflits
+// Use configured port (from .env or Render). Fallback to 7000 for local dev compatibility.
+const port = Config.port || (process.env.PORT ? Number(process.env.PORT) : 7000);
 
 console.log('Using databaseUrl:', Config.databaseUrl);
+console.log('Listening on port:', port);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

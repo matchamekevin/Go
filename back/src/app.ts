@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import pool from './shared/database/client'; // Adjust the import path as necessary
-import authRoutes from './features/auth/auth.routes';
 import usersRoutes from './features/users/users.routes';
 import paymentRoutes from './features/payment/payment.routes';
 import ticketsRoutesSimple from './features/tickets/tickets.routes.simple';
@@ -9,6 +8,9 @@ import adminRoutes from './features/admin/admin.routes';
 import { UserRepository } from './features/users/User.repository';
 import { EmailOTPRepository } from './features/auth/EmailOTP.repository';
 import { PasswordResetOTPRepository } from './features/auth/PasswordResetOTP.repository';
+import authRoutes from './features/auth/auth.routes';
+import { AuthController } from './features/auth/Auth.controller';
+
 const app = express();
 app.use(express.json());
 // Autoriser les requêtes cross-origin (utile pour le développement mobile/web)
@@ -101,6 +103,13 @@ app.get('/health', async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ backend: 'ok', database: 'disconnected', error: (error as Error).message });
   }
+});
+
+// Bridge route: allow legacy /register (without /auth prefix) to ease manual testing
+// POST /register will behave exactly like POST /auth/register
+app.post('/register', (req: Request, res: Response) => AuthController.register(req, res));
+app.get('/register', (req: Request, res: Response) => {
+  res.status(405).json({ error: 'Utilisez POST pour créer un compte. Endpoint recommandé: POST /auth/register' });
 });
 
 // Mount feature routes

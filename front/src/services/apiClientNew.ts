@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Config } from '../config';
-import { networkManager } from '../utils/networkManager';
+import { getApiBaseUrl, testConnectivity } from '../utils/network';
 
 // Configuration de l'API
 const TOKEN_KEY = Config.storageKeys.token;
@@ -9,44 +9,25 @@ const TOKEN_KEY = Config.storageKeys.token;
 class ApiClient {
   private client: AxiosInstance;
   private fallbackTried = false;
-  private isInitialized = false;
+  private detectedBaseUrl: string | null = null;
 
   constructor() {
-    // Initialisation avec une URL temporaire
+    // Initialisation avec l'URL par défaut
+    const initialBaseUrl = this.getBaseUrl();
+    
     this.client = axios.create({
-      baseURL: 'http://localhost:7000', // Sera remplacée par NetworkManager
+      baseURL: initialBaseUrl,
       timeout: Config.apiTimeout,
       headers: { 'Content-Type': 'application/json' },
     });
 
     this.setupInterceptors();
     
-    // Initialiser le NetworkManager et configurer l'URL
-    this.initializeWithNetworkManager();
+    // Tenter de détecter la meilleure URL en arrière-plan
+    this.detectBestBaseUrl();
   }
 
-  private async initializeWithNetworkManager(): Promise<void> {
-    try {
-      await networkManager.init();
-      const bestEndpoint = await networkManager.getCurrentEndpoint();
-      
-      if (bestEndpoint) {
-        console.log(`[ApiClient] Configuration avec endpoint: ${bestEndpoint}`);
-        this.client.defaults.baseURL = bestEndpoint;
-      } else {
-        console.warn('[ApiClient] Aucun endpoint disponible, utilisation de localhost par défaut');
-        this.client.defaults.baseURL = this.getDefaultBaseUrl();
-      }
-      
-      this.isInitialized = true;
-    } catch (error) {
-      console.error('[ApiClient] Erreur d\'initialisation:', error);
-      this.client.defaults.baseURL = this.getDefaultBaseUrl();
-      this.isInitialized = true;
-    }
-  }
-
-  private getDefaultBaseUrl(): string {
+  private getBaseUrl(): string {
     try {
       const platform = require('react-native').Platform;
       
@@ -62,26 +43,39 @@ class ApiClient {
     }
   }
 
-  private async ensureInitialized(): Promise<void> {
-    if (!this.isInitialized) {
-      await this.initializeWithNetworkManager();
-    }
-  }
-
   private async detectBestBaseUrl(): Promise<void> {
-    console.log('[ApiClient] Redétection de l\'endpoint...');
-    
-    try {
-      const bestEndpoint = await networkManager.forceRefresh();
-      
-      if (bestEndpoint) {
-        console.log(`[ApiClient] Nouveau endpoint détecté: ${bestEndpoint}`);
-        this.client.defaults.baseURL = bestEndpoint;
-      } else {
-        console.warn('[ApiClient] Aucun endpoint trouvé lors de la redétection');
+    if (this.detectedBaseUrl) return;
+
+    const candidateUrls = [
+      'http://192.168.1.184:7000', // IP réseau local
+      'http://10.0.2.2:7000',      // Android emulator
+      'http://127.0.0.1:7000',     // iOS simulator fallback
+      'http://localhost:7000',      // Web/fallback
+    ];
+
+    console.log('[ApiClient] Détection de la meilleure URL...');
+
+    for (const url of candidateUrls) {
+      try {
+        const isAvailable = await testConnectivity(url);
+        if (isAvailable) {
+          console.log(`[ApiClient] URL détectée: ${url}`);
+          this.detectedBaseUrl = url;
+          
+          // Mettre à jour la base URL si elle est différente
+          if (this.client.defaults.baseURL !== url) {
+            console.log(`[ApiClient] Mise à jour baseURL: ${this.client.defaults.baseURL} -> ${url}`);
+            this.client.defaults.baseURL = url;
+          }
+          break;
+        }
+      } catch (error) {
+        console.log(`[ApiClient] ${url} non disponible`);
       }
-    } catch (error) {
-      console.error('[ApiClient] Erreur lors de la redétection:', error);
+    }
+
+    if (!this.detectedBaseUrl) {
+      console.warn('[ApiClient] Aucune URL détectée, utilisation de l\'URL par défaut');
     }
   }
 
@@ -140,20 +134,18 @@ class ApiClient {
           this.fallbackTried = true;
           console.warn('[ApiClient] Network Error détecté, tentative de redétection d\'URL...');
           
-          // Redétection et retry
+          // Reset la détection et retry
+          this.detectedBaseUrl = null;
           await this.detectBestBaseUrl();
           
-          if (error.config && this.client.defaults.baseURL) {
-            console.log(`[ApiClient] Retry avec ${this.client.defaults.baseURL}`);
-            error.config.baseURL = this.client.defaults.baseURL;
+          if (this.detectedBaseUrl && error.config) {
+            console.log(`[ApiClient] Retry avec ${this.detectedBaseUrl}`);
+            error.config.baseURL = this.detectedBaseUrl;
             return this.client.request(error.config);
           }
         }
 
         if (error.response?.status === 401) {
-          // Token invalid/server requested logout -- capture stack to know why
-          const stack = new Error().stack;
-          console.log('[ApiClient] 401 received, removing token', { stack });
           await AsyncStorage.removeItem(TOKEN_KEY);
         }
         return Promise.reject(error);
@@ -163,25 +155,21 @@ class ApiClient {
 
   // Méthodes HTTP de base
   async get<T>(url: string, config?: AxiosRequestConfig) {
-    await this.ensureInitialized();
     const response = await this.client.get<T>(url, config);
     return response.data;
   }
 
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
-    await this.ensureInitialized();
     const response = await this.client.post<T>(url, data, config);
     return response.data;
   }
 
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig) {
-    await this.ensureInitialized();
     const response = await this.client.put<T>(url, data, config);
     return response.data;
   }
 
   async delete<T>(url: string, config?: AxiosRequestConfig) {
-    await this.ensureInitialized();
     const response = await this.client.delete<T>(url, config);
     return response.data;
   }
@@ -196,34 +184,17 @@ class ApiClient {
   }
 
   async removeToken() {
-  const stack = new Error().stack;
-  console.log('[ApiClient] removeToken called', { stack });
-  await AsyncStorage.removeItem(TOKEN_KEY);
+    await AsyncStorage.removeItem(TOKEN_KEY);
   }
 
   // Vérification de l'état de l'API
   async healthCheck() {
-    await this.ensureInitialized();
     return this.get('/health');
   }
 
   // Obtenir l'URL actuelle
   getCurrentBaseUrl(): string {
-    return this.client.defaults.baseURL || 'unknown';
-  }
-
-  // Méthodes pour le NetworkManager
-  async addEndpoint(endpoint: string): Promise<void> {
-    await networkManager.addEndpoint(endpoint);
-    await this.detectBestBaseUrl(); // Retest pour voir si le nouveau endpoint est meilleur
-  }
-
-  async refreshEndpoints(): Promise<void> {
-    await this.detectBestBaseUrl();
-  }
-
-  async getNetworkConfig() {
-    return networkManager.getConfig();
+    return this.detectedBaseUrl || this.client.defaults.baseURL || 'unknown';
   }
 }
 

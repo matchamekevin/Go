@@ -1,17 +1,28 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import FeedbackMessage from '../src/components/FeedbackMessage';
+import { useAuth } from '../src/contexts/AuthContext';
 import { theme } from '../src/styles/theme';
-import { AuthService } from '../src/services/authService';
+import AuthLayout from '../src/components/AuthLayout';
 
 export default function VerifyOTPScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
+  const { verifyOTP, resendOTP } = useAuth();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
   // Timer pour le renvoi d'OTP
@@ -44,26 +55,25 @@ export default function VerifyOTPScreen() {
   const handleVerifyOTP = async () => {
     const otpCode = otp.join('');
     
+    setErrorMsg(null);
+    setSuccessMsg(null);
     if (otpCode.length !== 6) {
-      Alert.alert('Erreur', 'Veuillez saisir le code OTP complet');
+      setErrorMsg('Veuillez saisir le code OTP complet');
       return;
     }
 
     if (!email) {
-      Alert.alert('Erreur', 'Email manquant');
+      setErrorMsg('Email manquant');
       return;
     }
 
     setLoading(true);
     try {
-      await AuthService.verifyOTP(email, otpCode);
-      Alert.alert(
-        'Succès', 
-        'Votre compte a été vérifié avec succès !',
-        [{ text: 'OK', onPress: () => router.push('/login') }]
-      );
+  await verifyOTP(email, otpCode);
+  setSuccessMsg('Compte vérifié ! Vous pouvez maintenant vous connecter.');
+  setTimeout(() => router.replace('/login'), 1200);
     } catch (error: any) {
-      Alert.alert('Erreur de vérification', error.message);
+  setErrorMsg(error.message || 'Erreur de vérification');
     } finally {
       setLoading(false);
     }
@@ -71,28 +81,25 @@ export default function VerifyOTPScreen() {
 
   const handleResendOTP = async () => {
     if (!email) {
-      Alert.alert('Erreur', 'Email manquant');
+      setErrorMsg('Email manquant');
       return;
     }
 
     setResendLoading(true);
     try {
-      await AuthService.resendOTP(email);
-      setResendTimer(60);
-      Alert.alert('Succès', 'Un nouveau code OTP a été envoyé à votre email');
+  await resendOTP(email);
+  setResendTimer(60);
+  setSuccessMsg('Nouveau code OTP envoyé.');
     } catch (error: any) {
-      Alert.alert('Erreur', error.message);
+  setErrorMsg(error.message || 'Erreur lors de l\'envoi du code');
     } finally {
       setResendLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[theme.colors.primary[600], theme.colors.primary[700]]}
-        style={styles.gradient}
-      >
+    <AuthLayout>
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity 
@@ -123,6 +130,22 @@ export default function VerifyOTPScreen() {
               <Text style={styles.emailText}>{email}</Text>
             </View>
 
+            {/* Feedback messages */}
+            {errorMsg && (
+              <FeedbackMessage
+                variant="error"
+                message={errorMsg}
+                onClose={() => setErrorMsg(null)}
+              />
+            )}
+            {successMsg && (
+              <FeedbackMessage
+                variant="success"
+                message={successMsg}
+                onClose={() => setSuccessMsg(null)}
+              />
+            )}
+
             {/* OTP Input */}
             <View style={styles.otpContainer}>
               <Text style={styles.otpLabel}>Saisissez le code à 6 chiffres</Text>
@@ -141,6 +164,7 @@ export default function VerifyOTPScreen() {
                     keyboardType="numeric"
                     maxLength={1}
                     selectTextOnFocus
+                    autoFocus={index === 0}
                   />
                 ))}
               </View>
@@ -182,19 +206,14 @@ export default function VerifyOTPScreen() {
             </View>
           </View>
         </View>
-      </LinearGradient>
-    </View>
+      </View>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.primary[600],
-  },
-  gradient: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 50 : 25, // Remplace SafeAreaView
   },
   header: {
     flexDirection: 'row',

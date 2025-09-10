@@ -2,24 +2,40 @@
 
 // URL de base de l'API selon l'environnement
 export const getApiBaseUrl = (): string => {
+  // Runtime override via Expo env (EXPO_PUBLIC_API_URL)
+  // @ts-ignore
+  const expoEnv = process?.env?.EXPO_PUBLIC_API_URL;
+  if (expoEnv) {
+    try {
+      const platform = require('react-native').Platform;
+      if (platform.OS === 'android' && /localhost(:\d+)?$/i.test(expoEnv)) {
+        const adjusted = expoEnv.replace('localhost', '10.0.2.2');
+        console.warn('[Config] EXPO_PUBLIC_API_URL pointe vers localhost sur Android. Utilisation de', adjusted);
+        return adjusted;
+      }
+    } catch (_) {}
+    return expoEnv;
+  }
+
   if (__DEV__) {
     // Détection automatique de la plateforme
     const platform = require('react-native').Platform;
     
     if (platform.OS === 'web') {
       // Web : utilise localhost
-      return 'http://localhost:7001';
+      return 'http://localhost:7000';
     } else if (platform.OS === 'ios') {
       // iOS Simulator : utilise localhost
-      return 'http://localhost:7001';
+      return 'http://localhost:7000';
     } else if (platform.OS === 'android') {
       // Android Emulator : utilise l'IP spéciale pour accéder à la machine hôte
-      return 'http://10.0.2.2:7001';
+  console.log('[Config] Platform Android dev -> utilisation de http://10.0.2.2:7000');
+  return 'http://10.0.2.2:7000';
     }
     
-    // Fallback pour appareils physiques: utilise l'IP locale détectée
-    // Remplacez si nécessaire par l'IP de votre machine
-    return 'http://192.168.1.184:7001';
+    // Appareil physique: configurer l'adresse IP de la machine dev (à adapter)
+  console.warn('[Config] Appareil physique détecté: adapter IP locale si nécessaire.');
+  return 'http://192.168.1.184:7000';
   }
   
   // En production, utilisez l'URL de votre serveur de production

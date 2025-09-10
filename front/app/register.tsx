@@ -5,20 +5,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../src/styles/theme';
 import { AuthService } from '../src/services/authService';
+import AuthLayout from '../src/components/AuthLayout';
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
@@ -100,163 +96,140 @@ export default function RegisterScreen() {
   const handleLogin = () => router.push('/login');
 
   return (
-    <View style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-        style={styles.keyboardView}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <LinearGradient 
-              colors={[theme.colors.primary[500], theme.colors.primary[600], theme.colors.primary[700]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.gradient}
-            >
-              <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-                  <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
-                </TouchableOpacity>
-                <View style={styles.headerContent}>
-                  <Text style={styles.title}>Créer un compte</Text>
-                  <Text style={styles.subtitle}>Rejoignez GoSOTRAL</Text>
+    <AuthLayout>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              <Text style={styles.title}>Créer un compte</Text>
+              <Text style={styles.subtitle}>Rejoignez GoSOTRAL</Text>
+            </View>
+          </View>
+
+          <View style={styles.formContainer}>
+            <View style={styles.form}>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Nom complet *</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="person" size={20} color={theme.colors.secondary[400]} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Votre nom complet"
+                    value={formData.name}
+                    onChangeText={(text) => setFormData({ ...formData, name: text })}
+                    autoCapitalize="words"
+                    placeholderTextColor={theme.colors.secondary[400]}
+                  />
                 </View>
               </View>
 
-              <View style={styles.formContainer}>
-                <View style={styles.form}>
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Nom complet *</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="person" size={20} color={theme.colors.secondary[400]} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Votre nom complet"
-                        value={formData.name}
-                        onChangeText={(text) => setFormData({ ...formData, name: text })}
-                        autoCapitalize="words"
-                        placeholderTextColor={theme.colors.secondary[400]}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Email *</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="votre@email.com"
-                        value={formData.email}
-                        onChangeText={(text) => setFormData({ ...formData, email: text })}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        placeholderTextColor={theme.colors.secondary[400]}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Téléphone</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="call" size={20} color={theme.colors.secondary[400]} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="XX XX XX XX"
-                        value={formData.phone}
-                        onChangeText={(text) => setFormData({ ...formData, phone: formatTgPhone(text) })}
-                        keyboardType="phone-pad"
-                        placeholderTextColor={theme.colors.secondary[400]}
-                        maxLength={11}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Mot de passe *</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="lock-closed" size={20} color={theme.colors.secondary[400]} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Minimum 6 caractères"
-                        value={formData.password}
-                        onChangeText={(text) => setFormData({ ...formData, password: text })}
-                        secureTextEntry={!showPassword}
-                        placeholderTextColor={theme.colors.secondary[400]}
-                      />
-                      <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-                        <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={theme.colors.secondary[400]} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Confirmer le mot de passe *</Text>
-                    <View style={styles.inputWrapper}>
-                      <Ionicons name="lock-closed" size={20} color={theme.colors.secondary[400]} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Répétez votre mot de passe"
-                        value={formData.confirmPassword}
-                        onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
-                        secureTextEntry={!showConfirmPassword}
-                        placeholderTextColor={theme.colors.secondary[400]}
-                      />
-                      <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeButton}>
-                        <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color={theme.colors.secondary[400]} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity style={[styles.registerButton, loading && styles.registerButtonDisabled]} onPress={handleRegister} disabled={loading}>
-                    {loading ? (
-                      <ActivityIndicator color={theme.colors.white} />
-                    ) : (
-                      <>
-                        <Text style={styles.registerButtonText}>S'inscrire</Text>
-                        <Ionicons name="arrow-forward" size={20} color={theme.colors.white} />
-                      </>
-                    )}
-                  </TouchableOpacity>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email *</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="votre@email.com"
+                    value={formData.email}
+                    onChangeText={(text) => setFormData({ ...formData, email: text })}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholderTextColor={theme.colors.secondary[400]}
+                  />
                 </View>
+              </View>
 
-                <View style={styles.loginContainer}>
-                  <Text style={styles.loginPrompt}>Déjà un compte ?</Text>
-                  <TouchableOpacity onPress={handleLogin}>
-                    <Text style={styles.loginLink}>Se connecter</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Téléphone</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="call" size={20} color={theme.colors.secondary[400]} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="XX XX XX XX"
+                    value={formData.phone}
+                    onChangeText={(text) => setFormData({ ...formData, phone: formatTgPhone(text) })}
+                    keyboardType="phone-pad"
+                    placeholderTextColor={theme.colors.secondary[400]}
+                    maxLength={11}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Mot de passe *</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="lock-closed" size={20} color={theme.colors.secondary[400]} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Minimum 6 caractères"
+                    value={formData.password}
+                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                    secureTextEntry={!showPassword}
+                    placeholderTextColor={theme.colors.secondary[400]}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={theme.colors.secondary[400]} />
                   </TouchableOpacity>
                 </View>
               </View>
-            </LinearGradient>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-    </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Confirmer le mot de passe *</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="lock-closed" size={20} color={theme.colors.secondary[400]} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Répétez votre mot de passe"
+                    value={formData.confirmPassword}
+                    onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                    secureTextEntry={!showConfirmPassword}
+                    placeholderTextColor={theme.colors.secondary[400]}
+                  />
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeButton}>
+                    <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color={theme.colors.secondary[400]} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity style={[styles.registerButton, loading && styles.registerButtonDisabled]} onPress={handleRegister} disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator color={theme.colors.white} />
+                ) : (
+                  <>
+                    <Text style={styles.registerButtonText}>S'inscrire</Text>
+                    <Ionicons name="arrow-forward" size={20} color={theme.colors.white} />
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginPrompt}>Déjà un compte ?</Text>
+              <TouchableOpacity onPress={handleLogin}>
+                <Text style={styles.loginLink}>Se connecter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
     flex: 1,
-    backgroundColor: theme.colors.primary[600],
-  },
-  keyboardView: { flex: 1 },
-  gradient: { 
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 50 : 25, // Remplace SafeAreaView
-  },
-  scrollContent: { 
-    flexGrow: 1, 
-    minHeight: '100%',
-    paddingBottom: 40,
+    paddingTop: 60,
   },
   header: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     paddingHorizontal: 20, 
-    paddingTop: Platform.OS === 'ios' ? 48 : 24, 
+    paddingTop: 48,
     paddingBottom: 24,
   },
   backButton: { 
@@ -279,10 +252,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   formContainer: { 
-    flex: 1, 
     paddingHorizontal: 20, 
-    justifyContent: 'flex-start', 
-    paddingBottom: 24,
   },
   form: { 
     backgroundColor: theme.colors.white, 
@@ -358,7 +328,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     paddingVertical: 20,
     marginTop: 4,
-    paddingBottom: Platform.OS === 'ios' ? 50 : 25, // Padding pour la zone bottom
   },
   loginPrompt: { 
     fontSize: 15, 

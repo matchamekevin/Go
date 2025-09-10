@@ -32,10 +32,9 @@ export class AuthService {
       throw new Error(response.error || 'Erreur lors de l\'inscription');
     }
     
-    const authData = response.data!;
-    // Sauvegarder le token
-    await apiClient.setToken(authData.token);
-    return authData;
+    // L'inscription ne retourne pas de token directement (vérification OTP requise)
+    // Donc on ne sauvegarde pas le token ici
+    return response.data!;
   }
 
   // Déconnexion
@@ -107,28 +106,37 @@ export class AuthService {
 
   // Mot de passe oublié
   static async forgotPassword(email: string): Promise<void> {
-    const response = await apiClient.post<ApiResponse<void>>('/auth/forgot-password', { email });
-    if (!response.success) {
+    const response = await apiClient.post<any>('/auth/forgot-password', { email });
+    // Support legacy shape (no success) or standard ApiResponse
+    if (response && typeof response.success === 'boolean') {
+      if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la demande de réinitialisation');
+      }
+    } else if (response && response.error) {
       throw new Error(response.error || 'Erreur lors de la demande de réinitialisation');
     }
   }
 
   // Vérifier OTP pour réinitialisation
   static async verifyResetOTP(email: string, otp: string): Promise<void> {
-    const response = await apiClient.post<ApiResponse<void>>('/auth/verify-reset-otp', { email, otp });
-    if (!response.success) {
+    const response = await apiClient.post<any>('/auth/verify-reset-otp', { email, otp });
+    if (response && typeof response.success === 'boolean') {
+      if (!response.success) throw new Error(response.error || 'Code de vérification invalide');
+    } else if (response && response.error) {
       throw new Error(response.error || 'Code de vérification invalide');
     }
   }
 
   // Réinitialiser mot de passe avec OTP
   static async resetPasswordWithOTP(email: string, otp: string, newPassword: string): Promise<void> {
-    const response = await apiClient.post<ApiResponse<void>>('/auth/reset-password', { 
+    const response = await apiClient.post<any>('/auth/reset-password', { 
       email, 
       otp, 
       newPassword 
     });
-    if (!response.success) {
+    if (response && typeof response.success === 'boolean') {
+      if (!response.success) throw new Error(response.error || 'Erreur lors de la réinitialisation du mot de passe');
+    } else if (response && response.error) {
       throw new Error(response.error || 'Erreur lors de la réinitialisation du mot de passe');
     }
   }

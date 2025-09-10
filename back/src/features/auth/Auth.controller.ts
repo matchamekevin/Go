@@ -70,9 +70,10 @@ export class AuthController {
     try {
       const { email } = req.body;
       const result = await AuthService.forgotPassword(email);
-      res.json(result);
+  // Standard response shape
+  res.json({ success: true, data: result });
     } catch (err) {
-      res.status(400).json({ error: (err as Error).message });
+  res.status(400).json({ success: false, error: (err as Error).message });
     }
   }
 
@@ -80,9 +81,9 @@ export class AuthController {
     try {
       const { email, otp } = req.body;
       const result = await AuthService.verifyPasswordResetOTP(email, otp);
-      res.json(result);
+  res.json({ success: true, data: result });
     } catch (err) {
-      res.status(400).json({ error: (err as Error).message });
+  res.status(400).json({ success: false, error: (err as Error).message });
     }
   }
 
@@ -90,9 +91,9 @@ export class AuthController {
     try {
       const { email, otp, newPassword } = req.body;
       const result = await AuthService.resetPassword(email, otp, newPassword);
-      res.json(result);
+  res.json({ success: true, data: result });
     } catch (err) {
-      res.status(400).json({ error: (err as Error).message });
+  res.status(400).json({ success: false, error: (err as Error).message });
     }
   }
 }

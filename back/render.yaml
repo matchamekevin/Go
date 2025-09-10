@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: gosotral-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 7000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gosotral-db
+          property: connectionString
+
+databases:
+  - name: gosotral-db
+    plan: free
+    databaseName: gosotral_db
+    user: gosotral_user
