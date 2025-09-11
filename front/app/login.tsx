@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
@@ -14,7 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { theme } from '../src/styles/theme';
 import { useAuth } from '../src/contexts/AuthContext';
-import FeedbackMessage from '../src/components/FeedbackMessage';
+import { AuthService } from '../src/services/authService';
+import { normalizeErrorMessage, mapAuthErrorToFriendly } from '../src/utils/normalizeError';
+// ToastOverlay rendered globally via ToastProvider
+import { useToast } from '../src/contexts/ToastContext';
+// ErrorMessage removed; using global toast only
 import AuthLayout from '../src/components/AuthLayout';
 
 export default function LoginScreen() {
@@ -22,31 +25,46 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [networkError, setNetworkError] = useState<string | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const { login } = useAuth();
+  const { showToast } = useToast();
+  const [showUnverifiedActions, setShowUnverifiedActions] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    console.log('[Login] errorMsg state changed ->', errorMsg);
+  }, [errorMsg]);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      setErrorMsg('Veuillez remplir tous les champs');
       return;
-    } 
+    }
 
-  setLoading(true);
-  setAuthError(null);
+    setLoading(true);
+    setErrorMsg(null);
     try {
-      setNetworkError(null);
       await login({ email, password });
       router.replace('/(tabs)');
     } catch (error: any) {
-      // Provide a clearer message for network issues
-      if (error?.message === 'Network Error') {
-        const msg = 'Impossible de contacter le serveur. Vérifiez que le backend est démarré et que votre appareil peut atteindre l\'URL de l\'API.';
-        setNetworkError(msg);
-      } else {
-        setNetworkError(null);
-    setAuthError(error?.message || 'Erreur lors de la connexion');
-      }
+        const normal = normalizeErrorMessage(error?.response?.data || error?.message || error);
+        let friendly = mapAuthErrorToFriendly(normal);
+        // Fallback : si la normalisation retourne un message générique technique, remplacer par un message clair
+        try {
+          const n = String(normal || '').toLowerCase();
+          if (n.includes('requête invalide') || n.includes('request failed') || n.includes('request invalid') || /status code 400/.test(n) || /timeout/.test(n)) {
+            friendly = 'Email ou mot de passe incorrect. Vérifiez vos informations et réessayez.';
+          }
+        } catch {}
+        if (friendly.toLowerCase().includes('compte non vérifié')) {
+          setShowUnverifiedActions(true);
+        } else {
+          setShowUnverifiedActions(false);
+        }
+  console.log('[Login] setting errorMsg (normal/friendly):', normal, '/', friendly);
+  setErrorMsg(friendly);
+  try { showToast(friendly, 'error', 8000, 'top'); } catch {}
+  // Ne pas naviguer ici : laisser l'utilisateur sur la page de connexion sans remount inutile.
     } finally {
       setLoading(false);
     }
@@ -61,6 +79,7 @@ export default function LoginScreen() {
   };
 
   return (
+    <>
     <AuthLayout>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.container}>
@@ -128,20 +147,39 @@ export default function LoginScreen() {
                 </View>
               </View>
 
-              {/* Error messages */}
-              {networkError && (
-                <FeedbackMessage
-                  variant="warning"
-                  message={networkError}
-                  onClose={() => setNetworkError(null)}
-                />
-              )}
-              {authError && (
-                <FeedbackMessage
-                  variant="error"
-                  message={authError}
-                  onClose={() => setAuthError(null)}
-                />
+
+              {/* inline error removed; toast will show messages */}
+
+              {showUnverifiedActions && (
+                <View style={styles.inlineActions}>
+                  <TouchableOpacity
+                    disabled={resending}
+                    onPress={async () => {
+                      if (!email) return;
+                      setResending(true);
+                      try {
+                        await AuthService.resendOTP(email);
+                        setErrorMsg('Code renvoyé. Vérifiez votre email.');
+                      } catch (e:any) {
+                        setErrorMsg('Erreur lors de l\'envoi du code.');
+                      } finally {
+                        setResending(false);
+                      }
+                    }}
+                    style={[styles.smallBtn, resending && styles.smallBtnDisabled]}
+                  >
+                    <Text style={styles.smallBtnText}>{resending ? 'Envoi...' : 'Renvoyer le code'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (!email) return;
+                      router.push({ pathname: '/verify-otp', params: { email } });
+                    }}
+                    style={styles.outlineLink}
+                  >
+                    <Text style={styles.outlineLinkText}>Vérifier maintenant</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {/* Forgot Password */}
@@ -177,6 +215,9 @@ export default function LoginScreen() {
         </View>
       </TouchableWithoutFeedback>
     </AuthLayout>
+  {/* debug overlay removed */}
+  {/* ToastOverlay is rendered globally by ToastProvider */}
+  </>
   );
 }
 
@@ -294,6 +335,38 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.white,
     fontWeight: theme.typography.fontWeight.bold,
+    textDecorationLine: 'underline',
+  },
+  inlineActions: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  smallBtn: {
+    backgroundColor: theme.colors.primary[600],
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.md,
+  },
+  smallBtnDisabled: {
+    backgroundColor: theme.colors.secondary[300],
+  },
+  smallBtnText: {
+    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  outlineLink: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  outlineLinkText: {
+    color: theme.colors.primary[600],
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
     textDecorationLine: 'underline',
   },
 });

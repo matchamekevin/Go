@@ -53,7 +53,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <AuthLayout>
+  <AuthLayout topInset={12}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -70,8 +70,8 @@ export default function ForgotPasswordScreen() {
         </View>
 
         {/* Content */}
-        <View style={styles.content}>
-              <View style={[styles.formContainer, { marginBottom: theme.spacing.xl }] }>
+    <View style={styles.content}>
+      <View style={[styles.formContainer, { marginBottom: theme.spacing.lg }] }>
                 {/* Info */}
                 <View style={styles.infoContainer}>
                   <View style={styles.iconContainer}>
@@ -179,8 +179,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'space-between',
+  paddingHorizontal: theme.spacing.lg,
+  justifyContent: 'flex-start',
   },
   formContainer: {
     backgroundColor: theme.colors.white,

@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Keyboard,
   TouchableWithoutFeedback,
@@ -15,6 +14,8 @@ import { router } from 'expo-router';
 import { theme } from '../src/styles/theme';
 import { AuthService } from '../src/services/authService';
 import AuthLayout from '../src/components/AuthLayout';
+import { useToast } from '../src/contexts/ToastContext';
+import { normalizeErrorMessage, mapAuthErrorToFriendly } from '../src/utils/normalizeError';
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
@@ -27,6 +28,9 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const formatTgPhone = (raw: string) => {
     const digits = raw.replace(/[^0-9]/g, '');
@@ -49,17 +53,17 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!formData.name || !formData.email || !formData.password) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      try { showToast('Veuillez remplir tous les champs obligatoires', 'error', 4000, 'top'); } catch {}
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      try { showToast('Les mots de passe ne correspondent pas', 'error', 4000, 'top'); } catch {}
       return;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères');
+      try { showToast('Le mot de passe doit contenir au moins 6 caractères', 'error', 4000, 'top'); } catch {}
       return;
     }
 
@@ -69,12 +73,13 @@ export default function RegisterScreen() {
       if (local.startsWith('228')) local = local.slice(3);
       if (local.startsWith('0') && local.length === 9) local = local.slice(1);
       if (local.length !== 8) {
-        Alert.alert('Numéro invalide', 'Veuillez saisir un numéro togolais valide de 8 chiffres (ex: XX XX XX XX)');
+        try { showToast('Veuillez saisir un numéro togolais valide de 8 chiffres (ex: XX XX XX XX)', 'error', 4000, 'top'); } catch {}
         return;
       }
     }
-
     setLoading(true);
+    setErrorMsg(null);
+    console.log('[Register] submitting', { email: formData.email, phone: formData.phone });
     try {
       const phoneToSend = formData.phone ? normalizePhoneForApi(formData.phone) : '';
       await AuthService.register({
@@ -84,10 +89,18 @@ export default function RegisterScreen() {
         phone: phoneToSend,
       });
 
-      router.push({ pathname: '/verify-otp', params: { email: formData.email } });
+      const success = 'Inscription réussie ! Vérifiez votre email...';
+      showToast(success, 'success', 3800, 'top');
+      setTimeout(() => {
+        router.push({ pathname: '/verify-otp', params: { email: formData.email } });
+      }, 1500);
     } catch (err: any) {
-      const message = err?.message || (err?.response?.data && err.response.data.message) || "Erreur lors de l'inscription";
-      Alert.alert("Erreur d'inscription", message);
+      console.log('[Register] Error caught:', err);
+      // Prefer using normalized + mapped friendly message
+      const normal = normalizeErrorMessage(err?.response?.data || err?.message || err);
+      const friendly = mapAuthErrorToFriendly(normal);
+      console.log('[Register] showToast friendly ->', friendly);
+      try { showToast(friendly || 'Erreur lors de l\'inscription', 'error', 4500, 'top'); } catch {}
     } finally {
       setLoading(false);
     }
@@ -96,7 +109,8 @@ export default function RegisterScreen() {
   const handleLogin = () => router.push('/login');
 
   return (
-    <AuthLayout>
+    <>
+  <AuthLayout topInset={50}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.container}>
           <View style={styles.header}>
@@ -111,6 +125,10 @@ export default function RegisterScreen() {
 
           <View style={styles.formContainer}>
             <View style={styles.form}>
+
+
+              {/* inline error removed; using toast for errors */}
+
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Nom complet *</Text>
                 <View style={styles.inputWrapper}>
@@ -216,20 +234,22 @@ export default function RegisterScreen() {
           </View>
         </View>
       </TouchableWithoutFeedback>
-    </AuthLayout>
+  </AuthLayout>
+  {/* Toasts rendered globally via ToastProvider */}
+  </>
   );
 }
 
 const styles = StyleSheet.create({
   container: { 
     flex: 1,
-    paddingTop: 60,
+  paddingTop: 0,
   },
   header: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     paddingHorizontal: 20, 
-    paddingTop: 48,
+  paddingTop: 24,
     paddingBottom: 24,
   },
   backButton: { 
@@ -257,7 +277,7 @@ const styles = StyleSheet.create({
   form: { 
     backgroundColor: theme.colors.white, 
     borderRadius: 24,
-    padding: 24, 
+  padding: 14, 
     shadowColor: '#000', 
     shadowOpacity: 0.08, 
     shadowRadius: 15,
@@ -265,7 +285,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   inputContainer: { 
-    marginBottom: 20,
+  marginBottom: 12,
   },
   inputLabel: { 
     fontSize: 13, 
@@ -288,7 +308,7 @@ const styles = StyleSheet.create({
     flex: 1, 
     fontSize: 16, 
     color: theme.colors.secondary[900], 
-    paddingVertical: 12, 
+  paddingVertical: 8, 
     marginLeft: 12,
     letterSpacing: 0.3,
   },
@@ -302,8 +322,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     backgroundColor: theme.colors.primary[600], 
     borderRadius: 16,
-    paddingVertical: 16,
-    marginTop: 24,
+  paddingVertical: 12,
+  marginTop: 14,
     shadowColor: theme.colors.primary[600],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -326,8 +346,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'center', 
     alignItems: 'center', 
-    paddingVertical: 20,
-    marginTop: 4,
+  paddingVertical: 12,
+  marginTop: 0,
   },
   loginPrompt: { 
     fontSize: 15, 
@@ -339,6 +359,7 @@ const styles = StyleSheet.create({
     fontSize: 15, 
     color: theme.colors.white, 
     fontWeight: '700',
-    letterSpacing: 0.3,
+  letterSpacing: 0.3,
+  textDecorationLine: 'underline',
   },
 });

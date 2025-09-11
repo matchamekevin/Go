@@ -10,6 +10,18 @@ export default function WelcomeScreen() {
   // Removed auto-redirect, only button click will navigate.
   const { isAuthenticated, isLoading } = useAuth();
 
+  // If an unauthenticated user somehow reaches the landing screen (index), redirect immediately
+  // to the login page to avoid flashing the landing during auth transitions.
+  React.useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      try {
+        router.replace('/login');
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [isLoading, isAuthenticated]);
+
   const handleGetStarted = () => {
     // If still checking auth, do nothing (or show loader in future)
     if (isLoading) return;

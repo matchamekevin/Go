@@ -50,11 +50,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const clearUserSession = async () => {
     try {
       await AsyncStorage.removeItem(USER_STORAGE_KEY);
+      // remove token from api client storage and in-memory header
+      try {
+        await apiClient.removeToken();
+      } catch (e) {
+        console.warn('[AuthContext] apiClient.removeToken error:', e);
+      }
+      try {
+        // clear in-memory header
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        apiClient.clearAuthHeader && apiClient.clearAuthHeader();
+      } catch (e) {
+        console.warn('[AuthContext] clearAuthHeader error:', e);
+      }
       setUser(null);
       setIsAuthenticated(false);
-  // Log stack to help identify who/what triggered the session clear
-  const stack = new Error().stack;
-  console.log('🗑️ Session utilisateur supprimée', { stack });
+      // Log stack to help identify who/what triggered the session clear
+      const stack = new Error().stack;
+      console.log('🗑️ Session utilisateur supprimée', { stack });
     } catch (error) {
       console.error('❌ Erreur suppression session:', error);
     }
@@ -95,17 +109,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(true);
       const authData = await AuthService.login(credentials);
       if (authData.user) {
-        // Hydrate user profile depuis l'API (pour données à jour : phone, name, etc.)
         try {
           const fresh = await UserService.getProfile();
           await saveUserSession({ ...authData.user, ...fresh });
         } catch (e) {
-          // fallback si profil échoue
           await saveUserSession(authData.user);
         }
       }
-    } catch (error) {
-      await clearUserSession();
+    } catch (error: any) {
+      // Erreurs connues qui ne doivent PAS nettoyer la session (erreurs de login normales)
+      const benignErrors = [
+        'USER_NOT_FOUND',
+        'INVALID_CREDENTIALS',
+        'ACCOUNT_NOT_VERIFIED',
+        'Compte non vérifié',
+        'utilisateur introuvable'
+      ];
+      const msg = error?.message || '';
+      const match = benignErrors.some(e => msg.includes(e));
+      if (!match) {
+        // Ne pas effacer automatiquement la session ici : cela peut provoquer une navigation inattendue.
+        // On se contente de logger l'incident et de relancer l'erreur pour affichage côté composant.
+        console.warn('⚠️ Erreur inattendue lors de la connexion (session non effacée) :', msg);
+      } else {
+        console.log('ℹ️ Erreur de connexion non fatale, session conservée:', msg);
+      }
       throw error;
     } finally {
       setIsLoading(false);
@@ -136,6 +164,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Après vérification OTP, on peut connecter automatiquement
       // Pour l'instant, on demande à l'utilisateur de se connecter manuellement
     } catch (error) {
+      // NE PAS déconnecter ni clear la session sur erreur OTP
+      // Juste relancer l'erreur pour affichage dans le composant
       throw error;
     } finally {
       setIsLoading(false);

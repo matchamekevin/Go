@@ -13,16 +13,16 @@ const DEFAULT_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
 class NetworkManager {
   private config: NetworkConfig = {
     endpoints: [
-      // Endpoints prioritaires (les plus probables de fonctionner)
-      'http://192.168.1.184:7000',           // ✅ IP réseau local actuel (priorité 1)
-      'http://10.0.2.2:7000',                // ✅ Android emulator (priorité 2)
-      'http://127.0.0.1:7000',               // ✅ iOS simulator (priorité 3)
-      'http://localhost:7000',                // ✅ Web fallback (priorité 4)
-      
-      // Endpoints cloud (à ajouter manuellement après déploiement)
-      'https://backend-api-production.up.railway.app',  // 🚄 Railway (à venir)
-      'https://gosotral-backend.onrender.com',          // 🎨 Render (à venir)
-      // Tu pourras ajouter d'autres URLs via l'interface Configuration Réseau
+  // Production cloud prioritaire
+  'https://go-j2rr.onrender.com',        // ✅ Render production (priorité 1)
+  // Environnements locaux / émulation
+  'http://192.168.1.184:7000',           // IP réseau local (priorité 2)
+  'http://10.0.2.2:7000',                // Android emulator (priorité 3)
+  'http://127.0.0.1:7000',               // iOS simulator (priorité 4)
+  'http://localhost:7000',               // Web fallback (priorité 5)
+  // Autres clouds (placeholders / futurs)
+  'https://backend-api-production.up.railway.app',  // Railway (à venir)
+  // Tu peux ajouter d'autres URLs via l'interface Configuration Réseau
     ],
     current: null,
     lastChecked: 0,
@@ -32,8 +32,11 @@ class NetworkManager {
   private isChecking = false;
 
   async init(): Promise<void> {
-    // Charger la configuration sauvegardée
-    await this.loadConfig();
+  // Charger (et fusionner) la configuration sauvegardée
+  await this.loadConfig();
+
+  // S'assurer que l'endpoint de production Render est présent et prioritaire
+  await this.ensureProductionEndpoint('https://go-j2rr.onrender.com');
     
     // Vérifier si on doit tester les endpoints
     const now = Date.now();
@@ -50,7 +53,13 @@ class NetworkManager {
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsedConfig = JSON.parse(saved);
-        this.config = { ...this.config, ...parsedConfig };
+        // Fusion intelligente des endpoints (union, priorité aux nouveaux par défaut en tête)
+        const savedEndpoints: string[] = Array.isArray(parsedConfig.endpoints) ? parsedConfig.endpoints : [];
+        const merged = Array.from(new Set([
+          ...this.config.endpoints, // garde l'ordre des defaults (Render d'abord)
+          ...savedEndpoints,
+        ]));
+        this.config = { ...this.config, ...parsedConfig, endpoints: merged };
       }
     } catch (error) {
       console.log('[NetworkManager] Impossible de charger la config:', error);
@@ -143,6 +152,21 @@ class NetworkManager {
       this.config.endpoints.unshift(endpoint); // Ajouter en premier pour le prioriser
       await this.saveConfig();
       console.log(`[NetworkManager] Endpoint ajouté: ${endpoint}`);
+    }
+  }
+
+  private async ensureProductionEndpoint(endpoint: string): Promise<void> {
+    if (!this.config.endpoints.includes(endpoint)) {
+      this.config.endpoints.unshift(endpoint);
+      await this.saveConfig();
+      console.log('[NetworkManager] Endpoint production ajouté automatiquement:', endpoint);
+    } else {
+      // S'il existe mais pas en première position, on le remonte
+      if (this.config.endpoints[0] !== endpoint) {
+        this.config.endpoints = [endpoint, ...this.config.endpoints.filter(e => e !== endpoint)];
+        await this.saveConfig();
+        console.log('[NetworkManager] Endpoint production priorisé:', endpoint);
+      }
     }
   }
 

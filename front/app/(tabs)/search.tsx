@@ -9,6 +9,7 @@ export default function SearchTab() {
   const [toLocation, setToLocation] = useState('');
   const [selectedDate, setSelectedDate] = useState('Aujourd\'hui');
   const [passengerCount, setPassengerCount] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const popularLocations = [
     'Centre-ville', 'Aéroport', 'Université', 'Marché central', 
@@ -55,6 +56,11 @@ export default function SearchTab() {
     const temp = fromLocation;
     setFromLocation(toLocation);
     setToLocation(temp);
+  };
+
+  const handleSearch = () => {
+    // Placeholder: integrate with real search logic
+    console.log('Recherche:', searchQuery || `${fromLocation} → ${toLocation}`);
   };
 
   // TicketsTab logic importé
@@ -217,8 +223,24 @@ export default function SearchTab() {
           <Text style={styles.headerTitle}>Rechercher un trajet</Text>
           <Text style={styles.headerSubtitle}>Trouvez le transport idéal</Text>
         </View>
-        {/* Search Form */}
-        {/* ...existing code... */}
+        {/* Search Bar */}
+        <View style={styles.searchCard}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color={theme.colors.secondary[500]} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Rechercher un trajet, lieu ou compagnie"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              onSubmitEditing={handleSearch}
+              placeholderTextColor={theme.colors.secondary[400]}
+            />
+            <TouchableOpacity onPress={handleSearch} style={styles.searchAction}>
+              <Ionicons name="arrow-forward" size={18} color={theme.colors.white} />
+            </TouchableOpacity>
+          </View>
+        </View>
         {/* Popular Locations */}
         {/* ...existing code... */}
         {/* Search Results */}
@@ -369,6 +391,26 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     fontWeight: theme.typography.fontWeight.semibold,
     marginLeft: theme.spacing.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.secondary[50],
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.secondary[900],
+  },
+  searchAction: {
+    marginLeft: theme.spacing.sm,
+    backgroundColor: theme.colors.primary[600],
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
   },
   section: {
     paddingHorizontal: theme.spacing.lg,

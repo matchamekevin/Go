@@ -13,13 +13,19 @@ import { theme } from '../styles/theme';
 interface AuthLayoutProps {
   children: React.ReactNode;
   showGradient?: boolean;
+  topInset?: number;
 }
 
-export default function AuthLayout({ children, showGradient = true }: AuthLayoutProps) {
+export default function AuthLayout({ children, showGradient = true, topInset = 0 }: AuthLayoutProps) {
+  // allow optional per-screen top inset to fine-tune spacing above the content
+  // (useful for auth screens where we want different header spacing)
   const content = (
     <ScrollView
       style={styles.scrollView}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[
+        styles.scrollContent,
+        { paddingTop: topInset }
+      ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >

@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import FeedbackMessage from '../src/components/FeedbackMessage';
@@ -17,98 +10,119 @@ import AuthLayout from '../src/components/AuthLayout';
 export default function VerifyOTPScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
   const { verifyOTP, resendOTP } = useAuth();
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+
+  // Constants
+  const MAX_ATTEMPTS = 5;
+  const COOLDOWN_SECONDS = 30;
+
+  // State
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
+  const [attempts, setAttempts] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Refs
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
-  // Timer pour le renvoi d'OTP
+  const focusFirst = () => requestAnimationFrame(() => inputRefs.current[0]?.focus());
+
+  // Resend timer countdown
   useEffect(() => {
     if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setResendTimer(r => r - 1), 1000);
+      return () => clearTimeout(t);
     }
   }, [resendTimer]);
 
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) return; // Empêcher la saisie de plusieurs caractères
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Passer au champ suivant automatiquement
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+  // Cooldown countdown
+  useEffect(() => {
+    if (cooldown > 0) {
+      const c = setTimeout(() => setCooldown(cPrev => cPrev - 1), 1000);
+      return () => clearTimeout(c);
     }
-  };
+  }, [cooldown]);
 
-  const handleKeyPress = (index: number, key: string) => {
-    if (key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerifyOTP = async () => {
-    const otpCode = otp.join('');
-    
+  const submitCode = async (otpCode: string) => {
+    if (cooldown > 0) { setErrorMsg(`Attendez ${cooldown}s avant de réessayer`); return; }
     setErrorMsg(null);
     setSuccessMsg(null);
-    if (otpCode.length !== 6) {
-      setErrorMsg('Veuillez saisir le code OTP complet');
-      return;
-    }
-
-    if (!email) {
-      setErrorMsg('Email manquant');
-      return;
-    }
+    if (!email) { setErrorMsg('Email manquant'); return; }
+    if (otpCode.length !== 6) { setErrorMsg('Code incomplet'); focusFirst(); return; }
 
     setLoading(true);
     try {
-  await verifyOTP(email, otpCode);
-  setSuccessMsg('Compte vérifié ! Vous pouvez maintenant vous connecter.');
-  setTimeout(() => router.replace('/login'), 1200);
-    } catch (error: any) {
-  setErrorMsg(error.message || 'Erreur de vérification');
+      await verifyOTP(email, otpCode);
+      setSuccessMsg('Compte vérifié ! Redirection...');
+      setTimeout(() => router.replace('/login'), 1200);
+    } catch (e: any) {
+      const msg = e?.message || e?.response?.data?.error || 'OTP invalide';
+      setErrorMsg(msg);
+      setAttempts(a => {
+        const next = a + 1;
+        if (next >= MAX_ATTEMPTS) {
+          setCooldown(COOLDOWN_SECONDS);
+          return 0; // reset attempts after triggering cooldown
+        }
+        return next;
+      });
+      setOtp(['', '', '', '', '', '']);
+      focusFirst();
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendOTP = async () => {
-    if (!email) {
-      setErrorMsg('Email manquant');
+  const handleOtpChange = (index: number, value: string) => {
+    // If user pastes full code
+    if (value.length === 6 && /^[0-9]{6}$/.test(value)) {
+      submitCode(value);
       return;
     }
+    if (value.length > 1) return; // ignore multi chars (non numeric paste)
+    setOtp(prev => {
+      const clone = [...prev];
+      clone[index] = value;
+      return clone;
+    });
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
+  };
 
+  const handleKeyPress = (index: number, key: string) => {
+    if (key === 'Backspace' && !otp[index] && index > 0) inputRefs.current[index - 1]?.focus();
+  };
+
+  const handleVerifyOTP = () => submitCode(otp.join(''));
+
+  const handleResendOTP = async () => {
+    if (!email) { setErrorMsg('Email manquant'); return; }
     setResendLoading(true);
     try {
-  await resendOTP(email);
-  setResendTimer(60);
-  setSuccessMsg('Nouveau code OTP envoyé.');
-    } catch (error: any) {
-  setErrorMsg(error.message || 'Erreur lors de l\'envoi du code');
+      await resendOTP(email);
+      setResendTimer(60);
+      setSuccessMsg('Nouveau code envoyé');
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Erreur envoi code');
     } finally {
       setResendLoading(false);
     }
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout topInset={12}>
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => router.replace('/login')}
           >
             <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
           </TouchableOpacity>
-          
+
           <View style={styles.headerContent}>
             <Text style={styles.title}>Vérification</Text>
             <Text style={styles.subtitle}>Code OTP envoyé par email</Text>
@@ -146,6 +160,20 @@ export default function VerifyOTPScreen() {
               />
             )}
 
+            {/* Cooldown info */}
+            {cooldown > 0 && !successMsg && (
+              <Text style={{ textAlign: 'center', color: theme.colors.secondary[600], marginBottom: theme.spacing.sm }}>
+                Attendez {cooldown}s avant une nouvelle tentative
+              </Text>
+            )}
+
+            {/* Attempts info (optional) */}
+            {cooldown === 0 && attempts > 0 && attempts < MAX_ATTEMPTS && !successMsg && (
+              <Text style={{ textAlign: 'center', color: theme.colors.secondary[500], marginBottom: theme.spacing.sm }}>
+                Tentatives: {attempts}/{MAX_ATTEMPTS}
+              </Text>
+            )}
+
             {/* OTP Input */}
             <View style={styles.otpContainer}>
               <Text style={styles.otpLabel}>Saisissez le code à 6 chiffres</Text>
@@ -153,13 +181,13 @@ export default function VerifyOTPScreen() {
                 {otp.map((digit, index) => (
                   <TextInput
                     key={index}
-                    ref={(ref) => { inputRefs.current[index] = ref; }}
+                    ref={ref => { inputRefs.current[index] = ref; }}
                     style={[
                       styles.otpInput,
                       digit ? styles.otpInputFilled : null
                     ]}
                     value={digit}
-                    onChangeText={(value) => handleOtpChange(index, value)}
+                    onChangeText={value => handleOtpChange(index, value)}
                     onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
                     keyboardType="numeric"
                     maxLength={1}
@@ -172,9 +200,9 @@ export default function VerifyOTPScreen() {
 
             {/* Verify Button */}
             <TouchableOpacity
-              style={[styles.verifyButton, loading && styles.verifyButtonDisabled]}
+              style={[styles.verifyButton, (loading || cooldown > 0) && styles.verifyButtonDisabled]}
               onPress={handleVerifyOTP}
-              disabled={loading}
+              disabled={loading || cooldown > 0}
             >
               {loading ? (
                 <Text style={styles.verifyButtonText}>Vérification...</Text>
@@ -194,7 +222,7 @@ export default function VerifyOTPScreen() {
                   Renvoyer dans {resendTimer}s
                 </Text>
               ) : (
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={handleResendOTP}
                   disabled={resendLoading}
                 >
@@ -241,12 +269,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: theme.spacing.lg,
+  paddingHorizontal: theme.spacing.lg,
+  justifyContent: 'flex-start',
   },
   formContainer: {
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.xxl,
-    padding: theme.spacing.xl,
+  padding: theme.spacing.xl,
+  marginBottom: theme.spacing.lg,
     ...theme.shadows.lg,
   },
   infoContainer: {

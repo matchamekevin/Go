@@ -10,14 +10,17 @@ import {
   Alert,
   Modal,
   TextInput,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useThemeMode } from '../../src/contexts/ThemeContext';
 import { theme } from '../../src/styles/theme';
+import { useRouter } from 'expo-router';
 
 export default function ProfileTab() {
   const { user, logout, updateUserProfile, isLoading } = useAuth();
+  const router = useRouter();
   
   // user state (editable) - initialisé avec les données de session
   const [userProfile, setUserProfile] = useState({
@@ -158,7 +161,9 @@ export default function ProfileTab() {
   ];
 
   const handleMenuAction = (action: string) => {
-    switch (action) {
+  console.log('Menu action tapped:', action);
+  // (Alert de debug supprimé)
+  switch (action) {
       case 'profile':
         setPersonalInfoOpen(true);
         break;
@@ -207,10 +212,20 @@ export default function ProfileTab() {
   };
 
   const renderMenuItem = (item: any, sectionIndex: number, itemIndex: number) => (
-    <TouchableOpacity
+    <Pressable
       key={`${sectionIndex}-${itemIndex}`}
-      style={styles.menuItem}
+      style={({ pressed }) => [styles.menuItem, pressed ? { opacity: 0.8 } : null]}
       onPress={() => handleMenuAction(item.action)}
+  onStartShouldSetResponder={() => true}
+  onResponderRelease={() => handleMenuAction(item.action)}
+  pointerEvents="auto"
+      android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      accessibilityRole="button"
+      accessible
+      accessibilityLabel={item.label}
+      importantForAccessibility="yes"
+      focusable
     >
       <View style={styles.menuItemLeft}>
         <View style={styles.menuIcon}>
@@ -243,10 +258,12 @@ export default function ProfileTab() {
           />
         )}
         {item.hasArrow && (
-          <Ionicons name="chevron-forward" size={16} color={theme.colors.secondary[400]} />
+          <Pressable onPress={() => handleMenuAction(item.action)} hitSlop={8} accessibilityRole="button">
+            <Ionicons name="chevron-forward" size={16} color={theme.colors.secondary[400]} />
+          </Pressable>
         )}
       </View>
-    </TouchableOpacity>
+  </Pressable>
   );
 
   const saveEditedName = () => {
@@ -310,6 +327,9 @@ export default function ProfileTab() {
             try {
               await logout();
               Alert.alert('Déconnecté', 'Vous avez été déconnecté avec succès.');
+              const router = useRouter();
+              // retourner à l'écran login (remplace la stack pour éviter back)
+              router.replace('/login');
             } catch (error) {
               console.error('Erreur de déconnexion:', error);
               Alert.alert('Erreur', 'Erreur lors de la déconnexion');
@@ -327,7 +347,7 @@ export default function ProfileTab() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+  <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.profileSection}>
@@ -368,7 +388,7 @@ export default function ProfileTab() {
         {menuSections.map((section, sectionIndex) => (
           <View key={sectionIndex} style={styles.menuSection}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
-            <View style={styles.menuCard}>
+            <View style={styles.menuCard} pointerEvents="box-none">
               {section.items.map((item, itemIndex) => 
                 renderMenuItem(item, sectionIndex, itemIndex)
               )}
@@ -400,7 +420,7 @@ export default function ProfileTab() {
                   style={styles.modalButtonOutline} 
                   onPress={() => setEditAvatarModalOpen(false)}
                 >
-                  <Text style={styles.modalButtonText}>Annuler</Text>
+                  <Text style={styles.modalButtonTextOutline}>Annuler</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.modalButton} 
@@ -443,7 +463,7 @@ export default function ProfileTab() {
                   style={styles.modalButtonOutline} 
                   onPress={() => setPersonalInfoOpen(false)}
                 >
-                  <Text style={styles.modalButtonText}>Annuler</Text>
+                  <Text style={styles.modalButtonTextOutline}>Annuler</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.modalButton} 
@@ -465,10 +485,11 @@ export default function ProfileTab() {
                 Décrivez votre problème ou vos suggestions :
               </Text>
               <TextInput
-                style={[styles.input, { height: 120, textAlignVertical: 'top' }]}
+                style={[styles.input, { height: 120, textAlignVertical: 'top', color: theme.colors.secondary[900], fontSize: theme.typography.fontSize.base }]} 
                 value={contactMessage}
                 onChangeText={setContactMessage}
                 placeholder="Votre message..."
+                placeholderTextColor={theme.colors.secondary[500]}
                 multiline
                 numberOfLines={6}
               />
@@ -477,7 +498,7 @@ export default function ProfileTab() {
                   style={styles.modalButtonOutline} 
                   onPress={() => setContactOpen(false)}
                 >
-                  <Text style={styles.modalButtonText}>Annuler</Text>
+                  <Text style={styles.modalButtonTextOutline}>Annuler</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.modalButton} 
@@ -490,7 +511,92 @@ export default function ProfileTab() {
           </View>
         </Modal>
 
+        {/* Help / FAQ Modal */}
+        <Modal visible={isHelpOpen} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCardLarge}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.modalTitle}>Centre d'aide</Text>
+                <TouchableOpacity onPress={() => setHelpOpen(false)}>
+                  <Ionicons name="close" size={22} color={theme.colors.secondary[600]} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ marginTop: theme.spacing.md }}>
+                <Text style={styles.legalText}>
+                  Ce que fait Go Transport{"\n\n"}
+                  Go Transport vous aide à trouver et réserver des trajets inter-urbains et urbains depuis votre téléphone. Principales fonctionnalités :{"\n\n"}
+                  • Recherche d'itinéraires et horaires en temps réel.{"\n"}
+                  • Achat sécurisé de billets et gestion des réservations.{"\n"}
+                  • Affichage et présentation du billet via QR code.{"\n"}
+                  • Historique des voyages et suivi des points fidélité.{"\n"}
+                  • Gestion de votre compte (profil, moyens de paiement, préférences).{"\n\n"}
+                  FAQ et assistance rapide{"\n\n"}
+                  Q : Comment réinitialiser mon mot de passe ?{"\n"}
+                  R : Allez sur « Mot de passe oublié », saisissez votre email puis suivez le code reçu par email pour réinitialiser votre mot de passe.{"\n\n"}
+
+                  Q : Comment acheter un billet ?{"\n"}
+                  R : Recherchez votre trajet, sélectionnez l'horaire désiré, choisissez le nombre de passagers, puis procédez au paiement via les moyens proposés.{"\n\n"}
+
+                  Q : Quels moyens de paiement sont acceptés ?{"\n"}
+                  R : Les moyens disponibles sont listés dans « Moyens de paiement ». Les modes varient selon l'opérateur (carte, mobile money, etc.).{"\n\n"}
+
+                  Q : Puis-je annuler ou me faire rembourser ?{"\n"}
+                  R : Les politiques d'annulation et de remboursement dépendent de l'opérateur de transport. Contactez le support avec votre numéro de billet pour assistance.{"\n\n"}
+
+                  Q : Comment contacter le support ?{"\n"}
+                  R : Utilisez la section « Nous contacter » dans votre profil ou écrivez à notre équipe via l'adresse fournie ; décrivez votre problème et joignez les informations utiles (email, numéro de billet).{"\n\n"}
+
+                  Pour toute question non couverte ici, envoyez-nous un message via le formulaire de contact — nous revenons généralement sous 48h.
+                </Text>
+              </ScrollView>
+
+              <View style={{ marginTop: theme.spacing.md, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity style={styles.modalButton} onPress={() => setHelpOpen(false)}>
+                  <Text style={styles.modalButtonText}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* App Version */}
+        {/* Legal Modal */}
+        <Modal visible={isLegalOpen.open} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCardLarge}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.modalTitle}>{isLegalOpen.tab === 'privacy' ? 'Politique de confidentialité' : 'Conditions d\'utilisation'}</Text>
+                <TouchableOpacity onPress={() => setLegalOpen({ open: false })}>
+                  <Ionicons name="close" size={22} color={theme.colors.secondary[600]} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ marginTop: theme.spacing.md }}>
+                {isLegalOpen.tab === 'privacy' ? (
+                  <Text style={styles.legalText}>
+                    Politique de confidentialité{"\n\n"}
+                    Nous recueillons et utilisons vos données personnelles uniquement pour fournir et améliorer nos services. Les informations collectées peuvent inclure votre nom, adresse e‑mail, numéro de téléphone et données de trajet. Nous ne partageons pas vos données avec des tiers à des fins commerciales sans votre consentement explicite. Vous pouvez demander la suppression ou l'accès à vos données en contactant notre support.
+                    {"\n\n"}Cette politique s'applique à l'ensemble des fonctionnalités de l'application Go Transport. Pour toute question relative à la confidentialité, écrivez-nous via la section « Nous contacter ».
+                  </Text>
+                ) : (
+                  <Text style={styles.legalText}>
+                    Conditions d'utilisation{"\n\n"}
+                    Bienvenue sur Go Transport. En utilisant cette application, vous acceptez nos conditions d'utilisation suivantes : utiliser le service conformément à la loi, fournir des informations exactes, et ne pas abuser des fonctionnalités (fraude, revente de billets, etc.). Nous nous réservons le droit de suspendre ou supprimer un compte en cas de violation.
+                    {"\n\n"}Les informations fournies par l'application sont données à titre indicatif. Les horaires et tarifs peuvent être modifiés par les opérateurs. Nous déclinons toute responsabilité en cas d'erreurs ou de changements de dernière minute indépendants de notre volonté.
+                  </Text>
+                )}
+              </ScrollView>
+
+              <View style={{ marginTop: theme.spacing.md, flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity style={styles.modalButton} onPress={() => setLegalOpen({ open: false })}>
+                  <Text style={styles.modalButtonText}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
@@ -585,6 +691,8 @@ const styles = StyleSheet.create({
   menuSection: {
     paddingHorizontal: theme.spacing.lg,
     marginTop: theme.spacing.lg,
+  zIndex: 1,
+  position: 'relative',
   },
   sectionTitle: {
     fontSize: theme.typography.fontSize.lg,
@@ -596,6 +704,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.xl,
     overflow: 'hidden',
+  zIndex: 1,
     ...theme.shadows.sm,
   },
   menuItem: {
@@ -698,6 +807,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     marginBottom: theme.spacing.md,
   },
+  legalText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.secondary[700],
+    lineHeight: 22,
+    textAlign: 'justify',
+    marginBottom: theme.spacing.md,
+  },
   input: {
     borderWidth: 1,
     borderColor: theme.colors.secondary[200],
@@ -733,6 +849,10 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     color: theme.colors.white,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  modalButtonTextOutline: {
+    color: theme.colors.secondary[800],
     fontWeight: theme.typography.fontWeight.semibold,
   },
   bottomSpacing: {

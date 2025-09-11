@@ -1,6 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Config } from '../config';
+import { normalizeErrorMessage } from '../utils/normalizeError';
 import { networkManager } from '../utils/networkManager';
 
 // Configuration de l'API
@@ -10,6 +11,7 @@ class ApiClient {
   private client: AxiosInstance;
   private fallbackTried = false;
   private isInitialized = false;
+  private suppressAuthReset = false; // Empêche logout auto pendant certaines opérations
 
   constructor() {
     // Initialisation avec une URL temporaire
@@ -105,10 +107,14 @@ class ApiClient {
         return config;
       },
       (error) => {
-        if (Config.debug) {
-          console.error('❌ API Request Error:', error);
-        }
-        return Promise.reject(error);
+          // Log warning (sanitized) to avoid dev overlay printing raw error objects
+          const short = error?.message || String(error);
+          if (Config.debug) {
+            console.warn('❌ API Request Error:', short);
+          }
+        // Reject with a plain Error containing only a sanitized message so
+        // UI code (toasts) doesn't get raw objects.
+        return Promise.reject(new Error(String(short)));
       }
     );
 
@@ -125,14 +131,17 @@ class ApiClient {
         return response;
       },
       async (error) => {
+        // Build a short sanitized message for logging and rejection.
+        const shortData = error?.response?.data?.error || error?.response?.data?.message || undefined;
+        const logPayload = {
+          message: error?.message,
+          status: error?.response?.status,
+          error: shortData,
+          url: error?.config?.url,
+        };
         if (Config.debug) {
-          console.error('❌ API Response Error:', {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data,
-            url: error.config?.url,
-            baseURL: error.config?.baseURL || this.client.defaults.baseURL,
-          });
+            // Avoid printing full error object (prevents in-app dev overlays showing JSON blob)
+            console.warn('❌ API Response Error:', logPayload);
         }
 
         // Retry automatique avec détection d'URL si Network Error
@@ -150,13 +159,35 @@ class ApiClient {
           }
         }
 
-        if (error.response?.status === 401) {
-          // Token invalid/server requested logout -- capture stack to know why
-          const stack = new Error().stack;
-          console.log('[ApiClient] 401 received, removing token', { stack });
-          await AsyncStorage.removeItem(TOKEN_KEY);
+  if (error?.response?.status === 401) {
+          // Seulement supprimer le token pour les vraies erreurs 401 (non autorisé)
+          // Ne pas le faire pour les erreurs de validation (400) ou "Compte non vérifié"
+          const errorMessage = error.response?.data?.error || error.response?.data?.message || '';
+          const isUnverifiedAccount = errorMessage.includes('Compte non vérifié') || 
+                                     errorMessage.includes('not verified') ||
+                                     errorMessage.includes('email not verified');
+          
+          if (!this.suppressAuthReset && !isUnverifiedAccount) {
+            const stack = new Error().stack;
+            console.log('[ApiClient] 401 received, removing token', { stack });
+            await AsyncStorage.removeItem(TOKEN_KEY);
+          } else if (Config.debug) {
+            console.log('[ApiClient] 401 ignoré', { 
+              suppressAuthReset: this.suppressAuthReset,
+              isUnverifiedAccount,
+              errorMessage 
+            });
+          }
         }
-        return Promise.reject(error);
+        // Normalize the error into a readable string for UI/toasts.
+        try {
+          const normalized = normalizeErrorMessage(error);
+          return Promise.reject(new Error(String(normalized)));
+        } catch (e) {
+          // Fallback: reject with the original message if normalization fails
+          const fallback = error?.message || 'Erreur inconnue';
+          return Promise.reject(new Error(String(fallback)));
+        }
       }
     );
   }
@@ -170,8 +201,14 @@ class ApiClient {
 
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
     await this.ensureInitialized();
-    const response = await this.client.post<T>(url, data, config);
-    return response.data;
+    const isOtpVerify = url.includes('/auth/verify-otp');
+    if (isOtpVerify) this.suppressAuthReset = true;
+    try {
+      const response = await this.client.post<T>(url, data, config);
+      return response.data;
+    } finally {
+      if (isOtpVerify) this.suppressAuthReset = false;
+    }
   }
 
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig) {
@@ -199,6 +236,40 @@ class ApiClient {
   const stack = new Error().stack;
   console.log('[ApiClient] removeToken called', { stack });
   await AsyncStorage.removeItem(TOKEN_KEY);
+  }
+
+  // Nettoie aussi l'en-tête Authorization en mémoire (au cas où)
+  clearAuthHeader() {
+    try {
+      console.log('[ApiClient] clearAuthHeader called');
+      // supprimer la valeur par défaut d'Authorization si elle existe
+      try {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        if (this.client && this.client.defaults && this.client.defaults.headers) {
+          // axios peut stocker des headers dans defaults.headers.common
+          // on supprime la valeur si présente
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          if (this.client.defaults.headers.common) {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            delete this.client.defaults.headers.common['Authorization'];
+          }
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          if (this.client.defaults.headers.Authorization) {
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            delete this.client.defaults.headers['Authorization'];
+          }
+        }
+      } catch (e) {
+        console.warn('[ApiClient] clearAuthHeader failed:', e);
+      }
+    } catch (err) {
+      console.warn('[ApiClient] clearAuthHeader unexpected error:', err);
+    }
   }
 
   // Vérification de l'état de l'API
