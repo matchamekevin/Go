@@ -1,3 +1,21 @@
+# Example render.yaml for Render.com auto-deploy (resource creation)
+# NOTE: Do NOT store secrets here. Configure secrets in Render dashboard.
+
+services:
+  - type: web
+    name: gosotral-api
+    env: docker
+    repo: matchamekevin/Go
+    branch: dev2
+    dockerfilePath: back/Dockerfile
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: $DATABASE_URL # set in Render dashboard
 services:
   - type: web
     name: gosotral-backend

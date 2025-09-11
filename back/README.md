@@ -74,6 +74,24 @@ cd /home/connect/kev/Go/back
 **⏱️ Temps :** 10 minutes  
 **🌐 Résultat :** URL fixe type `https://ton-app.onrender.com`
 
+#### Déploiement sur Render (manuel)
+
+1. Aller sur https://render.com et se connecter avec ton compte GitHub.
+2. Cliquer `New` → `Web Service`.
+3. Connecter le repository `matchamekevin/Go` et choisir la branche `dev2`.
+4. Choisir `Environment: Docker` et renseigner le chemin du Dockerfile : `back/Dockerfile`.
+5. En `Build Command` mettre : `npm ci && npm run build`.
+6. En `Start Command` mettre : `npm start`.
+7. Ajouter les variables d'environnement nécessaires dans la section `Environment` (ne pas commit les secrets) :
+  - DATABASE_URL ou DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME
+  - JWT_SECRET
+  - SMTP credentials si nécessaire
+8. (Optionnel) Créer un managed Postgres sur Render et lier la base au service.
+9. Déployer et vérifier les logs dans l'onglet `Logs`.
+
+Tu peux aussi utiliser le fichier `back/render.yaml` inclus pour pré-remplir la configuration lors de la création du service via l'UI.
+
+
 #### 3. Tunnels de Développement
 
 **ngrok (URL temporaire)**
