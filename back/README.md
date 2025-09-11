@@ -91,6 +91,12 @@ cd /home/connect/kev/Go/back
 
 Tu peux aussi utiliser le fichier `back/render.yaml` inclus pour pré-remplir la configuration lors de la création du service via l'UI.
 
+> ⚠️ Attention Render (Docker): Ne pas combiner `Root Directory = back` ET `dockerfilePath = back/Dockerfile`.
+> Choisis UNE des deux stratégies:
+>  1. Root Directory vide (racine du repo) + dockerfilePath = back/Dockerfile
+>  2. Root Directory = back + dockerfilePath = Dockerfile
+> Sinon Render cherchera `back/back/Dockerfile` et plantera (erreur « could not find /opt/render/project/src/back/back »).
+
 
 #### 3. Tunnels de Développement
 
