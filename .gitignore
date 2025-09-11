@@ -6,3 +6,4 @@ dist
 .idea
 npm-debug.log
 package-lock.json
+!back/package-lock.json
