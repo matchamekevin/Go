@@ -65,18 +65,18 @@ export class UserController {
         });
       }
 
-      const { name, phone } = req.body;
+      const { name, phone, email } = req.body;
 
       // Validation des données
-      if (!name && !phone) {
+      if (!name && !phone && !email) {
         return res.status(400).json({ 
           success: false, 
-          error: 'Au moins un champ (nom ou téléphone) doit être fourni' 
+          error: 'Au moins un champ (nom, téléphone ou email) doit être fourni' 
         });
       }
 
       // Mise à jour du profil
-      const updated = await UserRepository.updateProfile(userId, { name, phone });
+      const updated = await UserRepository.updateProfile(userId, { name, phone, email });
 
       return res.json({ 
         success: true, 

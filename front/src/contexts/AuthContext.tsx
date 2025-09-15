@@ -86,6 +86,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(userData);
           setIsAuthenticated(true);
           console.log('🔐 Session restaurée pour:', userData.email);
+          // Rafraîchir le profil depuis l'API en tâche de fond
+          UserService.getProfile()
+            .then(fresh => {
+              setUser(fresh);
+              setIsAuthenticated(true);
+              // Mettre à jour le stockage local
+              AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(fresh));
+              console.log('🔄 Profil utilisateur rafraîchi depuis l’API:', fresh.email);
+            })
+            .catch(e => {
+              console.warn('⚠️ Impossible de rafraîchir le profil:', e);
+            });
         } catch (parseError) {
           console.error('❌ Erreur parsing user data:', parseError);
           await clearUserSession();

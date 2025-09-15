@@ -27,7 +27,7 @@ export const UserRepository = {
     await pool.query('UPDATE users SET is_verified = true WHERE id = $1', [parseInt(id)]);
   },
 
-  async updateProfile(id: string, data: { name?: string; phone?: string }): Promise<Partial<User>> {
+  async updateProfile(id: string, data: { name?: string; phone?: string; email?: string }): Promise<Partial<User>> {
     const fields: string[] = [];
     const values: any[] = [];
     let idx = 1;
@@ -36,10 +36,13 @@ export const UserRepository = {
       fields.push(`name = $${idx++}`);
       values.push(data.name);
     }
-
     if (data.phone !== undefined) {
       fields.push(`phone = $${idx++}`);
       values.push(data.phone);
+    }
+    if (data.email !== undefined) {
+      fields.push(`email = $${idx++}`);
+      values.push(data.email);
     }
 
     if (fields.length === 0) return {};

@@ -4,6 +4,7 @@ import type { ApiResponse, User } from '../types/api';
 interface UpdateProfilePayload {
   name?: string;
   phone?: string;
+  email?: string;
 }
 
 export const UserService = {
