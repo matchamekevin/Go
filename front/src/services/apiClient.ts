@@ -218,7 +218,19 @@ class ApiClient {
         // Normalize the error into a readable string for UI/toasts.
         try {
           const normalized = normalizeErrorMessage(error);
-          if (normalized && String(normalized).length > 0) {
+          // Protection ultra-robuste : vérifier que normalized est utilisable
+          let normalizedLength = 0;
+          try {
+            if (normalized != null && normalized !== undefined) {
+              const asString = typeof normalized === 'string' ? normalized : String(normalized);
+              normalizedLength = asString.length;
+            }
+          } catch (lengthErr) {
+            // Si même la conversion en string/length échoue, ignorer
+            normalizedLength = 0;
+          }
+          
+          if (normalizedLength > 0) {
             try {
               const safeMsg = typeof normalized === 'string' ? normalized : String(normalized);
               const err = new Error(safeMsg);
