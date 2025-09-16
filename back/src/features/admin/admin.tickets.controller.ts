@@ -211,16 +211,19 @@ export class AdminTicketsController {
       if (start_date) filters.start_date = start_date;
       if (end_date) filters.end_date = end_date;
 
+      console.log('[AdminTicketsController.getAllTickets] fetching tickets with', { page: parseInt(page as string), limit: parseInt(limit as string), filters });
       const tickets = await TicketRepository.getAllTicketsWithFilters(
         parseInt(page as string),
         parseInt(limit as string),
         filters
       );
+  console.log('[AdminTicketsController.getAllTickets] got tickets count', Array.isArray((tickets as any)?.tickets) ? (tickets as any).tickets.length : typeof tickets);
 
       return res.status(200).json({ success: true, data: tickets });
-    } catch (error) {
+    } catch (error: any) {
       console.error('[AdminTicketsController.getAllTickets] error:', error);
-      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des tickets' });
+      // NOTE: Expose error.message temporarily for debugging the 500 on deployed service.
+      return res.status(500).json({ success: false, error: error?.message || 'Erreur lors de la récupération des tickets' });
     }
   }
 
