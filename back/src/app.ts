@@ -123,4 +123,9 @@ app.use('/admin', adminRoutes);
 app.use('/admin/tickets', adminTicketsRoutes);
 app.use('/support', supportRoutes);
 
+// Route de test pour vérifier que les routes admin tickets sont bien exposées sur le serveur déployé
+app.get('/admin/tickets/test', (req: Request, res: Response) => {
+  res.json({ success: true, message: 'admin tickets test route active' });
+});
+
 export default app;
