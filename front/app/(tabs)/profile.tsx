@@ -316,22 +316,33 @@ export default function ProfileTab() {
       setContactOpen(false);
     } catch (error: any) {
       console.error('Erreur envoi message contact:', error);
-      const msg = error?.message || '';
-      // si backend ne connait pas la route (404) ou route manquante, proposer mailto fallback
-      const is404 = msg.includes('/support/contact') && msg.includes('404');
-      if (is404) {
-        Alert.alert('Service indisponible', 'Le service de contact n\'est pas disponible sur le serveur. Ouvrir votre application mail pour envoyer le message manuellement.', [
-          { text: 'Annuler', style: 'cancel' },
-          { text: "Ouvrir Mail", onPress: () => {
-            const admin = 'matchamegnatikevin894@gmail.com';
-            const mailto = `mailto:${admin}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            Linking.openURL(mailto).catch((e) => console.error('Erreur ouverture mailto', e));
-          } }
-        ]);
+      
+      // Détecter robustement un 404 sur /support/contact via les métadonnées enrichies
+      const isContactRoute404 = (
+        error?.status === 404 && 
+        error?.url && 
+        String(error.url).includes('/support/contact')
+      );
+      
+      if (isContactRoute404) {
+        Alert.alert(
+          'Service indisponible', 
+          'Le service de contact n\'est pas encore disponible sur le serveur. Voulez-vous ouvrir votre application mail pour envoyer le message ?', 
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: "Ouvrir Mail", onPress: () => {
+              const admin = 'matchamegnatikevin894@gmail.com';
+              const mailto = `mailto:${admin}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+              Linking.openURL(mailto).catch((e) => console.error('Erreur ouverture mailto', e));
+            } }
+          ]
+        );
         return;
       }
 
-      Alert.alert('Erreur', `Impossible d'envoyer le message: ${msg || 'Erreur réseau'}`);
+      // Autres erreurs
+      const msg = error?.message || 'Erreur réseau';
+      Alert.alert('Erreur', `Impossible d'envoyer le message: ${msg}`);
     }
   };
 
