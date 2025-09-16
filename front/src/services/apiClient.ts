@@ -219,7 +219,19 @@ class ApiClient {
         try {
           const normalized = normalizeErrorMessage(error);
           if (normalized && String(normalized).length > 0) {
-            return Promise.reject(new Error(String(normalized)));
+            const err = new Error(String(normalized));
+            // attacher métadonnées utiles pour le code appelant
+            try {
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              err.status = error?.response?.status;
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-ignore
+              err.url = error?.config?.url || error?.config?.baseURL || undefined;
+            } catch (metaErr) {
+              // ignore
+            }
+            return Promise.reject(err);
           }
         } catch (e) {
           if (Config.debug) console.warn('[ApiClient] normalizeErrorMessage a levé', e);
@@ -230,7 +242,18 @@ class ApiClient {
         const url = error?.config?.url || error?.config?.baseURL || 'unknown';
         const status = error?.response?.status || 'no-status';
         const msg = `${method} ${url} -> ${status} : ${error?.message || 'Erreur réseau / timeout'}`;
-        return Promise.reject(new Error(msg));
+        const err = new Error(msg);
+        try {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          err.status = error?.response?.status;
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore
+          err.url = error?.config?.url || error?.config?.baseURL || undefined;
+        } catch (metaErr) {
+          // ignore
+        }
+        return Promise.reject(err);
       }
     );
   }
