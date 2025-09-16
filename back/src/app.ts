@@ -5,6 +5,7 @@ import usersRoutes from './features/users/users.routes';
 import paymentRoutes from './features/payment/payment.routes';
 import ticketsRoutesSimple from './features/tickets/tickets.routes.simple';
 import adminRoutes from './features/admin/admin.routes';
+import supportRoutes from './features/support/support.controller';
 import { UserRepository } from './features/users/User.repository';
 import { EmailOTPRepository } from './features/auth/EmailOTP.repository';
 import { PasswordResetOTPRepository } from './features/auth/PasswordResetOTP.repository';
@@ -118,5 +119,6 @@ app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/tickets', ticketsRoutesSimple);
 app.use('/admin', adminRoutes);
+app.use('/support', supportRoutes);
 
 export default app;

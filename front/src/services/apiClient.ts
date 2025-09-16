@@ -145,7 +145,8 @@ class ApiClient {
         }
 
         // Retry automatique avec détection d'URL si Network Error
-        if (!error.response && error.message === 'Network Error' && !this.fallbackTried) {
+        const isNetworkError = !error.response && (error.message === 'Network Error' || error.code === 'ECONNABORTED');
+        if (isNetworkError && !this.fallbackTried) {
           this.fallbackTried = true;
           console.warn('[ApiClient] Network Error détecté, tentative de redétection d\'URL...');
           
@@ -157,6 +158,22 @@ class ApiClient {
             error.config.baseURL = this.client.defaults.baseURL;
             return this.client.request(error.config);
           }
+        }
+
+        // Retry simple pour timeouts et erreurs réseau (2 essais maximum)
+        try {
+          const maxRetries = 2;
+          const config = error?.config;
+          if (config && !config.__retryCount) config.__retryCount = 0;
+          if (config && config.__retryCount < maxRetries && isNetworkError) {
+            config.__retryCount += 1;
+            const wait = 200 * Math.pow(2, config.__retryCount); // backoff court
+            if (Config.debug) console.log(`[ApiClient] Attente ${wait}ms avant retry #${config.__retryCount}`);
+            await new Promise(res => setTimeout(res, wait));
+            return this.client.request(config);
+          }
+        } catch (retryErr) {
+          console.warn('[ApiClient] Retry failed', retryErr);
         }
 
   if (error?.response?.status === 401) {
@@ -179,15 +196,41 @@ class ApiClient {
             });
           }
         }
+        
+        // Special handling for unverified account errors - preserve response data
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || '';
+        const isUnverifiedAccount = errorMessage.includes('Compte non vérifié') || 
+                                   errorMessage.includes('not verified') ||
+                                   errorMessage.includes('email not verified');
+        
+        if (isUnverifiedAccount && error.response?.data) {
+          // Create an enriched error that preserves the response data for AuthService
+          const enrichedError: any = new Error('ACCOUNT_UNVERIFIED');
+          enrichedError.response = {
+            data: {
+              ...error.response.data,
+              unverified: true // Add explicit flag
+            }
+          };
+          return Promise.reject(enrichedError);
+        }
+        
         // Normalize the error into a readable string for UI/toasts.
         try {
           const normalized = normalizeErrorMessage(error);
-          return Promise.reject(new Error(String(normalized)));
+          if (normalized && String(normalized).length > 0) {
+            return Promise.reject(new Error(String(normalized)));
+          }
         } catch (e) {
-          // Fallback: reject with the original message if normalization fails
-          const fallback = error?.message || 'Erreur inconnue';
-          return Promise.reject(new Error(String(fallback)));
+          if (Config.debug) console.warn('[ApiClient] normalizeErrorMessage a levé', e);
         }
+
+        // Si normalisation indisponible, construire un message explicite
+        const method = error?.config?.method?.toUpperCase() || 'GET';
+        const url = error?.config?.url || error?.config?.baseURL || 'unknown';
+        const status = error?.response?.status || 'no-status';
+        const msg = `${method} ${url} -> ${status} : ${error?.message || 'Erreur réseau / timeout'}`;
+        return Promise.reject(new Error(msg));
       }
     );
   }

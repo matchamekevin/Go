@@ -8,18 +8,23 @@ import { theme } from '../src/styles/theme';
 import AuthLayout from '../src/components/AuthLayout';
 
 export default function VerifyOTPScreen() {
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, autoResend } = useLocalSearchParams<{ email: string; autoResend?: string }>();
   const { verifyOTP, resendOTP } = useAuth();
 
   // Constants
   const MAX_ATTEMPTS = 5;
   const COOLDOWN_SECONDS = 30;
+  const INITIAL_RESEND_SECONDS = 25; // nouveau délai initial
+  const RESEND_INCREMENT = 5; // chaque renvoi ajoute 5s
 
   // State
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(60);
+  // resendTimer représente le temps restant avant qu'on puisse renvoyer
+  const [resendTimer, setResendTimer] = useState(INITIAL_RESEND_SECONDS);
+  // persistResendSeconds garde le délai actuel qui sera augmenté après chaque renvoi
+  const [persistResendSeconds, setPersistResendSeconds] = useState(INITIAL_RESEND_SECONDS);
   const [attempts, setAttempts] = useState(0);
   const [cooldown, setCooldown] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -29,6 +34,14 @@ export default function VerifyOTPScreen() {
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
   const focusFirst = () => requestAnimationFrame(() => inputRefs.current[0]?.focus());
+
+  // Envoi automatique d'OTP si autoResend=true (depuis login d'un compte non vérifié)
+  useEffect(() => {
+    if (autoResend === 'true' && email && !resendLoading) {
+      console.log('[VerifyOTP] Auto-resend OTP triggered for:', email);
+      handleAutoResendOTP();
+    }
+  }, [autoResend, email]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resend timer countdown
   useEffect(() => {
@@ -102,10 +115,29 @@ export default function VerifyOTPScreen() {
     setResendLoading(true);
     try {
       await resendOTP(email);
-      setResendTimer(60);
+      // augmenter le délai pour la prochaine opération
+      const next = persistResendSeconds + RESEND_INCREMENT;
+      setPersistResendSeconds(next);
+      // démarrer le timer courant avec la valeur courante (avant incrément) pour respecter UX attendu
+      setResendTimer(persistResendSeconds);
       setSuccessMsg('Nouveau code envoyé');
     } catch (e: any) {
       setErrorMsg(e?.message || 'Erreur envoi code');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const handleAutoResendOTP = async () => {
+    if (!email) { setErrorMsg('Email manquant'); return; }
+    setResendLoading(true);
+    try {
+      await resendOTP(email);
+      // Ne pas incrémenter le timer pour l'envoi automatique initial
+      setResendTimer(persistResendSeconds);
+      setSuccessMsg('Code de vérification envoyé automatiquement');
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Erreur envoi code automatique');
     } finally {
       setResendLoading(false);
     }

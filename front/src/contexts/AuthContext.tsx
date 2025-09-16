@@ -134,6 +134,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         'USER_NOT_FOUND',
         'INVALID_CREDENTIALS',
         'ACCOUNT_NOT_VERIFIED',
+        'ACCOUNT_UNVERIFIED',
         'Compte non vérifié',
         'utilisateur introuvable'
       ];
@@ -198,8 +199,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Préparer payload API (limiter aux champs modifiables)
       const payload: any = {};
-      if (userData.name !== undefined) payload.name = userData.name.trim();
-      if (userData.phone !== undefined) payload.phone = userData.phone;
+  if (userData.name !== undefined) payload.name = userData.name.trim();
+  if (userData.phone !== undefined) payload.phone = userData.phone;
+  if (userData.email !== undefined) payload.email = userData.email;
 
       let serverUser: User | null = null;
       try {
@@ -247,14 +249,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   // Si le children n'est pas un élément React, on le met dans un fragment
-  const safeChildren = typeof children === 'string' || typeof children === 'number'
+  const safeChildren: React.ReactNode = typeof children === 'string' || typeof children === 'number'
     ? <React.Fragment>{children}</React.Fragment>
     : children;
   return (
     <AuthContext.Provider value={contextValue}>
       {safeChildren}
     </AuthContext.Provider>
-  );
+  ) as React.ReactElement;
 }
 
 export function useAuth(): AuthContextType {

@@ -47,6 +47,15 @@ export default function LoginScreen() {
       await login({ email, password });
       router.replace('/(tabs)');
     } catch (error: any) {
+        // Si le backend a indiqué que le compte n'est pas vérifié, rediriger automatiquement vers OTP
+        const isUnverified = (error?.message === 'ACCOUNT_UNVERIFIED') || (error?.response && error.response.data && error.response.data.unverified);
+        if (isUnverified) {
+          const targetEmail = error?.response?.data?.email || email;
+          // Envoyer l'utilisateur directement vers la page de vérification OTP avec autoResend=true
+          router.replace({ pathname: '/verify-otp', params: { email: targetEmail, autoResend: 'true' } });
+          return;
+        }
+
         const normal = normalizeErrorMessage(error?.response?.data || error?.message || error);
         let friendly = mapAuthErrorToFriendly(normal);
         // Fallback : si la normalisation retourne un message générique technique, remplacer par un message clair

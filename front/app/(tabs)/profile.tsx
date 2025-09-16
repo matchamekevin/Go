@@ -11,12 +11,17 @@ import {
   Modal,
   TextInput,
   Pressable,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useThemeMode } from '../../src/contexts/ThemeContext';
 import { theme } from '../../src/styles/theme';
-import { useRouter } from 'expo-router';
+// @ts-ignore
+import * as ExpoRouter from 'expo-router';
+const useRouter = ExpoRouter.useRouter;
+import HelpFAB from '../../src/components/HelpFAB';
+import { apiClient } from '../../src/services/apiClient';
 
 export default function ProfileTab() {
   const { user, logout, updateUserProfile, isLoading } = useAuth();
@@ -294,24 +299,40 @@ export default function ProfileTab() {
     }
   };
 
-  const handleSendContact = () => {
+  const handleSendContact = async () => {
     if (!contactMessage.trim()) {
       Alert.alert('Message vide', 'Veuillez écrire votre message avant d\'envoyer.');
       return;
     }
-    
-    // Simuler l'envoi du message vers l'admin
-    const adminEmail = 'matchamegnatikevin894@gmail.com';
+
     const subject = 'Message depuis l\'app Go Transport';
-    const body = `Message de: ${userProfile.name} (${userProfile.email})\\n\\n${contactMessage}`;
-    
-    console.log(`Envoi email vers: ${adminEmail}`);
-    console.log(`Sujet: ${subject}`);
-    console.log(`Corps: ${body}`);
-    
-    Alert.alert('Message envoyé', `Votre message a été envoyé à l'équipe support. Nous vous répondrons bientôt.`);
-    setContactMessage('');
-    setContactOpen(false);
+    const body = `Message de: ${userProfile.name} (${userProfile.email})\n\n${contactMessage}`;
+
+    try {
+      // appeler l'API backend pour envoyer l'email
+  await apiClient.post('/support/contact', { subject, body });
+      Alert.alert('Message envoyé', `Votre message a été envoyé à l'équipe support. Nous vous répondrons bientôt.`);
+      setContactMessage('');
+      setContactOpen(false);
+    } catch (error: any) {
+      console.error('Erreur envoi message contact:', error);
+      const msg = error?.message || '';
+      // si backend ne connait pas la route (404) ou route manquante, proposer mailto fallback
+      const is404 = msg.includes('/support/contact') && msg.includes('404');
+      if (is404) {
+        Alert.alert('Service indisponible', 'Le service de contact n\'est pas disponible sur le serveur. Ouvrir votre application mail pour envoyer le message manuellement.', [
+          { text: 'Annuler', style: 'cancel' },
+          { text: "Ouvrir Mail", onPress: () => {
+            const admin = 'matchamegnatikevin894@gmail.com';
+            const mailto = `mailto:${admin}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            Linking.openURL(mailto).catch((e) => console.error('Erreur ouverture mailto', e));
+          } }
+        ]);
+        return;
+      }
+
+      Alert.alert('Erreur', `Impossible d'envoyer le message: ${msg || 'Erreur réseau'}`);
+    }
   };
 
   const handleLogout = () => {
@@ -327,7 +348,6 @@ export default function ProfileTab() {
             try {
               await logout();
               Alert.alert('Déconnecté', 'Vous avez été déconnecté avec succès.');
-              const router = useRouter();
               // retourner à l'écran login (remplace la stack pour éviter back)
               router.replace('/login');
             } catch (error) {
@@ -599,6 +619,7 @@ export default function ProfileTab() {
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <HelpFAB />
     </SafeAreaView>
   );
 }

@@ -25,7 +25,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Accueil',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="home" size={24} color={color} />
           ),
         }}
@@ -34,7 +34,7 @@ export default function TabsLayout() {
         name="search"
         options={{
           title: 'Rechercher',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="search" size={24} color={color} />
           ),
         }}
@@ -44,7 +44,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Ionicons name="person" size={24} color={color} />
           ),
         }}

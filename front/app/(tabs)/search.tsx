@@ -1,20 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../../src/styles/theme';
+import HelpFAB from '../../src/components/HelpFAB';
+import { UserTicketService, type UserTicket, type UserTicketHistory } from '../../src/services/userTicketService';
+import { SearchService, type SearchResult } from '../../src/services/searchService';
 
 export default function SearchTab() {
+  // Capturer le paramètre focus envoyé depuis Home
+  const { focus, focusTs, activeTab: paramsActiveTab } = useLocalSearchParams<{ focus?: string; focusTs?: string; activeTab?: string }>();
+  const searchInputRef = useRef<TextInput | null>(null);
+  const scrollRef = useRef<any>(null);
+  const historySectionY = useRef<number | null>(null);
+
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
   const [selectedDate, setSelectedDate] = useState('Aujourd\'hui');
   const [passengerCount, setPassengerCount] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResultsState, setSearchResultsState] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+  const MIN_QUERY_LENGTH = 1; // déclencher dès 1 caractère
 
-  const popularLocations = [
+  const popularLocations = React.useMemo(() => [
     'Centre-ville', 'Aéroport', 'Université', 'Marché central', 
     'Gare routière', 'Plateau', 'Zone industrielle', 'Hôpital'
-  ];
+  ], []);
 
   const searchResults = [
     {
@@ -58,72 +73,134 @@ export default function SearchTab() {
     setToLocation(temp);
   };
 
-  const handleSearch = () => {
-    // Placeholder: integrate with real search logic
-    console.log('Recherche:', searchQuery || `${fromLocation} → ${toLocation}`);
+  const handleSearch = async () => {
+    const q = (searchQuery || `${fromLocation} → ${toLocation}`).trim();
+    if (!q) return;
+    await performSearch(q);
   };
 
-  // TicketsTab logic importé
+  // Fonction réutilisable pour effectuer la recherche et gérer l'état
+  const performSearch = React.useCallback(async (q: string) => {
+    const myRequestId = ++requestIdRef.current;
+    try {
+      setSearchError(null);
+      setSearchLoading(true);
+      // don't clear results immediately to avoid flicker
+
+      const resultsRaw = await SearchService.searchRoutes(q);
+      // ignore if a newer request started
+      if (myRequestId !== requestIdRef.current) return;
+      const results = Array.isArray(resultsRaw) ? resultsRaw : [];
+
+      // Prioritize items whose 'from', 'to' or 'company' start with the query (prefix-match)
+      const qStart = q.split(/→|-/)[0].trim().toLowerCase();
+      const isPrefix = (it: any) => {
+        if (!qStart) return false;
+        const f = (it.from || '').toString().toLowerCase();
+        const t = (it.to || '').toString().toLowerCase();
+        const c = (it.company || '').toString().toLowerCase();
+        return f.startsWith(qStart) || t.startsWith(qStart) || c.startsWith(qStart);
+      };
+
+      const prefixMatches = results.filter(isPrefix);
+      const otherMatches = results.filter((r) => !isPrefix(r));
+
+      let finalResults: any[] = [...prefixMatches, ...otherMatches];
+
+      // If no API results, try local popularLocations that start with the query
+      if (finalResults.length === 0) {
+        const local = popularLocations.filter((loc) => loc.toLowerCase().startsWith(qStart));
+        if (local.length > 0) {
+          finalResults = local.map((loc, idx) => ({
+            id: `suggest-${idx}`,
+            type: 'Suggestion',
+            company: '',
+            departure: '',
+            arrival: '',
+            duration: '',
+            price: '',
+            seats: 0,
+            rating: 0,
+            from: loc,
+            to: '',
+          }));
+        }
+      }
+
+      if (myRequestId === requestIdRef.current) {
+        setSearchResultsState(finalResults as SearchResult[]);
+      }
+    } catch (e: any) {
+      // if stale request, ignore
+      if (myRequestId !== requestIdRef.current) return;
+      console.error('[SearchTab] Erreur recherche:', e);
+      setSearchError(e?.message || 'Erreur lors de la recherche');
+    } finally {
+      if (myRequestId === requestIdRef.current) setSearchLoading(false);
+    }
+  }, [popularLocations]);
+
+  // Focus le champ de recherche si on a reçu focus=true depuis Home
+  useEffect(() => {
+    // focusTs changes on each navigation push from Home, so use it to retrigger focus
+    if (focus === 'true' && searchInputRef.current) {
+      try {
+        searchInputRef.current.focus();
+      } catch (e) {
+        console.warn('[SearchTab] impossible de focus via ref', e);
+      }
+    }
+  }, [focus, focusTs]);
+
+  // Debounced live search: lance la recherche automatiquement quand l'utilisateur tape
+  useEffect(() => {
+    const q = (searchQuery || `${fromLocation} → ${toLocation}`).trim();
+    if (searchQuery.length < MIN_QUERY_LENGTH) {
+      // clear results when too short
+      requestIdRef.current += 1; // cancel any pending
+      setSearchResultsState([]);
+      setSearchError(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    const handle = setTimeout(() => {
+      performSearch(q);
+    }, 300);
+
+    return () => clearTimeout(handle);
+  }, [searchQuery, fromLocation, toLocation, performSearch]);
+
+  // TicketsTab logic intégré avec API
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
-  const activeTickets = [
-    {
-      id: 1,
-      type: 'Bus rapide',
-      route: 'Centre-ville → Aéroport',
-      date: '2025-09-08',
-      time: '14:30',
-      price: '2500 FCFA',
-      seat: '12A',
-      qrCode: 'TICKET_001_2025090814',
-      status: 'valid',
-      expiresIn: '2h 30min',
-    },
-    {
-      id: 2,
-      type: 'Métro',
-      route: 'Université → Plateau',
-      date: '2025-09-08',
-      time: '18:00',
-      price: '1000 FCFA',
-      seat: '---',
-      qrCode: 'TICKET_002_2025090818',
-      status: 'valid',
-      expiresIn: '6h 00min',
-    },
-  ];
-  const historyTickets = [
-    {
-      id: 3,
-      type: 'Bus urbain',
-      route: 'Marché → Centre-ville',
-      date: '2025-09-07',
-      time: '09:15',
-      price: '1500 FCFA',
-      seat: '8B',
-      status: 'used',
-    },
-    {
-      id: 4,
-      type: 'Bus rapide',
-      route: 'Aéroport → Université',
-      date: '2025-09-06',
-      time: '16:45',
-      price: '2500 FCFA',
-      seat: '15C',
-      status: 'used',
-    },
-    {
-      id: 5,
-      type: 'Métro',
-      route: 'Plateau → Gare routière',
-      date: '2025-09-05',
-      time: '12:30',
-      price: '1000 FCFA',
-      seat: '---',
-      status: 'used',
-    },
-  ];
-  const renderActiveTicket = (ticket: any) => (
+  const [activeTickets, setActiveTickets] = useState<UserTicket[]>([]);
+  const [historyTickets, setHistoryTickets] = useState<UserTicketHistory[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+
+  // Charger les tickets depuis l'API
+  useEffect(() => {
+    const loadTickets = async () => {
+      try {
+        setTicketsLoading(true);
+        
+        // Charger les tickets actifs et l'historique en parallèle
+        const [activeData, historyData] = await Promise.all([
+          UserTicketService.getActiveTickets(),
+          UserTicketService.getTicketHistory(),
+        ]);
+        
+        setActiveTickets(activeData);
+        setHistoryTickets(historyData);
+      } catch (error) {
+        console.error('Erreur lors du chargement des tickets:', error);
+      } finally {
+        setTicketsLoading(false);
+      }
+    };
+
+    loadTickets();
+  }, []);
+  const renderActiveTicket = (ticket: UserTicket) => (
     <View key={ticket.id} style={styles.ticketCard}>
       {/* Ticket Header */}
       <View style={styles.ticketHeader}>
@@ -159,7 +236,7 @@ export default function SearchTab() {
               <Text style={styles.detailLabel}>Prix</Text>
               <Text style={styles.detailValue}>{ticket.price}</Text>
             </View>
-            {ticket.seat !== '---' && (
+            {ticket.seat && ticket.seat !== '---' && (
               <View style={styles.detailItem}>
                 <Ionicons name="car-sport" size={16} color={theme.colors.secondary[500]} />
                 <Text style={styles.detailLabel}>Siège</Text>
@@ -171,7 +248,7 @@ export default function SearchTab() {
         {/* QR Code */}
         <View style={styles.qrContainer}>
           <QRCode
-            value={ticket.qrCode}
+            value={ticket.qrCode || `TICKET_${ticket.id}`}
             size={100}
             color={theme.colors.secondary[900]}
             backgroundColor={theme.colors.white}
@@ -182,7 +259,9 @@ export default function SearchTab() {
       <View style={styles.ticketFooter}>
         <View style={styles.expiryInfo}>
           <Ionicons name="time-outline" size={16} color={theme.colors.warning[600]} />
-          <Text style={styles.expiryText}>Expire dans {ticket.expiresIn}</Text>
+          <Text style={styles.expiryText}>
+            {ticket.expiresIn ? `Expire dans ${ticket.expiresIn}` : 'Valide'}
+          </Text>
         </View>
         <TouchableOpacity style={styles.showButton}>
           <Text style={styles.showButtonText}>Présenter</Text>
@@ -197,7 +276,8 @@ export default function SearchTab() {
       </View>
     </View>
   );
-  const renderHistoryTicket = (ticket: any) => (
+
+  const renderHistoryTicket = (ticket: UserTicketHistory) => (
     <View key={ticket.id} style={styles.historyTicketCard}>
       <View style={styles.historyHeader}>
         <View style={styles.historyInfo}>
@@ -210,14 +290,36 @@ export default function SearchTab() {
         </View>
       </View>
       <View style={styles.usedBadge}>
-        <Ionicons name="checkmark-circle" size={14} color={theme.colors.success[600]} />
-        <Text style={styles.usedText}>Utilisé</Text>
+        <Ionicons 
+          name={ticket.status === 'expired' ? "time-outline" : "checkmark-circle"} 
+          size={14} 
+          color={ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600]} 
+        />
+        <Text style={[
+          styles.usedText,
+          { color: ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600] }
+        ]}>
+          {ticket.status === 'expired' ? 'Expiré' : 'Utilisé'}
+        </Text>
       </View>
     </View>
   );
+  // Si on arrive avec activeTab=history, basculer et scroller vers la section historique
+  useEffect(() => {
+    if (paramsActiveTab === 'history') {
+      setActiveTab('history');
+      // attendre que la layout soit calculée, puis scroller
+      setTimeout(() => {
+        if (historySectionY.current != null && scrollRef.current && typeof scrollRef.current.scrollTo === 'function') {
+          scrollRef.current.scrollTo({ y: historySectionY.current, animated: true });
+        }
+      }, 250);
+    }
+  }, [paramsActiveTab, focusTs]);
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={r => { scrollRef.current = r; }} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Rechercher un trajet</Text>
@@ -228,6 +330,7 @@ export default function SearchTab() {
           <View style={styles.searchBar}>
             <Ionicons name="search" size={18} color={theme.colors.secondary[500]} />
             <TextInput
+              ref={r => { searchInputRef.current = r; }}
               style={styles.searchInput}
               placeholder="Rechercher un trajet, lieu ou compagnie"
               value={searchQuery}
@@ -235,10 +338,58 @@ export default function SearchTab() {
               returnKeyType="search"
               onSubmitEditing={handleSearch}
               placeholderTextColor={theme.colors.secondary[400]}
+              autoFocus={focus === 'true'}
             />
             <TouchableOpacity onPress={handleSearch} style={styles.searchAction}>
               <Ionicons name="arrow-forward" size={18} color={theme.colors.white} />
             </TouchableOpacity>
+          </View>
+          {/* Search results panel */}
+          <View style={styles.searchResultsCard}>
+            {searchLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Recherche en cours...</Text>
+              </View>
+            ) : searchError ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Erreur: {searchError}</Text>
+              </View>
+            ) : searchResultsState.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Aucun résultat. Essayez une autre requête</Text>
+              </View>
+            ) : (
+              searchResultsState.map((r) => (
+                <TouchableOpacity key={r.id} style={styles.resultCard} onPress={() => {
+                  // Préremplir les champs from/to et naviguer vers les résultats détaillés si nécessaire
+                  setFromLocation(r.from);
+                  setToLocation(r.to);
+                }}>
+                  <View style={styles.resultHeader}>
+                    <View style={styles.transportInfo}>
+                      <View style={styles.transportType}>
+                        <Text style={styles.transportTypeText}>{r.type}</Text>
+                      </View>
+                      <Text style={styles.companyName}>{r.company || 'Opérateur inconnu'}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.price}>{r.price}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.timeInfo}>
+                    <View style={styles.timePoint}>
+                      <Text style={styles.timeText}>{r.from}</Text>
+                      <Text style={styles.locationText}>Départ</Text>
+                    </View>
+                    <View style={styles.journeyLine} />
+                    <View style={styles.timePoint}>
+                      <Text style={styles.timeText}>{r.to}</Text>
+                      <Text style={styles.locationText}>Arrivée</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
         {/* Popular Locations */}
@@ -248,23 +399,41 @@ export default function SearchTab() {
         {/* Billets actifs */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mes billets actifs</Text>
-          {activeTickets.length > 0 ? (
+          {ticketsLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Chargement de vos billets...</Text>
+            </View>
+          ) : activeTickets.length > 0 ? (
             activeTickets.map(renderActiveTicket)
           ) : (
-            <Text style={{color: theme.colors.secondary[400]}}>Aucun billet actif</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="ticket-outline" size={48} color={theme.colors.secondary[300]} />
+              <Text style={styles.emptyText}>Aucun billet actif</Text>
+              <Text style={styles.emptySubtext}>Vos prochains voyages apparaîtront ici</Text>
+            </View>
           )}
         </View>
+        
         {/* Historique des billets */}
-        <View style={styles.section}>
+        <View style={styles.section} onLayout={e => { historySectionY.current = e.nativeEvent.layout.y; }}>
           <Text style={styles.sectionTitle}>Historique des billets</Text>
-          {historyTickets.length > 0 ? (
+          {ticketsLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Chargement de l'historique...</Text>
+            </View>
+          ) : historyTickets.length > 0 ? (
             historyTickets.map(renderHistoryTicket)
           ) : (
-            <Text style={{color: theme.colors.secondary[400]}}>Aucun historique</Text>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="archive-outline" size={48} color={theme.colors.secondary[300]} />
+              <Text style={styles.emptyText}>Aucun historique</Text>
+              <Text style={styles.emptySubtext}>Vos voyages passés apparaîtront ici</Text>
+            </View>
           )}
         </View>
         <View style={styles.bottomSpacing} />
       </ScrollView>
+      <HelpFAB />
     </SafeAreaView>
   );
 }
@@ -743,5 +912,42 @@ const styles = StyleSheet.create({
     color: theme.colors.success[600],
     fontWeight: theme.typography.fontWeight.medium,
     marginLeft: 2,
+  },
+  loadingContainer: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+    ...theme.shadows.sm,
+  },
+  loadingText: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.secondary[500],
+    fontStyle: 'italic',
+  },
+  emptyContainer: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+    ...theme.shadows.sm,
+  },
+  emptyText: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.secondary[600],
+    fontWeight: theme.typography.fontWeight.medium,
+    marginTop: theme.spacing.sm,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.secondary[400],
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+  },
+  searchResultsCard: {
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
   },
 });

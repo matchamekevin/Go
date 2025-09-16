@@ -29,6 +29,27 @@ export class AuthService {
       await apiClient.setToken(authData.token);
       return authData;
     } catch (error: any) {
+      // Handle enriched error from apiClient for unverified accounts
+      if (error?.message === 'ACCOUNT_UNVERIFIED' && error?.response?.data) {
+        const err: any = new Error('ACCOUNT_UNVERIFIED');
+        err.response = { data: { email: error.response.data.email } };
+        throw err;
+      }
+      
+      // Si le backend a renvoyé un flag indiquant que le compte n'est pas vérifié,
+      // on enrichit l'erreur pour que le front puisse rediriger facilement.
+      // Note: l'intercepteur `apiClient` peut normaliser l'erreur en une simple Error
+      // sans propriété `response`, donc vérifier aussi le texte de l'erreur.
+      const rawMsg = (error?.response?.data?.error || error?.response?.data?.message || error?.message || String(error || '')).toString();
+      const low = rawMsg.toLowerCase();
+      const looksUnverified = low.includes('compte non vérifié') || low.includes('not verified') || low.includes('unverified') || low.includes('email not verified');
+      if ((error?.response && error.response.data && error.response.data.unverified) || looksUnverified) {
+        const err: any = new Error('ACCOUNT_UNVERIFIED');
+        // attacher l'email si disponible
+        const email = error?.response?.data?.email || undefined;
+        if (email) err.response = { data: { email } };
+        throw err;
+      }
       // Interpréter la réponse HTTP quand disponible
       if (error?.response) {
         const status = error.response.status;

@@ -43,7 +43,7 @@ export default function LoginScreen({ onNavigateToRegister }: LoginScreenProps) 
 
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      await login({ email: email.trim(), password });
       Alert.alert('Succès', 'Connexion réussie !');
     } catch (error) {
       Alert.alert(

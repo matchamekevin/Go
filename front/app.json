@@ -27,5 +27,7 @@
       "bundler": "metro"
     },
     "plugins": [["expo-router"]]
+    ,
+    "sdkVersion": "54.0.0"
   }
 }
