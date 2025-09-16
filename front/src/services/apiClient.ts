@@ -219,19 +219,24 @@ class ApiClient {
         try {
           const normalized = normalizeErrorMessage(error);
           if (normalized && String(normalized).length > 0) {
-            const err = new Error(String(normalized));
-            // attacher métadonnées utiles pour le code appelant
             try {
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              err.status = error?.response?.status;
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              err.url = error?.config?.url || error?.config?.baseURL || undefined;
-            } catch (metaErr) {
-              // ignore
+              const safeMsg = typeof normalized === 'string' ? normalized : String(normalized);
+              const err = new Error(safeMsg);
+              // attacher métadonnées utiles pour le code appelant
+              try {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                err.status = error?.response?.status;
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                err.url = error?.config?.url || error?.config?.baseURL || undefined;
+              } catch (metaErr) {
+                // ignore
+              }
+              return Promise.reject(err);
+            } catch (errCreate) {
+              if (Config.debug) console.warn('[ApiClient] erreur création Error normalisée', errCreate);
             }
-            return Promise.reject(err);
           }
         } catch (e) {
           if (Config.debug) console.warn('[ApiClient] normalizeErrorMessage a levé', e);
