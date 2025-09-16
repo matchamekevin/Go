@@ -120,6 +120,10 @@ app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/tickets', ticketsRoutesSimple);
 app.use('/admin', adminRoutes);
+// Route de test publique pour valider le déploiement (doit être placée avant le montage des routes admin/tickets)
+app.get('/admin/tickets/test', (req: Request, res: Response) => {
+  res.json({ success: true, message: 'admin tickets test route active' });
+});
 app.use('/admin/tickets', adminTicketsRoutes);
 app.use('/support', supportRoutes);
 
