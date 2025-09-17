@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: gosotral_user
+      POSTGRES_PASSWORD: gosotral_pass
+      POSTGRES_DB: gosotral_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data_local:/var/lib/postgresql/data
+
+volumes:
+  db_data_local:

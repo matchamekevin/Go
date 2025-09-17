@@ -107,6 +107,34 @@ app.get('/health', async (req: Request, res: Response) => {
   }
 });
 
+// Compatibility helper for the mobile scan app: return recent scan history
+app.get('/scan/history', async (req: Request, res: Response) => {
+  try {
+    // Return the most recent 50 validations (used tickets) in a simple shape
+    const result = await pool.query(`
+      SELECT id, code as ticket_code, status, used_at, user_id
+      FROM tickets
+      WHERE used_at IS NOT NULL
+      ORDER BY used_at DESC
+      LIMIT 50
+    `);
+
+    const rows = result.rows.map((r: any) => ({
+      id: r.id,
+      ticketCode: r.ticket_code,
+      result: r.status === 'used' ? 'success' : 'failed',
+      timestamp: r.used_at ? new Date(r.used_at).toISOString() : null,
+      operatorId: r.user_id ? String(r.user_id) : null,
+      message: ''
+    }));
+
+    return res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error('[/scan/history] error:', error);
+    return res.status(500).json({ success: false, error: 'Erreur lors de la récupération de l\'historique' });
+  }
+});
+
 // Bridge route: allow legacy /register (without /auth prefix) to ease manual testing
 // POST /register will behave exactly like POST /auth/register
 app.post('/register', (req: Request, res: Response) => AuthController.register(req, res));
