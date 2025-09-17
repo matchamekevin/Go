@@ -7,7 +7,7 @@ services:
       - "${API_PORT:-7000}:7000"
     depends_on:
       - db
-    command: npm run dev
+    command: npm run start
 
   db:
     image: postgres:15

@@ -38,8 +38,14 @@ router.post('/products', AdminController.createProduct as any);
 router.put('/products/:id', AdminController.updateProduct as any);
 router.delete('/products/:id', AdminController.deleteProduct as any);
 
+// Routes pour la gestion des tickets  
+router.get('/tickets', AdminController.getAllTickets as any);
+router.patch('/tickets/:id/status', AdminController.updateTicketStatus as any);
+
 // Routes pour les statistiques globales
 router.get('/dashboard/stats', AdminController.getDashboardStats as any);
+router.get('/dashboard/chart-data', AdminController.getChartData as any);
+router.get('/dashboard/recent-activity', AdminController.getRecentActivity as any);
 
 // Routes pour les paiements
 router.get('/payments/stats', AdminController.getPaymentStats as any);

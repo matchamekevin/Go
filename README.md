@@ -2,12 +2,76 @@
 
 Système de billetterie électronique pour les transports en commun SOTRAL.
 
+## 🚀 **Démarrage Ultra-Rapide**
+
+### Backend + Frontend en 3 commandes
+```bash
+# 1. Backend (API + Base de données)
+cd /home/connect/kev/Go/back && docker compose up -d --build
+
+# 2. Initialiser la DB
+for sql_file in src/schema/*.sql; do docker exec -i back_db_1 psql -U gosotral_user -d gosotral_db < "$sql_file"; done
+
+# 3. Frontend (React Native)
+cd /home/connect/kev/Go/front && npm run android
+```
+
+### ✅ Vérification rapide
+```bash
+# Backend OK ?
+curl -i http://localhost:7000/health
+
+# App mobile OK ? 
+# → Dev Menu automatique > Test Connectivité Réseau
+```
+
+---
+
+## 🌐 **Accès depuis N'importe quel Réseau**
+
+### Solutions GRATUITES pour accès global :
+
+#### 🎯 Railway (Recommandé - 5 minutes)
+```bash
+cd /home/connect/kev/Go/back
+./deploy.sh railway
+# Résultat: https://ton-app.up.railway.app
+```
+**Gratuit**: 512MB RAM, 500h/mois, PostgreSQL incluse
+
+#### 🎨 Render.com (Alternative)
+```bash
+cd /home/connect/kev/Go/back  
+./deploy.sh render
+# Résultat: https://ton-app.onrender.com
+```
+**Gratuit**: 512MB RAM, 750h/mois, SSL auto
+
+#### 🔗 ngrok (Développement)
+```bash
+# Configuration unique
+ngrok config add-authtoken TON_TOKEN_GRATUIT
+
+# À chaque session
+ngrok http 7000
+# Résultat: https://abc123.ngrok.io (temporaire)
+```
+
+### 📱 Configuration App
+Après déploiement :
+1. App mobile > **Dev Menu** > **Configuration Réseau**
+2. Ajoute l'URL obtenue
+3. L'app s'adapte automatiquement à ton réseau
+
+---
+
 ## 🏗️ **Architecture Complète**
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   BACKEND API   │◄──►│  FRONTEND USER  │    │   ADMIN WEB     │
 │  (Node.js/TS)   │    │ (React Native)  │    │ (React/TS/Web)  │
+│   Port: 7000    │    │  Expo/Mobile    │    │   Port: 3000    │
 │                 │    │                 │    │                 │
 │ • Auth JWT      │    │ • Achat tickets │    │ • Dashboard     │
 │ • CRUD Tickets  │    │ • Gestion profil│    │ • Gestion users │
@@ -28,159 +92,130 @@ Système de billetterie électronique pour les transports en commun SOTRAL.
                        └─────────────────┘
 ```
 
-## 📁 **Structure des Projets**
+---
 
-### `/back` - API Backend
-- **Tech**: Node.js + TypeScript + Express + PostgreSQL
-- **Port**: 7000
-- **Base de données**: PostgreSQL (port 5433)
-- **Features**: Auth, CRUD, QR, Analytics, Webhooks
+## 📁 **Structure & Commandes**
 
-### `/front` - Version Web Utilisateur
-- **Tech**: React Native + Expo + TypeScript (version web)
-- **Features**: Interface web pour utilisateurs finaux
+### `/back` - API Backend ⭐
+```bash
+cd /home/connect/kev/Go/back
+docker compose up -d --build    # Démarrer
+docker compose logs -f api      # Voir les logs
+curl http://localhost:7000/health # Tester
+```
+**Tech**: Node.js + TypeScript + Express + PostgreSQL
 
-### `/GoSOTRAL_front` - App Mobile Utilisateur
-- **Tech**: React Native + Expo + TypeScript
-- **Features**: Achat tickets, profil, historique, paiements
-- **Note**: Version mobile native de l'interface utilisateur, complémentaire à `/front`
+### `/front` - App Mobile Utilisateur ⭐  
+```bash
+cd /home/connect/kev/Go/front
+npm install && npm run android   # Android
+npm run ios                      # iOS
+npm run web                      # Navigateur
+```
+**Tech**: React Native + Expo + TypeScript
 
 ### `/admin` - Interface Web Admin
-- **Tech**: React + TypeScript + Vite + Tailwind
-- **Port**: 3000
-- **Features**: Dashboard, gestion users/tickets, analytics
-
-### `/scan` - App Mobile Scan
-- **Tech**: React Native + Expo + TypeScript
-- **Features**: Scanner QR, validation tickets, historique
-
-## 🚀 **Installation Rapide**
-
-### 1. Backend (Obligatoire)
 ```bash
-cd /home/kev/Go/back
-docker compose up -d
-curl http://localhost:7000/health
+cd /home/connect/kev/Go/admin
+npm install && npm run dev       # Port 3000
 ```
+**Tech**: React + TypeScript + Vite + Tailwind
 
-### 2. App Mobile Utilisateur
+### `/scan` - App Mobile Scanner
 ```bash
-cd /home/kev/Go/GoSOTRAL_front
-npm install
-npm start
+cd /home/connect/kev/Go/scan
+npm install && npm start
 ```
+**Tech**: React Native + Expo (contrôleurs bus)
 
-### 3. Admin Web
-```bash
-cd /home/kev/Go/admin
-npm install
-npm run dev
-```
+### `/GoSOTRAL_front` - Version Alternative User
+**Tech**: React Native + Expo (version alternative de `/front`)
 
-### 4. App Scanner
-```bash
-cd /home/kev/Go/scan
-npm install
-npm start
-```
+---
 
-## 🔗 **APIs et Communication**
+## 🔗 **URLs et Endpoints**
 
-### Endpoints Backend
+### Backend API (Port 7000)
 - `GET /health` - Santé du système
-- `POST /auth/login` - Login utilisateur
-- `POST /auth/admin/login` - Login admin
-- `GET /tickets/products` - Produits disponibles
+- `POST /auth/register` - Inscription 
+- `POST /auth/login` - Connexion
+- `GET /tickets/products` - Produits tickets
 - `POST /tickets/purchase` - Achat ticket
-- `POST /tickets/validate` - Validation ticket (scan)
-- `GET /tickets/stats` - Statistiques admin
+- `POST /tickets/validate` - Validation (scan)
 
-### Configuration Réseau
-- **Localhost**: `http://localhost:7000` (simulateur iOS/web)
-- **Android Emulator**: `http://10.0.2.2:7000`
-- **Appareil physique**: `http://192.168.1.106:7000`
+### Configuration Réseau Automatique
+- **Simulateur iOS**: `http://localhost:7000`
+- **Android Emulator**: `http://10.0.2.2:7000`  
+- **Appareil physique**: `http://192.168.1.184:7000`
+- **Déploiement cloud**: URL automatiquement détectée
+
+---
 
 ## 👥 **Comptes de Test**
 
 ### Utilisateur Mobile
-- Email: `test@local`
-- Password: `password123`
+- Email: `test@example.com`
+- Password: `test123`
 
-### Admin Web
+### Admin Web  
 - Email: `admin@gosotral.com`
 - Password: `admin123`
 
-## 📱 **Fonctionnalités par App**
+---
 
-### GoSOTRAL_front (Utilisateurs)
-- ✅ Inscription/Connexion
-- ✅ Achat de tickets
-- ✅ Gestion du profil
-- ✅ Historique des achats
-- ✅ Codes QR des tickets
-- 🔄 Paiements mobile money
+## �️ **Dépannage Rapide**
 
-### Admin Web
-- ✅ Dashboard avec stats
-- ✅ Gestion des utilisateurs
-- ✅ Gestion des tickets
-- ✅ Analytics en temps réel
-- ✅ Validation manuelle tickets
-- 📊 Rapports d'activité
-
-### Scan Mobile (Contrôleurs)
-- ✅ Scanner QR codes
-- ✅ Validation temps réel
-- ✅ Historique des scans
-- ✅ Mode hors ligne
-- 🔊 Feedback audio/vibration
-
-## 🛠️ **Développement**
-
-### Test de l'architecture complète
+### ❌ "Network Error" dans l'app
 ```bash
-./test-architecture.sh
+# 1. Vérifier le backend
+curl http://localhost:7000/health
+
+# 2. Vérifier l'IP machine
+hostname -I
+
+# 3. Dans l'app: Dev Menu > Test Connectivité Réseau
 ```
 
-### Variables d'environnement
+### ❌ Base de données vide
 ```bash
-# Backend (.env)
-DATABASE_URL=postgresql://gosotral_user:gosotral_pass@localhost:5433/gosotral_db
-JWT_SECRET=your-secret-key
-ADMIN_EMAIL=admin@gosotral.com
-ADMIN_PASSWORD=admin123
-
-# Admin (.env)
-VITE_API_BASE_URL=http://localhost:7000
+cd /home/connect/kev/Go/back
+for sql_file in src/schema/*.sql; do 
+  docker exec -i back_db_1 psql -U gosotral_user -d gosotral_db < "$sql_file"
+done
 ```
 
-## 🔧 **Dépannage**
-
-### Erreur "Network Error" dans les apps mobiles
-1. Vérifiez que le backend tourne: `curl http://localhost:7000/health`
-2. Pour Android emulator: utilisez `10.0.2.2:7000`
-3. Pour appareil physique: utilisez l'IP LAN `192.168.1.106:7000`
-
-### Erreur CORS
-- CORS activé dans le backend pour le développement
-- Headers configurés automatiquement
-
-### Base de données vide
+### ❌ Cache Expo
 ```bash
-cd /home/kev/Go/back
-docker compose exec -T db psql -U gosotral_user -d gosotral_db < src/schema/users.sql
+cd /home/connect/kev/Go/front
+npx expo start --clear
 ```
-
-## 📈 **Prochaines Étapes**
-
-1. **Finaliser les paiements** mobile money
-2. **Implémenter mode offline** pour le scanner
-3. **Ajouter notifications push**
-4. **Optimiser les performances**
-5. **Tests automatisés**
-6. **Déploiement production**
 
 ---
 
-**Status**: ✅ Architecture fonctionnelle et testée
-**Last Update**: 8 septembre 2025
+## 💰 **Coûts Solutions Cloud**
+
+| Solution | Gratuit | Payant | URL Fixe | Setup |
+|----------|---------|--------|----------|-------|
+| **Railway** | ✅ 500h/mois | 5$/mois | ✅ | 5 min |
+| **Render** | ✅ 750h/mois | 7$/mois | ✅ | 10 min |
+| **ngrok** | ✅ 1 tunnel | 8$/mois | ❌ Temporaire | 1 min |
+
+**💡 Recommandation**: Railway gratuit pour commencer → Railway payant quand tu dépasses
+
+---
+
+## 📈 **Roadmap**
+
+- ✅ **Backend complet** (Auth, Tickets, DB)
+- ✅ **App mobile fonctionnelle** (achat, QR codes)
+- ✅ **Configuration réseau intelligente**
+- ✅ **Solutions déploiement cloud gratuites**
+- 🔄 **Paiements mobile money**
+- 🔄 **Mode offline scanner**
+- 🔄 **Notifications push**
+
+---
+
+**Status**: ✅ Architecture fonctionnelle et testée  
+**Accès Global**: ✅ Solutions gratuites implémentées  
+**Last Update**: 10 septembre 2025

@@ -134,8 +134,25 @@ export class TicketController {
   static async getUserTickets(req: RequestWithUser, res: Response) {
     try {
       const userId = req.user?.id;
-      const tickets = await TicketRepository.getTicketsByUserId(parseInt(userId as string));
       
+      if (!userId) {
+        console.log('[TicketController.getUserTickets] Utilisateur non authentifié');
+        return res.status(401).json({ success: false, error: 'Utilisateur non authentifié' });
+      }
+      
+      // Convertir userId en nombre de manière sécurisée
+      // Le middleware retourne toujours une string, donc on parse directement
+      const userIdNumber = parseInt(String(userId), 10);
+      
+      if (isNaN(userIdNumber)) {
+        console.log('[TicketController.getUserTickets] ID utilisateur invalide:', userId);
+        return res.status(400).json({ success: false, error: 'ID utilisateur invalide' });
+      }
+      
+      console.log('[TicketController.getUserTickets] Recherche tickets pour userId:', userIdNumber);
+      const tickets = await TicketRepository.getTicketsByUserId(userIdNumber);
+      
+      console.log('[TicketController.getUserTickets] Tickets trouvés:', tickets.length);
       return res.status(200).json({ success: true, data: tickets });
     } catch (error) {
       console.error('[TicketController.getUserTickets] error:', error);

@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../src/styles/theme';
 import { AuthService } from '../src/services/authService';
+import AuthLayout from '../src/components/AuthLayout';
+import { useToast } from '../src/contexts/ToastContext';
+import { normalizeErrorMessage, mapAuthErrorToFriendly } from '../src/utils/normalizeError';
 
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
@@ -12,83 +23,112 @@ export default function RegisterScreen() {
     email: '',
     password: '',
     confirmPassword: '',
-    phone: ''
+    phone: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { showToast } = useToast();
+
+  const formatTgPhone = (raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '');
+    let local = digits;
+    if (local.startsWith('228')) local = local.slice(3);
+    if (local.startsWith('0') && local.length === 9) local = local.slice(1);
+    local = local.slice(0, 8);
+    const groups = local.match(/.{1,2}/g) || [];
+    return groups.join(' ');
+  };
+
+  const normalizePhoneForApi = (raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '');
+    let local = digits;
+    if (local.startsWith('228')) local = local.slice(3);
+    if (local.startsWith('0') && local.length === 9) local = local.slice(1);
+    local = local.slice(0, 8);
+    return local ? '+228' + local : '';
+  };
 
   const handleRegister = async () => {
-    // Validation
     if (!formData.name || !formData.email || !formData.password) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      try { showToast('Veuillez remplir tous les champs obligatoires', 'error', 4000, 'top'); } catch {}
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      try { showToast('Les mots de passe ne correspondent pas', 'error', 4000, 'top'); } catch {}
       return;
     }
 
     if (formData.password.length < 6) {
-      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères');
+      try { showToast('Le mot de passe doit contenir au moins 6 caractères', 'error', 4000, 'top'); } catch {}
       return;
     }
 
+    if (formData.phone) {
+      const digits = formData.phone.replace(/[^0-9]/g, '');
+      let local = digits;
+      if (local.startsWith('228')) local = local.slice(3);
+      if (local.startsWith('0') && local.length === 9) local = local.slice(1);
+      if (local.length !== 8) {
+        try { showToast('Veuillez saisir un numéro togolais valide de 8 chiffres (ex: XX XX XX XX)', 'error', 4000, 'top'); } catch {}
+        return;
+      }
+    }
     setLoading(true);
+    setErrorMsg(null);
+    console.log('[Register] submitting', { email: formData.email, phone: formData.phone });
     try {
+      const phoneToSend = formData.phone ? normalizePhoneForApi(formData.phone) : '';
       await AuthService.register({
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        phone: formData.phone
+        phone: phoneToSend,
       });
-      
-      // Rediriger vers la vérification OTP
-      router.push({
-        pathname: '/verify-otp',
-        params: { email: formData.email }
-      });
-    } catch (error: any) {
-      Alert.alert('Erreur d\'inscription', error.message);
+
+      const success = 'Inscription réussie ! Vérifiez votre email...';
+      showToast(success, 'success', 3800, 'top');
+      setTimeout(() => {
+        router.push({ pathname: '/verify-otp', params: { email: formData.email } });
+      }, 1500);
+    } catch (err: any) {
+      console.log('[Register] Error caught:', err);
+      // Prefer using normalized + mapped friendly message
+      const normal = normalizeErrorMessage(err?.response?.data || err?.message || err);
+      const friendly = mapAuthErrorToFriendly(normal);
+      console.log('[Register] showToast friendly ->', friendly);
+      try { showToast(friendly || 'Erreur lors de l\'inscription', 'error', 4500, 'top'); } catch {}
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogin = () => {
-    router.push('/login');
-  };
+  const handleLogin = () => router.push('/login');
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <LinearGradient
-          colors={[theme.colors.primary[600], theme.colors.primary[700]]}
-          style={styles.gradient}
-        >
-          {/* Header */}
+    <>
+  <AuthLayout topInset={50}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
           <View style={styles.header}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color={theme.colors.white} />
             </TouchableOpacity>
-            
             <View style={styles.headerContent}>
               <Text style={styles.title}>Créer un compte</Text>
               <Text style={styles.subtitle}>Rejoignez GoSOTRAL</Text>
             </View>
           </View>
 
-          {/* Form */}
           <View style={styles.formContainer}>
             <View style={styles.form}>
-              {/* Name Input */}
+
+
+              {/* inline error removed; using toast for errors */}
+
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Nom complet *</Text>
                 <View style={styles.inputWrapper}>
@@ -97,14 +137,13 @@ export default function RegisterScreen() {
                     style={styles.input}
                     placeholder="Votre nom complet"
                     value={formData.name}
-                    onChangeText={(text) => setFormData({...formData, name: text})}
+                    onChangeText={(text) => setFormData({ ...formData, name: text })}
                     autoCapitalize="words"
                     placeholderTextColor={theme.colors.secondary[400]}
                   />
                 </View>
               </View>
 
-              {/* Email Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email *</Text>
                 <View style={styles.inputWrapper}>
@@ -113,7 +152,7 @@ export default function RegisterScreen() {
                     style={styles.input}
                     placeholder="votre@email.com"
                     value={formData.email}
-                    onChangeText={(text) => setFormData({...formData, email: text})}
+                    onChangeText={(text) => setFormData({ ...formData, email: text })}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -122,23 +161,22 @@ export default function RegisterScreen() {
                 </View>
               </View>
 
-              {/* Phone Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Téléphone</Text>
                 <View style={styles.inputWrapper}>
                   <Ionicons name="call" size={20} color={theme.colors.secondary[400]} />
                   <TextInput
                     style={styles.input}
-                    placeholder="+225 XX XX XX XX XX"
+                    placeholder="XX XX XX XX"
                     value={formData.phone}
-                    onChangeText={(text) => setFormData({...formData, phone: text})}
+                    onChangeText={(text) => setFormData({ ...formData, phone: formatTgPhone(text) })}
                     keyboardType="phone-pad"
                     placeholderTextColor={theme.colors.secondary[400]}
+                    maxLength={11}
                   />
                 </View>
               </View>
 
-              {/* Password Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Mot de passe *</Text>
                 <View style={styles.inputWrapper}>
@@ -147,24 +185,16 @@ export default function RegisterScreen() {
                     style={styles.input}
                     placeholder="Minimum 6 caractères"
                     value={formData.password}
-                    onChangeText={(text) => setFormData({...formData, password: text})}
+                    onChangeText={(text) => setFormData({ ...formData, password: text })}
                     secureTextEntry={!showPassword}
                     placeholderTextColor={theme.colors.secondary[400]}
                   />
-                  <TouchableOpacity
-                    onPress={() => setShowPassword(!showPassword)}
-                    style={styles.eyeButton}
-                  >
-                    <Ionicons
-                      name={showPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.colors.secondary[400]}
-                    />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+                    <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={theme.colors.secondary[400]} />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Confirm Password Input */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Confirmer le mot de passe *</Text>
                 <View style={styles.inputWrapper}>
@@ -173,31 +203,19 @@ export default function RegisterScreen() {
                     style={styles.input}
                     placeholder="Répétez votre mot de passe"
                     value={formData.confirmPassword}
-                    onChangeText={(text) => setFormData({...formData, confirmPassword: text})}
+                    onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
                     secureTextEntry={!showConfirmPassword}
                     placeholderTextColor={theme.colors.secondary[400]}
                   />
-                  <TouchableOpacity
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={styles.eyeButton}
-                  >
-                    <Ionicons
-                      name={showConfirmPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color={theme.colors.secondary[400]}
-                    />
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeButton}>
+                    <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color={theme.colors.secondary[400]} />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Register Button */}
-              <TouchableOpacity
-                style={[styles.registerButton, loading && styles.registerButtonDisabled]}
-                onPress={handleRegister}
-                disabled={loading}
-              >
+              <TouchableOpacity style={[styles.registerButton, loading && styles.registerButtonDisabled]} onPress={handleRegister} disabled={loading}>
                 {loading ? (
-                  <Text style={styles.registerButtonText}>Inscription...</Text>
+                  <ActivityIndicator color={theme.colors.white} />
                 ) : (
                   <>
                     <Text style={styles.registerButtonText}>S'inscrire</Text>
@@ -207,7 +225,6 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Login Link */}
             <View style={styles.loginContainer}>
               <Text style={styles.loginPrompt}>Déjà un compte ?</Text>
               <TouchableOpacity onPress={handleLogin}>
@@ -215,119 +232,134 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </LinearGradient>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </View>
+      </TouchableWithoutFeedback>
+  </AuthLayout>
+  {/* Toasts rendered globally via ToastProvider */}
+  </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { 
     flex: 1,
+  paddingTop: 0,
   },
-  keyboardView: {
-    flex: 1,
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+  paddingTop: 24,
+    paddingBottom: 24,
   },
-  gradient: {
-    flex: 1,
+  backButton: { 
+    padding: 8, 
+    marginRight: 12, 
+    borderRadius: 8, 
+    backgroundColor: 'rgba(255,255,255,0.15)'
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
-    paddingBottom: theme.spacing.lg,
-  },
-  backButton: {
-    padding: theme.spacing.sm,
-    marginRight: theme.spacing.md,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  title: {
-    fontSize: theme.typography.fontSize['2xl'],
-    fontWeight: theme.typography.fontWeight.bold,
+  headerContent: { flex: 1 },
+  title: { 
+    fontSize: 26, 
+    fontWeight: '700', 
     color: theme.colors.white,
+    letterSpacing: 0.5,
   },
-  subtitle: {
-    fontSize: theme.typography.fontSize.base,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: theme.spacing.xs,
+  subtitle: { 
+    fontSize: 15, 
+    color: 'rgba(255,255,255,0.85)', 
+    marginTop: 6,
+    letterSpacing: 0.3,
   },
-  formContainer: {
-    flex: 1,
-    paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'space-between',
+  formContainer: { 
+    paddingHorizontal: 20, 
   },
-  form: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.borderRadius.xxl,
-    padding: theme.spacing.xl,
-    ...theme.shadows.lg,
+  form: { 
+    backgroundColor: theme.colors.white, 
+    borderRadius: 24,
+  padding: 14, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.08, 
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  inputContainer: {
-    marginBottom: theme.spacing.md,
+  inputContainer: { 
+  marginBottom: 12,
   },
-  inputLabel: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.secondary[700],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginBottom: theme.spacing.sm,
+  inputLabel: { 
+    fontSize: 13, 
+    color: theme.colors.secondary[700], 
+    fontWeight: '600', 
+    marginBottom: 8,
+    letterSpacing: 0.3,
   },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.secondary[50],
-    borderRadius: theme.borderRadius.lg,
-    paddingHorizontal: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.secondary[200],
+  inputWrapper: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: theme.colors.secondary[50], 
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 2,
+    borderWidth: 1.5, 
+    borderColor: theme.colors.secondary[200] 
   },
-  input: {
-    flex: 1,
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.secondary[900],
-    paddingVertical: theme.spacing.sm,
-    marginLeft: theme.spacing.sm,
+  input: { 
+    flex: 1, 
+    fontSize: 16, 
+    color: theme.colors.secondary[900], 
+  paddingVertical: 8, 
+    marginLeft: 12,
+    letterSpacing: 0.3,
   },
-  eyeButton: {
-    padding: theme.spacing.xs,
+  eyeButton: { 
+    padding: 8,
+    marginRight: -4,
   },
-  registerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary[600],
-    borderRadius: theme.borderRadius.lg,
-    paddingVertical: theme.spacing.md,
-    marginTop: theme.spacing.lg,
-    ...theme.shadows.md,
+  registerButton: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: theme.colors.primary[600], 
+    borderRadius: 16,
+  paddingVertical: 12,
+  marginTop: 14,
+    shadowColor: theme.colors.primary[600],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  registerButtonDisabled: {
+  registerButtonDisabled: { 
     backgroundColor: theme.colors.secondary[300],
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  registerButtonText: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.white,
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginRight: theme.spacing.sm,
+  registerButtonText: { 
+    fontSize: 17, 
+    color: theme.colors.white, 
+    fontWeight: '700', 
+    marginRight: 8,
+    letterSpacing: 0.5,
   },
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+  loginContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+  paddingVertical: 12,
+  marginTop: 0,
   },
-  loginPrompt: {
-    fontSize: theme.typography.fontSize.base,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginRight: theme.spacing.sm,
+  loginPrompt: { 
+    fontSize: 15, 
+    color: 'rgba(255,255,255,0.85)', 
+    marginRight: 8,
+    letterSpacing: 0.3,
   },
-  loginLink: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.white,
-    fontWeight: theme.typography.fontWeight.bold,
-    textDecorationLine: 'underline',
+  loginLink: { 
+    fontSize: 15, 
+    color: theme.colors.white, 
+    fontWeight: '700',
+  letterSpacing: 0.3,
+  textDecorationLine: 'underline',
   },
 });

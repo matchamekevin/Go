@@ -4,88 +4,103 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { theme } from '../src/styles/theme';
+import { useAuth } from '../src/contexts/AuthContext';
 
 export default function WelcomeScreen() {
-  useEffect(() => {
-    // Auto-redirect vers les tabs après 3 secondes ou sur tap
-    const timer = setTimeout(() => {
-      router.replace('/(tabs)');
-    }, 4000);
+  // Removed auto-redirect, only button click will navigate.
+  const { isAuthenticated, isLoading } = useAuth();
 
-    return () => clearTimeout(timer);
-  }, []);
+  // If an unauthenticated user somehow reaches the landing screen (index), redirect immediately
+  // to the login page to avoid flashing the landing during auth transitions.
+  React.useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      try {
+        router.replace('/login');
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [isLoading, isAuthenticated]);
 
   const handleGetStarted = () => {
-    router.replace('/(tabs)');
+    // If still checking auth, do nothing (or show loader in future)
+    if (isLoading) return;
+
+    if (isAuthenticated) {
+      router.replace('/(tabs)');
+    } else {
+      // Force login when the user is not authenticated
+      router.replace('/login');
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#2563EB', '#1D4ED8', '#1E40AF']}
+        colors={[theme.colors.primary[500], theme.colors.primary[600], theme.colors.secondary[700]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
-        {/* Header avec logo */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoIcon}>
-              <Ionicons name="bus" size={48} color={theme.colors.white} />
+          {/* Header avec logo */}
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logoIcon}>
+                <Ionicons name="bus" size={48} color={theme.colors.white} />
+              </View>
+              <Text style={styles.logoText}>GoSOTRAL</Text>
+              <Text style={styles.tagline}>Transport intelligent</Text>
             </View>
-            <Text style={styles.logoText}>GoSOTRAL</Text>
-            <Text style={styles.tagline}>Transport intelligent</Text>
           </View>
-        </View>
 
-        {/* Illustration centrale */}
-        <View style={styles.illustrationContainer}>
-          <View style={styles.phoneFrame}>
-            <View style={styles.phoneScreen}>
-              <View style={styles.ticketPreview}>
-                <Ionicons name="qr-code" size={60} color={theme.colors.primary[600]} />
-                <Text style={styles.ticketText}>Billet numérique</Text>
+          {/* Illustration centrale */}
+          <View style={[styles.illustrationContainer, { flex: 1.2 }]}>
+            <View style={[styles.phoneFrame, { width: 160, height: 160 }]}>
+              <View style={styles.phoneScreen}>
+                <View style={styles.ticketPreview}>
+                  <Ionicons name="qr-code" size={36} color={theme.colors.primary[600]} />
+                  <Text style={[styles.ticketText, { fontSize: 9 }]}>Billet numérique</Text>
+                </View>
+              </View>
+            </View>
+            {/* Points décoratifs avec animation */}
+            <View style={[styles.decorativeCircle, styles.circle1]} />
+            <View style={[styles.decorativeCircle, styles.circle2]} />
+            <View style={[styles.decorativeCircle, styles.circle3]} />
+          </View>
+
+          {/* Points forts */}
+          <View style={styles.featuresContainer}>
+            <View style={styles.featureRow}>
+              <View style={styles.featureItem}>
+                <Ionicons name="flash" size={24} color={theme.colors.white} />
+                <Text style={styles.featureText}>Rapide</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Ionicons name="shield-checkmark" size={24} color={theme.colors.white} />
+                <Text style={styles.featureText}>Sécurisé</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <Ionicons name="phone-portrait" size={24} color={theme.colors.white} />
+                <Text style={styles.featureText}>Mobile</Text>
               </View>
             </View>
           </View>
-          
-          {/* Points décoratifs */}
-          <View style={[styles.decorativeCircle, styles.circle1]} />
-          <View style={[styles.decorativeCircle, styles.circle2]} />
-          <View style={[styles.decorativeCircle, styles.circle3]} />
-        </View>
 
-        {/* Features highlights */}
-        <View style={styles.featuresContainer}>
-          <View style={styles.featureRow}>
-            <View style={styles.featureItem}>
-              <Ionicons name="flash" size={24} color={theme.colors.white} />
-              <Text style={styles.featureText}>Rapide</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="shield-checkmark" size={24} color={theme.colors.white} />
-              <Text style={styles.featureText}>Sécurisé</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="phone-portrait" size={24} color={theme.colors.white} />
-              <Text style={styles.featureText}>Mobile</Text>
-            </View>
+          {/* Appel à l'action */}
+          <View style={styles.ctaContainer}>
+            <TouchableOpacity style={styles.ctaButton} onPress={handleGetStarted}>
+              <Text style={styles.ctaText}>Commencer</Text>
+              <Ionicons name="arrow-forward" size={20} color={theme.colors.primary[600]} />
+            </TouchableOpacity>
+            <Text style={styles.skipText}>
+              Découvrez le transport intelligent du Togo
+            </Text>
           </View>
-        </View>
-
-        {/* Call to action */}
-        <View style={styles.ctaContainer}>
-          <TouchableOpacity style={styles.ctaButton} onPress={handleGetStarted}>
-            <Text style={styles.ctaText}>Commencer</Text>
-            <Ionicons name="arrow-forward" size={20} color={theme.colors.primary[600]} />
-          </TouchableOpacity>
-          
-          <Text style={styles.skipText}>
-            Ou appuyez n'importe où pour continuer
-          </Text>
-        </View>
-      </LinearGradient>
-    </SafeAreaView>
-  );
-}
+        </LinearGradient>
+      </SafeAreaView>
+    );
+  }
 
 const styles = StyleSheet.create({
   container: {
@@ -125,23 +140,28 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.medium,
   },
   illustrationContainer: {
-    flex: 1.5,
+    flex: 0.6,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    marginVertical: theme.spacing.lg,
   },
   phoneFrame: {
     width: 200,
     height: 360,
     backgroundColor: theme.colors.white,
-    borderRadius: theme.borderRadius.xxl,
-    padding: 8,
-    ...theme.shadows.lg,
+    borderRadius: 28,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
   },
   phoneScreen: {
     flex: 1,
     backgroundColor: theme.colors.secondary[50],
-    borderRadius: theme.borderRadius.xl,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -157,26 +177,26 @@ const styles = StyleSheet.create({
   },
   decorativeCircle: {
     position: 'absolute',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: theme.borderRadius.full,
   },
   circle1: {
-    width: 60,
-    height: 60,
-    top: 50,
-    left: 30,
+    width: 70,
+    height: 70,
+    top: 40,
+    left: 20,
   },
   circle2: {
-    width: 80,
-    height: 80,
-    bottom: 80,
-    right: 20,
+    width: 90,
+    height: 90,
+    bottom: 60,
+    right: 10,
   },
   circle3: {
-    width: 40,
-    height: 40,
-    top: 200,
-    right: 50,
+    width: 50,
+    height: 50,
+    top: 180,
+    right: 40,
   },
   featuresContainer: {
     flex: 0.5,
@@ -206,21 +226,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.white,
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl * 1.5,
+    paddingVertical: theme.spacing.md + 2,
     borderRadius: theme.borderRadius.full,
     marginBottom: theme.spacing.lg,
-    ...theme.shadows.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   ctaText: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontSize: theme.typography.fontSize.lg + 1,
+    fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.primary[600],
     marginRight: theme.spacing.sm,
+    letterSpacing: 0.5,
   },
   skipText: {
     fontSize: theme.typography.fontSize.sm,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
+    fontWeight: theme.typography.fontWeight.medium,
+    letterSpacing: 0.3,
   },
 });

@@ -1,0 +1,31 @@
+## Render Infrastructure Spec (Optional)
+# Utilise ce fichier si tu veux que Render crée les ressources automatiquement.
+# IMPORTANT:
+#  - Si tu fournis dockerfilePath: back/Dockerfile, NE mets PAS "Root Directory: back" dans l'UI.
+#    (Sinon Render cherchera back/back/Dockerfile -> erreur vue dans tes logs.)
+#  - Option A: Root Directory vide (repo racine) + dockerfilePath: back/Dockerfile  ✅
+#  - Option B: Root Directory = back + dockerfilePath: Dockerfile (et alors retire 'back/' ici) ✅
+#  - N'ajoute pas un second bloc 'services:' (le fichier précédent en avait deux -> YAML invalide).
+
+services:
+  - type: web
+    name: gosotral-api
+    env: docker
+    plan: free
+    repo: matchamekevin/Go
+    branch: dev2
+    dockerfilePath: back/Dockerfile  # changer en 'Dockerfile' si Root Directory = back
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Fournis soit DATABASE_URL, soit les variables DB_* correspondantes
+      - key: DATABASE_URL
+        value: $DATABASE_URL # définir dans le dashboard (ou utiliser fromDatabase quand supporté)
+      - key: PORT
+        value: 7000
+
+databases:
+  - name: gosotral-db
+    plan: free
+    databaseName: gosotral_db
+    user: gosotral_user

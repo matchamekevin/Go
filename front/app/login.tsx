@@ -1,30 +1,79 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../src/styles/theme';
 import { useAuth } from '../src/contexts/AuthContext';
+import { AuthService } from '../src/services/authService';
+import { normalizeErrorMessage, mapAuthErrorToFriendly } from '../src/utils/normalizeError';
+// ToastOverlay rendered globally via ToastProvider
+import { useToast } from '../src/contexts/ToastContext';
+// ErrorMessage removed; using global toast only
+import AuthLayout from '../src/components/AuthLayout';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const { login } = useAuth();
+  const { showToast } = useToast();
+  const [showUnverifiedActions, setShowUnverifiedActions] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    console.log('[Login] errorMsg state changed ->', errorMsg);
+  }, [errorMsg]);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      setErrorMsg('Veuillez remplir tous les champs');
       return;
     }
 
     setLoading(true);
+    setErrorMsg(null);
     try {
       await login({ email, password });
       router.replace('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Erreur de connexion', error.message);
+        // Si le backend a indiqué que le compte n'est pas vérifié, rediriger automatiquement vers OTP
+        const isUnverified = (error?.message === 'ACCOUNT_UNVERIFIED') || (error?.response && error.response.data && error.response.data.unverified);
+        if (isUnverified) {
+          const targetEmail = error?.response?.data?.email || email;
+          // Envoyer l'utilisateur directement vers la page de vérification OTP avec autoResend=true
+          router.replace({ pathname: '/verify-otp', params: { email: targetEmail, autoResend: 'true' } });
+          return;
+        }
+
+        const normal = normalizeErrorMessage(error?.response?.data || error?.message || error);
+        let friendly = mapAuthErrorToFriendly(normal);
+        // Fallback : si la normalisation retourne un message générique technique, remplacer par un message clair
+        try {
+          const n = String(normal || '').toLowerCase();
+          if (n.includes('requête invalide') || n.includes('request failed') || n.includes('request invalid') || /status code 400/.test(n) || /timeout/.test(n)) {
+            friendly = 'Email ou mot de passe incorrect. Vérifiez vos informations et réessayez.';
+          }
+        } catch {}
+        if (friendly.toLowerCase().includes('compte non vérifié')) {
+          setShowUnverifiedActions(true);
+        } else {
+          setShowUnverifiedActions(false);
+        }
+  console.log('[Login] setting errorMsg (normal/friendly):', normal, '/', friendly);
+  setErrorMsg(friendly);
+  try { showToast(friendly, 'error', 8000, 'top'); } catch {}
+  // Ne pas naviguer ici : laisser l'utilisateur sur la page de connexion sans remount inutile.
     } finally {
       setLoading(false);
     }
@@ -39,15 +88,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <LinearGradient
-          colors={[theme.colors.primary[600], theme.colors.primary[700]]}
-          style={styles.gradient}
-        >
+    <>
+    <AuthLayout>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoContainer}>
@@ -76,6 +120,10 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     placeholderTextColor={theme.colors.secondary[400]}
+                    returnKeyType="next"
+                    onSubmitEditing={() => {
+                      // move focus to password - but simple approach: nothing for now
+                    }}
                   />
                 </View>
               </View>
@@ -92,6 +140,8 @@ export default function LoginScreen() {
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     placeholderTextColor={theme.colors.secondary[400]}
+                    returnKeyType="done"
+                    onSubmitEditing={handleLogin}
                   />
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
@@ -106,6 +156,41 @@ export default function LoginScreen() {
                 </View>
               </View>
 
+
+              {/* inline error removed; toast will show messages */}
+
+              {showUnverifiedActions && (
+                <View style={styles.inlineActions}>
+                  <TouchableOpacity
+                    disabled={resending}
+                    onPress={async () => {
+                      if (!email) return;
+                      setResending(true);
+                      try {
+                        await AuthService.resendOTP(email);
+                        setErrorMsg('Code renvoyé. Vérifiez votre email.');
+                      } catch (e:any) {
+                        setErrorMsg('Erreur lors de l\'envoi du code.');
+                      } finally {
+                        setResending(false);
+                      }
+                    }}
+                    style={[styles.smallBtn, resending && styles.smallBtnDisabled]}
+                  >
+                    <Text style={styles.smallBtnText}>{resending ? 'Envoi...' : 'Renvoyer le code'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (!email) return;
+                      router.push({ pathname: '/verify-otp', params: { email } });
+                    }}
+                    style={styles.outlineLink}
+                  >
+                    <Text style={styles.outlineLinkText}>Vérifier maintenant</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Forgot Password */}
               <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
                 <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
@@ -118,7 +203,7 @@ export default function LoginScreen() {
                 disabled={loading}
               >
                 {loading ? (
-                  <Text style={styles.loginButtonText}>Connexion...</Text>
+                  <ActivityIndicator color={theme.colors.white} />
                 ) : (
                   <>
                     <Text style={styles.loginButtonText}>Se connecter</Text>
@@ -136,27 +221,26 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </LinearGradient>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </View>
+      </TouchableWithoutFeedback>
+    </AuthLayout>
+  {/* debug overlay removed */}
+  {/* ToastOverlay is rendered globally by ToastProvider */}
+  </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
+    paddingTop: 60,
   },
   header: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   logoContainer: {
     alignItems: 'center',
@@ -182,9 +266,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   formContainer: {
-    flex: 1.5,
     paddingHorizontal: theme.spacing.lg,
-    justifyContent: 'space-between',
   },
   form: {
     backgroundColor: theme.colors.white,
@@ -251,7 +333,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.lg,
   },
   registerPrompt: {
     fontSize: theme.typography.fontSize.base,
@@ -262,6 +344,38 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.white,
     fontWeight: theme.typography.fontWeight.bold,
+    textDecorationLine: 'underline',
+  },
+  inlineActions: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  smallBtn: {
+    backgroundColor: theme.colors.primary[600],
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: theme.borderRadius.md,
+  },
+  smallBtnDisabled: {
+    backgroundColor: theme.colors.secondary[300],
+  },
+  smallBtnText: {
+    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  outlineLink: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  outlineLinkText: {
+    color: theme.colors.primary[600],
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
     textDecorationLine: 'underline',
   },
 });

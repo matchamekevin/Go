@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
 import { TicketRepository } from './Ticket.repository';
-// ... TicketRepository déjà importé ci-dessus
+import { TicketController } from './Ticket.controller';
+import { authMiddleware } from '../../shared/midddleawers/auth.middleware';
 
 const router = Router();
 
@@ -90,5 +91,20 @@ router.get('/:code/qrcode', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Erreur lors de la génération du QR code' });
   }
 });
+
+// Routes authentifiées
+router.use(authMiddleware as any);
+
+// Acheter un ticket (nécessite une authentification)
+router.post('/purchase', TicketController.purchaseTicket);
+
+// Mes tickets (nécessite une authentification)
+router.get('/my-tickets', TicketController.getUserTickets);
+
+// Valider un ticket (nécessite une authentification)
+router.post('/validate', TicketController.validateTicket);
+
+// Statistiques des tickets (admin)
+router.get('/stats', TicketController.getTicketStats);
 
 export default router;

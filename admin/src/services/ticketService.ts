@@ -8,15 +8,15 @@ export class TicketService {
   }
 
   static async createProduct(data: Omit<TicketProduct, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<TicketProduct>> {
-    return apiClient.post<ApiResponse<TicketProduct>>('/tickets/products', data);
+    return apiClient.post<ApiResponse<TicketProduct>>('/admin/tickets/products', data);
   }
 
   static async updateProduct(id: number, data: Partial<TicketProduct>): Promise<ApiResponse<TicketProduct>> {
-    return apiClient.put<ApiResponse<TicketProduct>>(`/tickets/products/${id}`, data);
+    return apiClient.put<ApiResponse<TicketProduct>>(`/admin/tickets/products/${id}`, data);
   }
 
   static async deleteProduct(id: number): Promise<ApiResponse<void>> {
-    return apiClient.delete<ApiResponse<void>>(`/tickets/products/${id}`);
+    return apiClient.delete<ApiResponse<void>>(`/admin/tickets/products/${id}`);
   }
 
   // Routes
@@ -29,15 +29,15 @@ export class TicketService {
   }
 
   static async createRoute(data: Omit<Route, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Route>> {
-    return apiClient.post<ApiResponse<Route>>('/tickets/routes', data);
+    return apiClient.post<ApiResponse<Route>>('/admin/tickets/routes', data);
   }
 
   static async updateRoute(id: number, data: Partial<Route>): Promise<ApiResponse<Route>> {
-    return apiClient.put<ApiResponse<Route>>(`/tickets/routes/${id}`, data);
+    return apiClient.put<ApiResponse<Route>>(`/admin/tickets/routes/${id}`, data);
   }
 
   static async deleteRoute(id: number): Promise<ApiResponse<void>> {
-    return apiClient.delete<ApiResponse<void>>(`/tickets/routes/${id}`);
+    return apiClient.delete<ApiResponse<void>>(`/admin/tickets/routes/${id}`);
   }
 
   // Tickets
@@ -56,8 +56,9 @@ export class TicketService {
     if (params?.user_id) queryParams.append('user_id', params.user_id.toString());
     if (params?.product_code) queryParams.append('product_code', params.product_code);
 
-    const url = `/tickets${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiClient.get<PaginatedResponse<Ticket>>(url);
+  // Le backend expose les routes admin tickets sous /admin/tickets/tickets
+  const url = `/admin/tickets/tickets${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  return apiClient.get<PaginatedResponse<Ticket>>(url);
   }
 
   static async getTicketByCode(code: string): Promise<ApiResponse<Ticket>> {
@@ -69,11 +70,11 @@ export class TicketService {
   }
 
   static async updateTicketStatus(id: number, status: string): Promise<ApiResponse<Ticket>> {
-    return apiClient.patch<ApiResponse<Ticket>>(`/tickets/${id}/status`, { status });
+    return apiClient.patch<ApiResponse<Ticket>>(`/admin/tickets/tickets/${id}/status`, { status });
   }
 
   static async getTicketQRCode(code: string): Promise<Blob> {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/tickets/${code}/qrcode`);
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/tickets/${code}/qrcode`);
     return response.blob();
   }
 
