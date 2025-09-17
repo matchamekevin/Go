@@ -15,8 +15,6 @@ import {
   Search,
   MessageSquare,
   PieChart,
-  Briefcase,
-  Map,
   FileText,
   HelpCircle
 } from 'lucide-react';
@@ -27,15 +25,15 @@ const navigationCategories = [
     category: "Général",
     items: [
       { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Utilisateurs', href: '/users', icon: Users },
+      { name: 'Utilisateurs', href: '/users', icon: Users },
       { name: 'Rapports', href: '/reports', icon: FileText },
     ]
   },
   {
     category: "Transport",
     items: [
+      { name: 'SOTRAL', href: '/sotral', icon: Ticket },
       { name: 'Tickets', href: '/tickets', icon: Ticket },
-      { name: 'Routes', href: '/routes', icon: Map },
       { name: 'Produits', href: '/products', icon: Package },
     ]
   },
@@ -43,8 +41,7 @@ const navigationCategories = [
     category: "Finance",
     items: [
       { name: 'Paiements', href: '/payments', icon: CreditCard },
-      { name: 'Transactions', href: '/transactions', icon: Briefcase },
-      { name: 'Statistiques', href: '/stats', icon: PieChart },
+      { name: 'Statistiques', href: '/statistics', icon: PieChart },
     ]
   },
   {

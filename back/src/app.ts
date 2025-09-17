@@ -7,6 +7,8 @@ import ticketsRoutesSimple from './features/tickets/tickets.routes.simple';
 import adminRoutes from './features/admin/admin.routes';
 import adminTicketsRoutes from './features/admin/admin.tickets.routes';
 import supportRoutes from './features/support/support.controller';
+import { sotralRoutes } from './features/sotral/sotral.routes';
+import { sotralAdminRoutes } from './features/sotral/sotral.admin.routes';
 import { UserRepository } from './features/users/User.repository';
 import { EmailOTPRepository } from './features/auth/EmailOTP.repository';
 import { PasswordResetOTPRepository } from './features/auth/PasswordResetOTP.repository';
@@ -147,12 +149,14 @@ app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/tickets', ticketsRoutesSimple);
+app.use('/sotral', sotralRoutes);
 app.use('/admin', adminRoutes);
 // Route de test publique pour valider le déploiement (doit être placée avant le montage des routes admin/tickets)
 app.get('/admin/tickets/test', (req: Request, res: Response) => {
   res.json({ success: true, message: 'admin tickets test route active' });
 });
 app.use('/admin/tickets', adminTicketsRoutes);
+app.use('/admin/sotral', sotralAdminRoutes);
 app.use('/support', supportRoutes);
 
 // Route de test pour vérifier que les routes admin tickets sont bien exposées sur le serveur déployé

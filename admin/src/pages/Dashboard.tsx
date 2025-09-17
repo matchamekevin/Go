@@ -6,12 +6,10 @@ import { toast } from 'react-hot-toast';
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        setLoading(true);
+  try {
         const [statsResponse, activityResponse] = await Promise.all([
           DashboardService.getStats(),
           DashboardService.getRecentActivity()
@@ -28,7 +26,7 @@ const Dashboard: React.FC = () => {
         console.error('Erreur lors du chargement du dashboard:', error);
         toast.error('Erreur lors du chargement des données');
       } finally {
-        setLoading(false);
+        // no-op
       }
     };
 

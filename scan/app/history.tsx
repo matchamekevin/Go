@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { scanService } from '../src/services/scanService';
+import { ScanService } from '../src/services/scanService';
 
 interface ScanHistoryItem {
   id: string;
@@ -31,7 +31,7 @@ export default function HistoryScreen() {
 
   const loadHistory = async () => {
     try {
-      const data = await scanService.getScanHistory();
+  const data = await ScanService.getScanHistory();
       setHistory(data);
     } catch (error) {
       console.error('Erreur chargement historique:', error);

@@ -1,9 +1,9 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
+import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Config } from '../config'
 
 class ApiClient {
-  private client: AxiosInstance
+  private client: any
 
   constructor() {
     this.client = axios.create({
@@ -16,7 +16,7 @@ class ApiClient {
 
     // Intercepteur pour ajouter le token
     this.client.interceptors.request.use(
-      async (config) => {
+      async (config: any) => {
         if (Config.debug) {
           console.log('🔍 Scan API Request:', {
             method: config.method?.toUpperCase(),
@@ -32,7 +32,7 @@ class ApiClient {
         }
         return config
       },
-      (error) => {
+      (error: any) => {
         if (Config.debug) {
           console.error('❌ Scan API Request Error:', error)
         }
@@ -42,7 +42,7 @@ class ApiClient {
 
     // Intercepteur pour gérer les réponses
     this.client.interceptors.response.use(
-      (response) => {
+      (response: any) => {
         if (Config.debug) {
           console.log('✅ Scan API Response:', {
             status: response.status,
@@ -51,7 +51,7 @@ class ApiClient {
         }
         return response
       },
-      async (error) => {
+  async (error: any) => {
         if (Config.debug) {
           console.error('❌ Scan API Response Error:', {
             message: error.message,
@@ -60,7 +60,7 @@ class ApiClient {
           })
         }
         
-        if (error.response?.status === 401) {
+        if (error?.response?.status === 401) {
           await AsyncStorage.removeItem(Config.storageKeys.token)
           // Navigation vers login si nécessaire
         }
@@ -69,14 +69,14 @@ class ApiClient {
     )
   }
 
-  async get<T>(url: string, config?: AxiosRequestConfig) {
-    const response = await this.client.get<T>(url, config)
-    return response.data
+  async get<T>(url: string, config?: any) {
+    const response = await (this.client as any).get(url, config)
+    return response.data as T
   }
 
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig) {
-    const response = await this.client.post<T>(url, data, config)
-    return response.data
+  async post<T>(url: string, data?: any, config?: any) {
+    const response = await (this.client as any).post(url, data, config)
+    return response.data as T
   }
 
   async setToken(token: string) {

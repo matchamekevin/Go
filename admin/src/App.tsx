@@ -10,6 +10,12 @@ import UsersPage from './pages/UsersPage';
 import TicketsPage from './pages/TicketsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import ProductsPage from './pages/ProductsPage';
+import ReportsPage from './pages/ReportsPage';
+import MessagesPage from './pages/MessagesPage';
+import HelpPage from './pages/HelpPage';
+import SettingsPage from './pages/SettingsPage';
+import StatisticsPage from './pages/StatisticsPage';
+import SotralManagement from './pages/SotralManagement';
 // import RoutesPage from './pages/RoutesPage';
 import './index.css';
 
@@ -95,13 +101,15 @@ const AppContent: React.FC = () => {
           <Route path="tickets" element={<TicketsPage />} />
           <Route path="payments" element={<PaymentsPage />} />
           <Route path="products" element={<ProductsPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="messages" element={<MessagesPage />} />
+          <Route path="help" element={<HelpPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="statistics" element={<StatisticsPage />} />
+          <Route path="sotral" element={<SotralManagement />} />
           <Route path="routes" element={<Navigate to="/dashboard" replace />} />
-          <Route path="reports" element={<Navigate to="/dashboard" replace />} />
           <Route path="transactions" element={<Navigate to="/dashboard" replace />} />
-          <Route path="stats" element={<Navigate to="/dashboard" replace />} />
-          <Route path="messages" element={<Navigate to="/dashboard" replace />} />
-          <Route path="help" element={<Navigate to="/dashboard" replace />} />
-          <Route path="settings" element={<Navigate to="/dashboard" replace />} />
+          <Route path="stats" element={<Navigate to="/statistics" replace />} />
         </Route>
 
         {/* Route 404 */}

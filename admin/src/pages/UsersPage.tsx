@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Mail, Phone, Calendar, Shield, ShieldCheck } from 'lucide-react';
+import { Search, Mail, Phone, Calendar, Shield, ShieldCheck } from 'lucide-react';
 import { UserService } from '../services/userService';
 import { User } from '../types/api';
 import { toast } from 'react-hot-toast';
@@ -73,20 +73,6 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
-      try {
-        const response = await UserService.deleteUser(userId);
-        if (response.success) {
-          toast.success('Utilisateur supprimé');
-          fetchUsers(); // Recharger la liste
-        }
-      } catch (error) {
-        toast.error('Erreur lors de la suppression');
-      }
-    }
-  };
-
   const getStatusBadge = (isVerified: boolean) => {
     return isVerified ? (
       <span className="status-badge status-active">Vérifié</span>
@@ -134,10 +120,6 @@ const UsersPage: React.FC = () => {
               <option value="verified">Vérifiés</option>
               <option value="unverified">Non vérifiés</option>
             </select>
-            <button className="flex items-center px-4 py-2 rounded-lg bg-[#065f46] text-white font-bold shadow hover:bg-[#10b981] transition-colors">
-              <UserPlus className="h-5 w-5 mr-2" />
-              Nouvel utilisateur
-            </button>
           </div>
         </div>
       </div>
@@ -221,9 +203,6 @@ const UsersPage: React.FC = () => {
                   Statut
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rôle
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tickets
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -268,18 +247,6 @@ const UsersPage: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(user.is_verified)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {user.email?.includes('admin') ? (
-                        <ShieldCheck className="h-4 w-4 text-purple-600" />
-                      ) : (
-                        <Shield className="h-4 w-4 text-gray-400" />
-                      )}
-                      <span className="ml-2 text-sm text-gray-900 capitalize">
-                        {user.email?.includes('admin') ? 'Admin' : 'User'}
-                      </span>
-                    </div>
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     0 {/* Tickets achetés - à implémenter */}
                   </td>
@@ -296,13 +263,7 @@ const UsersPage: React.FC = () => {
                             : 'bg-green-100 text-green-800 hover:bg-green-200'
                         }`}
                       >
-                        {user.is_verified ? 'Suspendre' : 'Vérifier'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="px-3 py-1 rounded text-xs font-medium bg-red-100 text-red-800 hover:bg-red-200"
-                      >
-                        Supprimer
+                        {user.is_verified ? 'Suspendre' : 'Activer'}
                       </button>
                     </div>
                   </td>
