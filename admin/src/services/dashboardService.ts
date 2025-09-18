@@ -33,21 +33,7 @@ export class DashboardService {
   }
 
   static async getChartData(type: 'users' | 'tickets' | 'revenue', period: '7d' | '30d' | '90d' | '1y'): Promise<ApiResponse<ChartData[]>> {
-    // Simule des données de graphique - peut être implémenté côté backend plus tard
-    const mockData: ChartData[] = [];
-    const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
-    const baseValue = type === 'revenue' ? 1000 : type === 'tickets' ? 50 : 20;
-    
-    for (let i = days; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      mockData.push({
-        date: date.toISOString().split('T')[0],
-        value: Math.floor(Math.random() * baseValue) + baseValue / 2
-      });
-    }
-    
-    return Promise.resolve({ success: true, data: mockData });
+    return apiClient.get<ApiResponse<ChartData[]>>(`/admin/dashboard/chart-data?type=${type}&period=${period}`);
   }
 
   static async getRecentActivity(): Promise<ApiResponse<Array<{
