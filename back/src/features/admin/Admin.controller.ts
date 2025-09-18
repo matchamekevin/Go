@@ -80,8 +80,9 @@ export class AdminController {
         }
       });
     } catch (error) {
-      console.error('[AdminController.getAllUsers] error:', error, error?.stack);
-      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des utilisateurs', details: error?.message || error });
+  const err = error as Error;
+  console.error('[AdminController.getAllUsers] error:', err, err.stack);
+  return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des utilisateurs', details: err.message || err });
     }
   }
 
