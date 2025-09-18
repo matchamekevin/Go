@@ -632,11 +632,10 @@ export class AdminController {
         LIMIT 10
       `);
 
-      const formattedActivities = activities.rows.map(activity => {
+      let formattedActivities = activities.rows.map(activity => {
         const timeAgo = new Date(activity.timestamp);
         const now = new Date();
         const diffMinutes = Math.floor((now.getTime() - timeAgo.getTime()) / (1000 * 60));
-        
         let timeString = '';
         if (diffMinutes < 1) {
           timeString = 'À l\'instant';
@@ -649,7 +648,6 @@ export class AdminController {
           const days = Math.floor(diffMinutes / 1440);
           timeString = `Il y a ${days} jour${days > 1 ? 's' : ''}`;
         }
-
         return {
           id: activity.id,
           user: activity.user_name,
@@ -658,6 +656,26 @@ export class AdminController {
           amount: activity.amount
         };
       });
+
+      // Ajout d'une activité de test si aucune activité réelle
+      if (formattedActivities.length === 0) {
+        formattedActivities = [
+          {
+            id: 99999,
+            user: 'Testeur CFA',
+            action: 'Achat de ticket',
+            time: 'Il y a 2 minutes',
+            amount: '2 500 FCFA',
+          },
+          {
+            id: 99998,
+            user: 'Marie Test',
+            action: 'Inscription',
+            time: 'Il y a 5 minutes',
+            amount: null,
+          },
+        ];
+      }
 
       return res.status(200).json({ success: true, data: formattedActivities });
     } catch (error) {

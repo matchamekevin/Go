@@ -43,38 +43,7 @@ export class DashboardService {
     time: string;
     amount?: string;
   }>>> {
-    // Simule l'activité récente - peut être implémenté plus tard côté backend
-    return Promise.resolve({
-      success: true,
-      data: [
-        {
-          id: 1,
-          user: 'Kevin Matcha',
-          action: 'Achat de ticket',
-          time: 'Il y a 2 minutes',
-          amount: '€2.50',
-        },
-        {
-          id: 2,
-          user: 'Marie Dubois',
-          action: 'Inscription',
-          time: 'Il y a 5 minutes',
-        },
-        {
-          id: 3,
-          user: 'Jean Martin',
-          action: 'Utilisation ticket',
-          time: 'Il y a 10 minutes',
-        },
-        {
-          id: 4,
-          user: 'Sophie Laurent',
-          action: 'Achat de ticket',
-          time: 'Il y a 15 minutes',
-          amount: '€3.00',
-        },
-      ]
-    });
+    return apiClient.get<ApiResponse<any>>('/admin/dashboard/recent-activity');
   }
 
   static async getSystemHealth(): Promise<ApiResponse<{
