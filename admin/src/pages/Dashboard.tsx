@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Ticket, CreditCard, TrendingUp, Activity, DollarSign, Eye, RefreshCw, Share2, Plus } from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -16,6 +17,7 @@ import { DashboardService } from '../services/dashboardService';
 import { toast } from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [revenueDaily, setRevenueDaily] = useState<any[]>([]);
@@ -222,10 +224,9 @@ const Dashboard: React.FC = () => {
 
           {/* Recent Activity */}
           <div className="lg:col-span-1">
-            <div className="bg-white h-full p-4 rounded-lg border border-[#d1fae5] shadow-sm">
+            <div className="bg-white min-h-[180px] max-h-[420px] overflow-y-auto p-4 rounded-lg border border-[#d1fae5] shadow-sm transition-all">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-[#065f46]">Activité récente</h3>
-                <button className="text-xs font-medium text-[#065f46] hover:text-[#181c1f]">Voir tout</button>
               </div>
               <div className="space-y-3">
                 {displayActivity.map((activity: any) => (
@@ -253,12 +254,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 pt-4 border-t border-[#d1fae5]">
-                <button className="w-full flex items-center justify-center rounded py-2 text-xs font-bold text-[#065f46] hover:text-[#181c1f] hover:bg-[#d1fae5] transition-colors">
-                  <Plus className="h-3 w-3 mr-1" />
-                  Ajouter une action
-                </button>
-              </div>
+              {/* Plus de bouton ajouter */}
             </div>
           </div>
         </div>
@@ -268,25 +264,29 @@ const Dashboard: React.FC = () => {
           <div className="bg-white p-4 rounded-lg border border-[#d1fae5] shadow-sm">
             <h3 className="text-lg font-bold text-[#065f46] mb-4">Actions rapides</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button className="flex items-center p-3 rounded border border-[#065f46] bg-[#065f46] hover:bg-[#10b981] transition-colors">
-                <div className="bg-white p-2 rounded mr-2">
-                  <Users className="h-4 w-4 text-[#065f46]" />
-                </div>
-                <span className="text-xs font-bold text-white">Nouvel utilisateur</span>
-              </button>
-              <button className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors">
+              {/* Navigation corrigée vers les vraies pages */}
+              <button
+                className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors min-w-[140px]"
+                onClick={() => navigate('/products')}
+              >
                 <div className="bg-[#d1fae5] p-2 rounded mr-2">
                   <Ticket className="h-4 w-4 text-[#065f46]" />
                 </div>
                 <span className="text-xs font-bold text-[#065f46]">Nouveau produit</span>
               </button>
-              <button className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors">
+              <button
+                className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors min-w-[140px]"
+                onClick={() => navigate('/payments')}
+              >
                 <div className="bg-[#d1fae5] p-2 rounded mr-2">
                   <CreditCard className="h-4 w-4 text-[#065f46]" />
                 </div>
                 <span className="text-xs font-bold text-[#065f46]">Voir paiements</span>
               </button>
-              <button className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors">
+              <button
+                className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors min-w-[140px]"
+                onClick={() => navigate('/reports')}
+              >
                 <div className="bg-[#d1fae5] p-2 rounded mr-2">
                   <Activity className="h-4 w-4 text-[#065f46]" />
                 </div>

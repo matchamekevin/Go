@@ -13,10 +13,14 @@ export class AdminController {
    */
   static async getAllUsers(req: AuthenticatedRequest, res: Response) {
     try {
-      const { page = 1, limit = 10, search, role } = req.query;
-      
+      // Cast et fallback robustes
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const search = req.query.search ? String(req.query.search) : undefined;
+      const role = req.query.role ? String(req.query.role) : 'all';
+
       let query = `
-        SELECT id, email, name, phone, is_verified, created_at, updated_at
+        SELECT id, email, name, phone, is_verified::boolean, created_at, updated_at
         FROM users 
         WHERE 1=1
       `;
@@ -30,34 +34,39 @@ export class AdminController {
       }
 
       if (role && role !== 'all') {
-        query += ` AND is_verified = $${paramIndex}`;
-        params.push(role === 'verified');
-        paramIndex++;
+        // On filtre explicitement sur le booléen
+        if (role === 'verified') {
+          query += ` AND is_verified = true`;
+        } else if (role === 'unverified') {
+          query += ` AND is_verified = false`;
+        }
       }
 
       // Pagination
-      const offset = (Number(page) - 1) * Number(limit);
+      const offset = (page - 1) * limit;
       query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-      params.push(Number(limit), offset);
+      params.push(limit, offset);
 
       const result = await pool.query(query, params);
-      
+
       // Compter le total
       let countQuery = `SELECT COUNT(*) FROM users WHERE 1=1`;
       const countParams: any[] = [];
       let countIndex = 1;
-      
+
       if (search) {
         countQuery += ` AND (name ILIKE $${countIndex} OR email ILIKE $${countIndex} OR phone ILIKE $${countIndex})`;
         countParams.push(`%${search}%`);
         countIndex++;
       }
-      
       if (role && role !== 'all') {
-        countQuery += ` AND is_verified = $${countIndex}`;
-        countParams.push(role === 'verified');
+        if (role === 'verified') {
+          countQuery += ` AND is_verified = true`;
+        } else if (role === 'unverified') {
+          countQuery += ` AND is_verified = false`;
+        }
       }
-      
+
       const countResult = await pool.query(countQuery, countParams);
       const total = parseInt(countResult.rows[0].count);
 
@@ -65,14 +74,14 @@ export class AdminController {
         success: true,
         data: {
           items: result.rows,
-          totalPages: Math.ceil(total / Number(limit)),
-          currentPage: Number(page),
+          totalPages: Math.ceil(total / limit),
+          currentPage: page,
           totalItems: total
         }
       });
     } catch (error) {
-      console.error('[AdminController.getAllUsers] error:', error);
-      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des utilisateurs' });
+      console.error('[AdminController.getAllUsers] error:', error, error?.stack);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des utilisateurs', details: error?.message || error });
     }
   }
 
@@ -612,7 +621,7 @@ export class AdminController {
             COALESCE(u.name, 'Utilisateur inconnu') as user_name,
             'Utilisation ticket' as action,
             t.used_at as timestamp,
-            NULL as amount
+            NULL::text as amount
           FROM tickets t
           JOIN users u ON t.user_id = u.id
           WHERE t.used_at IS NOT NULL
@@ -624,7 +633,7 @@ export class AdminController {
             COALESCE(u.name, 'Utilisateur inconnu') as user_name,
             'Inscription' as action,
             u.created_at as timestamp,
-            NULL as amount
+            NULL::text as amount
           FROM users u
           WHERE u.created_at >= NOW() - INTERVAL '24 hours'
         ) AS all_activities
