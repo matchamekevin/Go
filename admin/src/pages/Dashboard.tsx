@@ -19,6 +19,18 @@ const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [revenueDaily, setRevenueDaily] = useState<any[]>([]);
+  // Pour test manuel
+  const injectFakeCFA = () => {
+    const fake = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (29 - i));
+      return {
+        date: date.toISOString().split('T')[0],
+        amount: Math.floor(Math.random() * 10000) + 2000,
+      };
+    });
+    setRevenueDaily(fake);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,7 +81,7 @@ const Dashboard: React.FC = () => {
     },
     {
       name: 'Revenus Totaux',
-      value: typeof stats.revenue?.total_revenue === 'number' ? `€${stats.revenue.total_revenue.toLocaleString()}` : '',
+      value: typeof stats.revenue?.total_revenue === 'number' ? `${stats.revenue.total_revenue.toLocaleString()} F CFA` : '',
       change: stats.revenue?.change ?? '',
       changeType: stats.revenue?.changeType ?? 'positive',
       icon: DollarSign,
@@ -152,6 +164,13 @@ const Dashboard: React.FC = () => {
             <div className="bg-white p-4 rounded-lg border border-[#d1fae5] shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4">
                 <h3 className="text-lg sm:text-xl font-bold text-[#065f46] mb-2 sm:mb-0">Revenus quotidiens</h3>
+                <button
+                  className="ml-auto px-3 py-1 rounded bg-[#10b981] text-white text-xs font-bold hover:bg-[#065f46] transition-colors"
+                  onClick={injectFakeCFA}
+                  title="Injecter des données de test CFA"
+                >
+                  Tester F CFA
+                </button>
               </div>
               <div className="h-64 sm:h-72">
                 {revenueDaily && revenueDaily.length > 0 ? (
@@ -160,7 +179,7 @@ const Dashboard: React.FC = () => {
                       labels: revenueDaily.map((d: any) => d.date),
                       datasets: [
                         {
-                          label: 'Revenus (EUR)',
+                          label: 'Revenus (F CFA)',
                           data: revenueDaily.map((d: any) => d.amount),
                           backgroundColor: '#10b981',
                           borderRadius: 6,
@@ -174,7 +193,7 @@ const Dashboard: React.FC = () => {
                         title: { display: false },
                         tooltip: {
                           callbacks: {
-                            label: (ctx: any) => `€${ctx.parsed.y.toLocaleString()}`,
+                            label: (ctx: any) => `${ctx.parsed.y.toLocaleString()} F CFA`,
                           },
                         },
                       },
@@ -186,7 +205,7 @@ const Dashboard: React.FC = () => {
                         },
                         y: {
                           grid: { color: '#d1fae5' },
-                          title: { display: true, text: 'Revenus (€)', color: '#065f46', font: { weight: 'bold' } },
+                          title: { display: true, text: 'Revenus (F CFA)', color: '#065f46', font: { weight: 'bold' } },
                           ticks: { color: '#065f46', font: { weight: 'bold' } },
                         },
                       },
