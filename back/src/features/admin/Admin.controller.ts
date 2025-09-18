@@ -591,62 +591,72 @@ export class AdminController {
    * Activité récente
    */
   static async getRecentActivity(req: AuthenticatedRequest, res: Response) {
-    try {
+  try {
       const activities = await pool.query(`
-        (
+        SELECT * FROM (
           SELECT 
-            t.id,
-            u.name as user_name,
+            t.id::bigint as id,
+            COALESCE(u.name, 'Utilisateur inconnu') as user_name,
             'Achat de ticket' as action,
             t.purchased_at as timestamp,
-            tp.price::text || ' FCFA' as amount
+            (tp.price::text || ' FCFA') as amount
           FROM tickets t
           JOIN users u ON t.user_id = u.id
           JOIN ticket_products tp ON t.product_code = tp.code
           WHERE t.purchased_at IS NOT NULL
-        )
-        UNION ALL
-        (
+
+          UNION ALL
+
           SELECT 
-            t.id,
-            u.name as user_name,
+            t.id::bigint as id,
+            COALESCE(u.name, 'Utilisateur inconnu') as user_name,
             'Utilisation ticket' as action,
             t.used_at as timestamp,
             NULL as amount
           FROM tickets t
           JOIN users u ON t.user_id = u.id
           WHERE t.used_at IS NOT NULL
-        )
-        UNION ALL
-        (
+
+          UNION ALL
+
           SELECT 
-            u.id,
-            u.name as user_name,
+            u.id::bigint as id,
+            COALESCE(u.name, 'Utilisateur inconnu') as user_name,
             'Inscription' as action,
             u.created_at as timestamp,
             NULL as amount
           FROM users u
           WHERE u.created_at >= NOW() - INTERVAL '24 hours'
-        )
+        ) AS all_activities
+        WHERE timestamp IS NOT NULL
         ORDER BY timestamp DESC
         LIMIT 10
       `);
 
       let formattedActivities = activities.rows.map(activity => {
-        const timeAgo = new Date(activity.timestamp);
-        const now = new Date();
-        const diffMinutes = Math.floor((now.getTime() - timeAgo.getTime()) / (1000 * 60));
+        // Sécurise le mapping et le parsing de la date
         let timeString = '';
-        if (diffMinutes < 1) {
-          timeString = 'À l\'instant';
-        } else if (diffMinutes < 60) {
-          timeString = `Il y a ${diffMinutes} minute${diffMinutes > 1 ? 's' : ''}`;
-        } else if (diffMinutes < 1440) {
-          const hours = Math.floor(diffMinutes / 60);
-          timeString = `Il y a ${hours} heure${hours > 1 ? 's' : ''}`;
-        } else {
-          const days = Math.floor(diffMinutes / 1440);
-          timeString = `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+        try {
+          const timeAgo = activity.timestamp ? new Date(activity.timestamp) : null;
+          const now = new Date();
+          if (timeAgo && !isNaN(timeAgo.getTime())) {
+            const diffMinutes = Math.floor((now.getTime() - timeAgo.getTime()) / (1000 * 60));
+            if (diffMinutes < 1) {
+              timeString = 'À l\'instant';
+            } else if (diffMinutes < 60) {
+              timeString = `Il y a ${diffMinutes} minute${diffMinutes > 1 ? 's' : ''}`;
+            } else if (diffMinutes < 1440) {
+              const hours = Math.floor(diffMinutes / 60);
+              timeString = `Il y a ${hours} heure${hours > 1 ? 's' : ''}`;
+            } else {
+              const days = Math.floor(diffMinutes / 1440);
+              timeString = `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+            }
+          } else {
+            timeString = '';
+          }
+        } catch (e) {
+          timeString = '';
         }
         return {
           id: activity.id,
@@ -658,7 +668,7 @@ export class AdminController {
       });
 
       // Ajout d'une activité de test si aucune activité réelle
-      if (formattedActivities.length === 0) {
+      if (!formattedActivities || formattedActivities.length === 0) {
         formattedActivities = [
           {
             id: 99999,
@@ -678,9 +688,9 @@ export class AdminController {
       }
 
       return res.status(200).json({ success: true, data: formattedActivities });
-    } catch (error) {
-      console.error('[AdminController.getRecentActivity] error:', error);
-      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération de l\'activité récente' });
+    } catch (error: any) {
+      console.error('[AdminController.getRecentActivity] error:', error?.stack || error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération de l\'activité récente', details: error?.message || error });
     }
   }
 
