@@ -821,4 +821,124 @@ export class AdminController {
       return res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour du ticket' });
     }
   }
+
+  // ========== RAPPORTS PÉRIODIQUES ==========
+
+  /**
+   * Générer un rapport sur une période donnée
+   */
+  static async getPeriodReport(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { period = '30d', type = 'financial' } = req.query;
+      
+      // Calculer la date de début selon la période
+      let startDate: string;
+      switch (period) {
+        case '7d':
+          startDate = "NOW() - INTERVAL '7 days'";
+          break;
+        case '30d':
+          startDate = "NOW() - INTERVAL '30 days'";
+          break;
+        case '90d':
+          startDate = "NOW() - INTERVAL '90 days'";
+          break;
+        case '1y':
+          startDate = "NOW() - INTERVAL '1 year'";
+          break;
+        default:
+          startDate = "NOW() - INTERVAL '30 days'";
+      }
+
+      if (type === 'financial') {
+        // Rapport financier
+        const [revenueData, ticketData, dailyData] = await Promise.all([
+          // Revenus totaux
+          pool.query(`
+            SELECT 
+              COALESCE(SUM(tp.price), 0) as total_revenue,
+              COUNT(t.id) as total_tickets,
+              AVG(tp.price) as avg_ticket_price
+            FROM tickets t
+            LEFT JOIN ticket_products tp ON t.product_id = tp.id
+            WHERE t.purchased_at >= ${startDate}
+          `),
+          // Répartition par statut
+          pool.query(`
+            SELECT 
+              t.status,
+              COUNT(*) as count,
+              COALESCE(SUM(tp.price), 0) as revenue
+            FROM tickets t
+            LEFT JOIN ticket_products tp ON t.product_id = tp.id
+            WHERE t.purchased_at >= ${startDate}
+            GROUP BY t.status
+          `),
+          // Données par jour
+          pool.query(`
+            SELECT 
+              DATE(t.purchased_at) as date,
+              COUNT(*) as tickets_count,
+              COALESCE(SUM(tp.price), 0) as revenue
+            FROM tickets t
+            LEFT JOIN ticket_products tp ON t.product_id = tp.id
+            WHERE t.purchased_at >= ${startDate}
+            GROUP BY DATE(t.purchased_at)
+            ORDER BY date DESC
+            LIMIT 30
+          `)
+        ]);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            period,
+            type,
+            summary: revenueData.rows[0],
+            by_status: ticketData.rows,
+            daily_data: dailyData.rows
+          }
+        });
+      } else {
+        // Rapport d'activité générale
+        const [userActivity, ticketActivity, routeActivity] = await Promise.all([
+          pool.query(`
+            SELECT 
+              COUNT(*) as new_users,
+              COUNT(*) FILTER (WHERE is_verified = true) as verified_users
+            FROM users
+            WHERE created_at >= ${startDate}
+          `),
+          pool.query(`
+            SELECT 
+              COUNT(*) as total_tickets,
+              COUNT(*) FILTER (WHERE status = 'used') as used_tickets,
+              COUNT(*) FILTER (WHERE status = 'active') as active_tickets
+            FROM tickets
+            WHERE purchased_at >= ${startDate}
+          `),
+          pool.query(`
+            SELECT 
+              COUNT(*) as total_routes,
+              COUNT(*) FILTER (WHERE is_active = true) as active_routes
+            FROM routes
+          `)
+        ]);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            period,
+            type,
+            users: userActivity.rows[0],
+            tickets: ticketActivity.rows[0],
+            routes: routeActivity.rows[0]
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[AdminController.getPeriodReport] error:', error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la génération du rapport' });
+    }
+  }
 }

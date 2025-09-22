@@ -49,9 +49,9 @@ const SotralManagementPage: React.FC = () => {
       setLoading(true);
       
       // Charger les lignes
-      const linesResponse = await fetch('/admin/sotral/lines', {
+      const linesResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         }
       });
@@ -62,9 +62,9 @@ const SotralManagementPage: React.FC = () => {
       }
 
       // Charger les statistiques
-      const statsResponse = await fetch('/admin/sotral/dashboard-stats', {
+      const statsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/dashboard-stats`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         }
       });
@@ -83,10 +83,10 @@ const SotralManagementPage: React.FC = () => {
 
   const toggleLineStatus = async (lineId: number) => {
     try {
-      const response = await fetch(`/admin/sotral/lines/${lineId}/toggle-status`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines/${lineId}/toggle-status`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         }
       });
@@ -107,10 +107,10 @@ const SotralManagementPage: React.FC = () => {
 
   const generateTicketsForLine = async (lineId: number, quantity: number = 100) => {
     try {
-      const response = await fetch('/admin/sotral/generate-tickets', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/generate-tickets`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -137,10 +137,10 @@ const SotralManagementPage: React.FC = () => {
 
   const bulkGenerateTickets = async () => {
     try {
-      const response = await fetch('/admin/sotral/bulk-generate-tickets', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/bulk-generate-tickets`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
