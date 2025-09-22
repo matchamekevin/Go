@@ -13,14 +13,19 @@ if [ ! -f "$SQL_FILE" ]; then
     exit 1
 fi
 
-# Exécuter le script SQL
-echo "📝 Exécution du script de création des tables SOTRAL..."
-
+echo "� Vérification de la DATABASE_URL..."
 if [ -n "$DATABASE_URL" ]; then
-    # Si DATABASE_URL est définie (production/déploiement)
+    echo "✅ DATABASE_URL est définie"
     echo "🔗 Utilisation de DATABASE_URL pour la connexion"
-    psql "$DATABASE_URL" -f "$SQL_FILE" 2>&1 || echo "⚠️  Certaines tables peuvent déjà exister, continuons..."
+    # Masquer le mot de passe dans les logs
+    DB_URL_MASKED=$(echo "$DATABASE_URL" | sed 's/:\/\/.*@/:\/\/***:***@/g')
+    echo "📍 Connexion masquée: $DB_URL_MASKED"
 else
+    echo "❌ DATABASE_URL n'est pas définie"
+    echo "💡 Variables d'environnement disponibles:"
+    env | grep -E "(DATABASE|DB_)" | sed 's/=.*/=***hidden***/' || echo "Aucune variable DB trouvée"
+    echo "⏳ Tentative de connexion sans DATABASE_URL..."
+fi
     # Utilisation des variables d'environnement locales
     echo "🏠 Utilisation des variables d'environnement locales"
     

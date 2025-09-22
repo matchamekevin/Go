@@ -32,10 +32,11 @@ COPY --from=builder /usr/src/app/dist ./dist
 
 # Copier les scripts d'initialisation
 COPY --from=builder /usr/src/app/init-sotral.sh ./init-sotral.sh
+COPY --from=builder /usr/src/app/init-sotral-manual.sh ./init-sotral-manual.sh
 COPY --from=builder /usr/src/app/src/schema ./src/schema
 
 # Rendre le script exécutable
-RUN chmod +x ./init-sotral.sh
+RUN chmod +x ./init-sotral.sh ./init-sotral-manual.sh
 
 # Healthcheck interne (utilise fetch natif Node 20, sans curl)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://localhost:7000/health').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
