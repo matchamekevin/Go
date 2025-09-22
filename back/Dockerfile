@@ -34,14 +34,15 @@ COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/init-sotral.sh ./init-sotral.sh
 COPY --from=builder /usr/src/app/init-sotral-manual.sh ./init-sotral-manual.sh
 COPY --from=builder /usr/src/app/diagnose-sotral.sh ./diagnose-sotral.sh
+COPY --from=builder /usr/src/app/insert-stops.sh ./insert-stops.sh
 COPY --from=builder /usr/src/app/src/schema ./src/schema
 
 # Rendre le script exécutable
-RUN chmod +x ./init-sotral.sh ./init-sotral-manual.sh ./diagnose-sotral.sh
+RUN chmod +x ./init-sotral.sh ./init-sotral-manual.sh ./diagnose-sotral.sh ./insert-stops.sh
 
 # Healthcheck interne (utilise fetch natif Node 20, sans curl)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://localhost:7000/health').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
 
 EXPOSE 7000
 # Remarque Render: assure que 'Root Directory' pointe sur 'back' pour que COPY package*.json fonctionne.
-CMD ["sh", "-c", "./diagnose-sotral.sh && node dist/server.js"]
+CMD ["sh", "-c", "./diagnose-sotral.sh && ./insert-stops.sh && node dist/server.js"]

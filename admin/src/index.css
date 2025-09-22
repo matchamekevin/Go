@@ -515,6 +515,41 @@ code {
     border-color: #d1d5db;
   }
 
+  .btn-success {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 50%, #166534 100%);
+    color: #ffffff;
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.25);
+  }
+
+  .btn-success:hover {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
+    box-shadow: 0 12px 35px rgba(34, 197, 94, 0.35);
+  }
+
+  .btn-success-dark {
+    background: linear-gradient(135deg, #065f46 0%, #047857 50%, #065f46 100%);
+    color: #ffffff;
+    box-shadow: 0 8px 25px rgba(6, 95, 70, 0.25);
+  }
+
+  .btn-success-dark:hover {
+    background: linear-gradient(135deg, #10b981 0%, #065f46 50%, #047857 100%);
+    box-shadow: 0 12px 35px rgba(6, 95, 70, 0.35);
+  }
+
+  .btn-danger {
+    background: rgba(255,255,255,0.9);
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    backdrop-filter: blur(8px);
+  }
+
+  .btn-danger:hover {
+    background: rgba(255,255,255,1);
+    border-color: #dc2626;
+    color: #b91c1c;
+  }
+
   .card {
     background: rgba(255,255,255,0.85);
     backdrop-filter: blur(20px);
@@ -653,6 +688,16 @@ code {
 
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
+  }
+
+  /* Masquer complètement la scrollbar */
+  .scrollbar-hidden {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
   }
 
   /* Animations avancées */

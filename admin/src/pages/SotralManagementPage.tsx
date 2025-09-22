@@ -24,18 +24,32 @@ interface SotralLine {
   };
 }
 
-interface LineStats {
-  total_lines: number;
-  active_lines: number;
-  total_stops: number;
-  ticket_types: number;
+interface SotralStop {
+  id: number;
+  name: string;
+  code: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  is_major_stop: boolean;
+  is_active: boolean;
 }
 
 const SotralManagementPage: React.FC = () => {
   const [lines, setLines] = useState<SotralLine[]>([]);
   const [stats, setStats] = useState<LineStats | null>(null);
+  const [stops, setStops] = useState<SotralStop[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [lastErrorTime, setLastErrorTime] = useState<number>(0);
+
+  const showErrorToast = (message: string) => {
+    const now = Date.now();
+    if (now - lastErrorTime > 2000) { // Minimum 2 secondes entre les erreurs
+      toast.error(message);
+      setLastErrorTime(now);
+    }
+  };
   const [formData, setFormData] = useState({
     line_number: '',
     name: '',
@@ -67,6 +81,26 @@ const SotralManagementPage: React.FC = () => {
         setLines(linesData.data || []);
       }
 
+      // Charger les arrêts
+      const stopsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/stops`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (stopsResponse.ok) {
+        const stopsData = await stopsResponse.json();
+        console.log('Arrêts chargés:', stopsData);
+        // Utiliser les données de l'API si elles existent, sinon garder les données par défaut
+        if (stopsData.data && stopsData.data.length > 0) {
+          setStops(stopsData.data);
+        }
+      } else {
+        console.error('Erreur chargement arrêts:', stopsResponse.status, stopsResponse.statusText);
+        showErrorToast('Erreur lors du chargement des arrêts');
+      }
+
       // Charger les statistiques
       const statsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/dashboard-stats`, {
         headers: {
@@ -81,7 +115,7 @@ const SotralManagementPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
-      toast.error('Erreur lors du chargement des données');
+      showErrorToast('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -103,11 +137,11 @@ const SotralManagementPage: React.FC = () => {
         loadData(); // Recharger les données
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erreur lors du changement de statut');
+        showErrorToast(error.error || 'Erreur lors du changement de statut');
       }
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error('Erreur lors du changement de statut');
+      showErrorToast('Erreur lors du changement de statut');
     }
   };
 
@@ -151,11 +185,11 @@ const SotralManagementPage: React.FC = () => {
         loadData(); // Recharger les données
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erreur lors de la création de la ligne');
+        showErrorToast(error.error || 'Erreur lors de la création de la ligne');
       }
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error('Erreur lors de la création de la ligne');
+      showErrorToast('Erreur lors de la création de la ligne');
     }
   };
 
@@ -187,9 +221,9 @@ const SotralManagementPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-primary-600 mb-4" />
-          <p className="text-gray-600">Chargement des données SOTRAL...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#065f46] mx-auto mb-4"></div>
+          <p className="text-[#065f46] font-semibold">Chargement des données SOTRAL...</p>
         </div>
       </div>
     );
@@ -375,23 +409,24 @@ const SotralManagementPage: React.FC = () => {
 
       {/* Modal de création de ligne */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="glass-container p-6 rounded-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="glass-container p-8 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto scrollbar-hidden animate-fade-in">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                <Plus className="h-6 w-6 mr-3 text-green-600" />
                 Créer une nouvelle ligne
               </h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-lg"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateLine} className="space-y-4">
+            <form onSubmit={handleCreateLine} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-green-700 mb-2">
                   Numéro de ligne *
                 </label>
                 <input
@@ -407,7 +442,7 @@ const SotralManagementPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-green-700 mb-2">
                   Nom de la ligne *
                 </label>
                 <input
@@ -423,38 +458,48 @@ const SotralManagementPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-green-700 mb-2">
                     Départ *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="route_from"
                     value={formData.route_from}
                     onChange={handleInputChange}
                     required
                     className="input text-gray-900"
-                    placeholder="Ex: Lomé Centre"
-                  />
+                  >
+                    <option value="" disabled>Sélectionnez un arrêt de départ</option>
+                    {stops.map((stop) => (
+                      <option key={stop.id} value={stop.name}>
+                        {stop.name} {stop.is_major_stop && '(Principal)'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-green-700 mb-2">
                     Arrivée *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="route_to"
                     value={formData.route_to}
                     onChange={handleInputChange}
                     required
                     className="input text-gray-900"
-                    placeholder="Ex: Adidogomé"
-                  />
+                  >
+                    <option value="" disabled>Sélectionnez un arrêt d'arrivée</option>
+                    {stops.map((stop) => (
+                      <option key={stop.id} value={stop.name}>
+                        {stop.name} {stop.is_major_stop && '(Principal)'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-green-700 mb-2">
                   Catégorie *
                 </label>
                 <select
@@ -472,7 +517,7 @@ const SotralManagementPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-green-700 mb-2">
                     Distance (km)
                   </label>
                   <input
@@ -488,7 +533,7 @@ const SotralManagementPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-semibold text-green-700 mb-2">
                     Nombre d'arrêts
                   </label>
                   <input
@@ -506,14 +551,14 @@ const SotralManagementPage: React.FC = () => {
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  className="btn-primary flex-1"
+                  className="btn-success-dark flex-1"
                 >
                   Créer la ligne
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="btn-secondary flex-1"
+                  className="btn-danger flex-1"
                 >
                   Annuler
                 </button>
