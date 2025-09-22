@@ -15,7 +15,8 @@ import MessagesPage from './pages/MessagesPage';
 import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
 import StatisticsPage from './pages/StatisticsPage';
-import SotralManagement from './pages/SotralManagement';
+import SotralManagementPage from './pages/SotralManagementPage';
+// ...existing code...
 // import RoutesPage from './pages/RoutesPage';
 import './index.css';
 
@@ -106,7 +107,7 @@ const AppContent: React.FC = () => {
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="statistics" element={<StatisticsPage />} />
-          <Route path="sotral" element={<SotralManagement />} />
+          <Route path="sotral" element={<SotralManagementPage />} />
           <Route path="routes" element={<Navigate to="/dashboard" replace />} />
           <Route path="transactions" element={<Navigate to="/dashboard" replace />} />
           <Route path="stats" element={<Navigate to="/statistics" replace />} />

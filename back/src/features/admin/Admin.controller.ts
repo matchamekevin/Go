@@ -238,6 +238,8 @@ export class AdminController {
         distance_km, estimated_duration_minutes 
       } = req.body;
 
+      // Ajout d'un commentaire pour la devise utilisée
+      // Les prix associés à cette route sont en F CFA (Togo)
       const result = await pool.query(`
         INSERT INTO routes (code, name, departure, arrival, price_category, distance_km, estimated_duration_minutes, is_active)
         VALUES ($1, $2, $3, $4, $5, $6, $7, true)

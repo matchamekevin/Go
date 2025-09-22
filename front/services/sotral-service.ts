@@ -74,21 +74,24 @@ export interface SotralTicket {
 }
 
 export interface TicketPurchaseRequest {
-  ticket_type_id: number;
+  ticket_type_code: string;
   line_id?: number;
   stop_from_id?: number;
   stop_to_id?: number;
+  quantity?: number;
   payment_method: 'mobile_money' | 'card' | 'cash' | 'ussd';
-  payment_phone?: string;
-  user_id?: number;
+  payment_details?: {
+    phone?: string;
+    operator?: string;
+    reference?: string;
+  };
 }
 
 export interface TicketValidationRequest {
-  qr_code: string;
-  scanner_location?: {
-    latitude: number;
-    longitude: number;
-  };
+  ticket_code: string;
+  line_id?: number;
+  stop_id?: number;
+  validator_device_id?: string;
 }
 
 export interface ValidationResponse {
@@ -218,25 +221,25 @@ export class SotralMobileService {
   }
 
   static async calculatePrice(params: {
-    ticket_type_id: number;
-    stop_from_id?: number;
-    stop_to_id?: number;
-    is_student?: boolean;
+    lineId: number;
+    stopFromId?: number;
+    stopToId?: number;
+    isStudent?: boolean;
   }): Promise<{ 
     data: { 
-      price_fcfa: number;
-      base_price: number;
-      discount_applied: number;
-      final_price: number;
+      distance_km: number;
+      base_price_fcfa: number;
+      is_student_discount: boolean;
+      final_price_fcfa: number;
+      zone_name: string;
     } 
   }> {
-    const query = new URLSearchParams();
-    query.append('ticket_type_id', params.ticket_type_id.toString());
-    if (params.stop_from_id) query.append('stop_from_id', params.stop_from_id.toString());
-    if (params.stop_to_id) query.append('stop_to_id', params.stop_to_id.toString());
-    if (params.is_student) query.append('is_student', 'true');
-
-    return this.client.get(`/sotral/calculate-price?${query.toString()}`);
+    return this.client.post('/sotral/calculate-price', {
+      lineId: params.lineId,
+      stopFromId: params.stopFromId,
+      stopToId: params.stopToId,
+      isStudent: params.isStudent || false
+    });
   }
 
   // ==========================================
@@ -244,11 +247,9 @@ export class SotralMobileService {
   // ==========================================
 
   static async purchaseTicket(purchaseData: TicketPurchaseRequest): Promise<{
-    data: {
-      ticket: SotralTicket;
-      payment_status: string;
-      qr_code: string;
-    };
+    success: boolean;
+    data: SotralTicket;
+    message?: string;
   }> {
     return this.client.post('/sotral/purchase', purchaseData);
   }
@@ -257,12 +258,12 @@ export class SotralMobileService {
   // GESTION DES TICKETS UTILISATEUR
   // ==========================================
 
-  static async getUserTickets(userId: number): Promise<{ data: SotralTicket[] }> {
-    return this.client.get(`/sotral/users/${userId}/tickets`);
+  static async getMyTickets(): Promise<{ data: SotralTicket[] }> {
+    return this.client.get('/sotral/my-tickets');
   }
 
   static async getTicketByCode(ticketCode: string): Promise<{ data: SotralTicket }> {
-    return this.client.get(`/sotral/tickets/${ticketCode}`);
+    return this.client.get(`/sotral/ticket/${ticketCode}`);
   }
 
   // ==========================================
@@ -270,9 +271,12 @@ export class SotralMobileService {
   // ==========================================
 
   static async validateTicket(validationData: TicketValidationRequest): Promise<{
-    data: ValidationResponse;
+    success: boolean;
+    ticket?: SotralTicket;
+    message?: string;
+    error?: string;
   }> {
-    return this.client.post('/sotral/validate', validationData);
+    return this.client.post('/sotral/validate-ticket', validationData);
   }
 
   // ==========================================

@@ -6,14 +6,10 @@ const API_BASE_URL = 'http://localhost:7000';
 // ==========================================
 
 export interface TicketValidationRequest {
-  qr_code: string;
-  scanner_location?: {
-    latitude: number;
-    longitude: number;
-  };
-  scanner_id?: string;
+  ticket_code: string;
   line_id?: number;
   stop_id?: number;
+  validator_device_id?: string;
 }
 
 export interface ValidationResponse {
@@ -142,16 +138,18 @@ export class SotralScannerService {
 
   static async validateTicketQR(qrCode: string): Promise<ValidationResponse> {
     try {
+      // Extraire le code ticket du QR code
+      const ticketCode = this.extractTicketCodeFromQR(qrCode);
+      
       const validationRequest: TicketValidationRequest = {
-        qr_code: qrCode,
-        ...(this.scannerInfo?.scanner_id && { scanner_id: this.scannerInfo.scanner_id }),
+        ticket_code: ticketCode,
+        ...(this.scannerInfo?.scanner_id && { validator_device_id: this.scannerInfo.scanner_id }),
         ...(this.scannerInfo?.line_id && { line_id: this.scannerInfo.line_id }),
         ...(this.scannerInfo?.stop_id && { stop_id: this.scannerInfo.stop_id }),
-        ...(this.scannerInfo?.location && { scanner_location: this.scannerInfo.location }),
       };
 
-      const response = await this.client.post<{ data: ValidationResponse }>('/sotral/validate', validationRequest);
-      return response.data;
+      const response = await this.client.post<ValidationResponse>('/sotral/validate-ticket', validationRequest);
+      return response;
     } catch (error) {
       console.error('Error validating ticket:', error);
       return {
@@ -240,6 +238,42 @@ export class SotralScannerService {
   // ==========================================
   // UTILITAIRES SCANNER
   // ==========================================
+
+  static extractTicketCodeFromQR(qrCode: string): string {
+    // Si le QR code est un simple code ticket, le retourner tel quel
+    if (qrCode.startsWith('SOT')) {
+      return qrCode;
+    }
+    
+    // Si c'est un QR code complexe, essayer d'extraire le code
+    try {
+      // Format base64 décodé
+      if (qrCode.startsWith('data:text/plain;base64,')) {
+        const base64Data = qrCode.split(',')[1];
+        return atob(base64Data);
+      }
+      
+      // Format JSON
+      const parsed = JSON.parse(qrCode);
+      if (parsed.ticket_code) {
+        return parsed.ticket_code;
+      }
+      
+      // Format avec délimiteurs
+      if (qrCode.includes(':')) {
+        const parts = qrCode.split(':');
+        for (const part of parts) {
+          if (part.startsWith('SOT')) {
+            return part;
+          }
+        }
+      }
+    } catch (error) {
+      // Si l'extraction échoue, traiter comme un code simple
+    }
+    
+    return qrCode;
+  }
 
   static formatValidationMessage(response: ValidationResponse): string {
     if (!response.success) {

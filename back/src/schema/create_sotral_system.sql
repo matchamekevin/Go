@@ -155,49 +155,49 @@ INSERT INTO sotral_ticket_types (name, code, description, price_fcfa, validity_d
 ('Abonnement étudiant annuel', 'STUDENT_YEARLY', 'Abonnement illimité pour étudiants', 6500, 8760, 999999, true)
 ON CONFLICT (code) DO NOTHING;
 
--- Lignes SOTRAL (données réelles)
+-- Lignes SOTRAL (données réelles fournies par l'utilisateur)
 INSERT INTO sotral_lines (line_number, name, route_from, route_to, category_id, distance_km, stops_count) VALUES
--- Lignes ordinaires
-(1, 'Zanguéra ↔ BIA', 'Zanguéra', 'BIA', 1, 19.4, 68),
-(2, 'Adétikopé ↔ REX', 'Adétikopé', 'REX', 1, 24.5, 62),
+-- Lignes ordinaires (tarifs multiples selon distance)
+(1, 'Zanguéra ↔ BIA (Centre-ville)', 'Zanguéra', 'BIA (Centre-ville)', 1, 19.4, 68),
+(2, 'Adétikopé ↔ REX (front de mer)', 'Adétikopé', 'REX (front de mer)', 1, 24.5, 62),
 (3, 'Akato ↔ BIA', 'Akato', 'BIA', 1, 19.2, 68),
-(6, 'Agoè Assiyéyé ↔ BIA', 'Agoè Assiyéyé', 'BIA', 1, 16.3, 66),
-(7, 'Kpogan ↔ BIA', 'Kpogan', 'BIA', 1, 19.7, 60),
-(8, 'Djagblé ↔ REX', 'Djagblé', 'REX', 1, 18.9, 63),
+(6, 'Agoè-Assiyéyé ↔ BIA', 'Agoè-Assiyéyé', 'BIA', 1, 16.3, 60),
+(7, 'Kpogan ↔ BIA', 'Kpogan', 'BIA', 1, 19.7, 58),
+(8, 'Djagblé ↔ REX', 'Djagblé', 'REX', 1, 18.9, 49),
 (10, 'Legbassito ↔ BIA', 'Legbassito', 'BIA', 1, 24.2, 74),
 (11, 'Attiegouvi ↔ REX', 'Attiegouvi', 'REX', 1, 9.5, 43),
 (12, 'Entreprise de l''Union ↔ BIA', 'Entreprise de l''Union', 'BIA', 1, 15.3, 66),
--- Lignes étudiantes
-(13, 'Adétikopé ↔ Campus', 'Adétikopé', 'Campus', 2, 17.8, 51),
-(14, 'Legbassito ↔ Campus', 'Legbassito', 'Campus', 2, 17.3, 44),
-(15, 'Zanguéra ↔ Campus', 'Zanguéra', 'Campus', 2, 13.2, 54),
-(16, 'Akato ↔ Campus', 'Akato', 'Campus', 2, 18.0, 66),
-(17, 'Adjololo ↔ Campus', 'Adjololo', 'Campus', 2, 11.1, 40),
+-- Lignes étudiantes (tarif unique 100 FCFA)
+(13, 'Adétikopé ↔ Campus (Université)', 'Adétikopé', 'Campus (Université)', 2, 17.8, 51),
+(14, 'Legbassito ↔ Campus', 'Legbassito', 'Campus', 2, 17.3, 38),
+(15, 'Zanguéra ↔ Campus', 'Zanguéra', 'Campus', 2, 13.2, 64),
+(16, 'Akato ↔ Campus', 'Akato', 'Campus', 2, 18.0, 58),
+(17, 'Adjalolo ↔ Campus', 'Adjalolo', 'Campus', 2, 11.1, 40),
 (18, 'Adakpamé ↔ Campus', 'Adakpamé', 'Campus', 2, 13.0, 56),
-(19, 'Akodessewa ↔ Campus', 'Akodessewa', 'Campus', 2, 13.0, 45),
-(20, 'Avepozo ↔ Campus', 'Avepozo', 'Campus', 2, 18.0, 87),
+(19, 'Akodesséwa-Bè ↔ Campus', 'Akodesséwa-Bè', 'Campus', 2, 13.0, 45),
+(20, 'Avépozo ↔ Campus', 'Avépozo', 'Campus', 2, 18.0, 71),
 (21, 'Entreprise de l''Union ↔ Campus', 'Entreprise de l''Union', 'Campus', 2, 11.0, 45),
-(22, 'Djagblé ↔ Campus', 'Djagblé', 'Campus', 2, 16.4, 39)
+(22, 'Djagblé ↔ Campus', 'Djagblé', 'Campus', 2, 16.4, 41)
 ON CONFLICT (line_number) DO NOTHING;
 
--- Arrêts principaux
+-- Arrêts principaux (mis à jour selon les données fournies)
 INSERT INTO sotral_stops (name, code, is_major_stop) VALUES
-('BIA', 'BIA', true),
-('REX', 'REX', true),
+('BIA (Centre-ville)', 'BIA', true),
+('REX (front de mer)', 'REX', true),
 ('Campus Universitaire', 'CAMPUS', true),
 ('Zanguéra', 'ZANG', true),
 ('Adétikopé', 'ADET', true),
 ('Akato', 'AKAT', true),
-('Agoè Assiyéyé', 'AGOE', true),
+('Agoè-Assiyéyé', 'AGOE', true),
 ('Kpogan', 'KPOG', true),
 ('Djagblé', 'DJAG', true),
 ('Legbassito', 'LEGB', true),
 ('Attiegouvi', 'ATTI', true),
 ('Entreprise de l''Union', 'ENTR', true),
-('Adjololo', 'ADJO', true),
+('Adjalolo', 'ADJO', true),
 ('Adakpamé', 'ADAK', true),
-('Akodessewa', 'AKOD', true),
-('Avepozo', 'AVEP', true)
+('Akodesséwa-Bè', 'AKOD', true),
+('Avépozo', 'AVEP', true)
 ON CONFLICT (code) DO NOTHING;
 
 -- ==========================================

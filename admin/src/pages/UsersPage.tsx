@@ -29,33 +29,13 @@ const UsersPage: React.FC = () => {
       if (response.success && response.data) {
         setUsers(response.data.items);
         setTotalPages(response.data.totalPages);
+      } else {
+        setUsers([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des utilisateurs:', error);
       toast.error('Erreur lors du chargement des utilisateurs');
-            // Utiliser des données fallback en cas d'erreur
-      setUsers([
-        {
-          id: 1,
-          name: 'Kevin Matcha',
-          email: 'kevin@example.com',
-          phone: '+221 77 123 45 67',
-          is_verified: true,
-          role: 'admin',
-          created_at: '2024-01-15',
-          updated_at: '2024-01-15'
-        },
-        {
-          id: 2,
-          name: 'Marie Dubois',
-          email: 'marie@example.com',
-          phone: '+221 76 987 65 43',
-          is_verified: false,
-          role: 'user',
-          created_at: '2024-02-20',
-          updated_at: '2024-02-20'
-        }
-      ]);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
