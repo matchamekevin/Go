@@ -36,7 +36,8 @@ const ReportsPage: React.FC = () => {
         setStats(response.data);
       } else {
         setStats(null);
-        toast.error('Aucune donnée reçue');
+        console.warn('Aucune donnée reçue pour les rapports:', response);
+        toast.error('Aucune donnée disponible pour cette période');
       }
     } catch (error) {
       console.error('Erreur lors du chargement des rapports:', error);
@@ -150,25 +151,33 @@ const ReportsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {stats?.period_revenue.map((item, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(item.period).toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatCurrency(item.revenue)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.tickets_sold}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.active_users}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(item.revenue / item.tickets_sold)}
+              {stats?.period_revenue && stats.period_revenue.length > 0 ? (
+                stats.period_revenue.map((item, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(item.period).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatCurrency(item.revenue)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.tickets_sold}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.active_users}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {item.tickets_sold > 0 ? formatCurrency(item.revenue / item.tickets_sold) : '0 FCFA'}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                    Aucune donnée disponible pour cette période
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

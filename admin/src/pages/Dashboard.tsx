@@ -14,7 +14,6 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 import { DashboardService } from '../services/dashboardService';
-import { toast } from 'react-hot-toast';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -56,7 +55,7 @@ const Dashboard: React.FC = () => {
         }
       } catch (error) {
         console.error('Erreur lors du chargement du dashboard:', error);
-        toast.error('Erreur lors du chargement des données');
+        // Ne pas afficher de toast ici car apiClient gère déjà les erreurs globalement
       }
     };
 

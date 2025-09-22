@@ -9,20 +9,7 @@ import {
   X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-interface SotralLine {
-  id: number;
-  line_number: number;
-  name: string;
-  route_from: string;
-  route_to: string;
-  distance_km: number;
-  stops_count: number;
-  is_active: boolean;
-  category?: {
-    name: string;
-  };
-}
+import { SotralService, SotralLine } from '../services/sotralService';
 
 interface SotralStop {
   id: number;
@@ -35,10 +22,25 @@ interface SotralStop {
   is_active: boolean;
 }
 
+interface LineStats {
+  total_lines: number;
+  active_lines: number;
+  total_stops: number;
+  ticket_types: number;
+}
+
 const SotralManagementPage: React.FC = () => {
   const [lines, setLines] = useState<SotralLine[]>([]);
+  const [existingLines, setExistingLines] = useState<SotralLine[]>([]);
   const [stats, setStats] = useState<LineStats | null>(null);
-  const [stops, setStops] = useState<SotralStop[]>([]);
+  const [stops, setStops] = useState<SotralStop[]>([
+    { id: 1, name: 'Centre Ville', code: 'CV', is_major_stop: true, is_active: true },
+    { id: 2, name: 'Marché Kpalimé', code: 'MK', is_major_stop: true, is_active: true },
+    { id: 3, name: 'Aéroport', code: 'AP', is_major_stop: true, is_active: true },
+    { id: 4, name: 'Université', code: 'UNIV', is_major_stop: true, is_active: true },
+    { id: 5, name: 'Hôpital', code: 'HOP', is_major_stop: false, is_active: true },
+    { id: 6, name: 'Gare Routière', code: 'GR', is_major_stop: true, is_active: true }
+  ]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [lastErrorTime, setLastErrorTime] = useState<number>(0);
@@ -68,6 +70,15 @@ const SotralManagementPage: React.FC = () => {
     try {
       setLoading(true);
       
+      // Charger les lignes existantes pour les sélections
+      try {
+        const existingLinesData = await SotralService.getAllLines();
+        setExistingLines(existingLinesData);
+      } catch (error) {
+        console.warn('Erreur chargement lignes existantes:', error);
+        // Ne pas afficher d'erreur toast pour ça, continuer avec les autres données
+      }
+      
       // Charger les lignes
       const linesResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, {
         headers: {
@@ -93,11 +104,16 @@ const SotralManagementPage: React.FC = () => {
         const stopsData = await stopsResponse.json();
         console.log('Arrêts chargés:', stopsData);
         // Utiliser les données de l'API si elles existent, sinon garder les données par défaut
-        if (stopsData.data && stopsData.data.length > 0) {
+        if (stopsData.data && Array.isArray(stopsData.data) && stopsData.data.length > 0) {
           setStops(stopsData.data);
+        } else {
+          console.warn('Aucune donnée d\'arrêts reçue de l\'API');
+          // Garder les arrêts par défaut ou afficher un avertissement
         }
       } else {
         console.error('Erreur chargement arrêts:', stopsResponse.status, stopsResponse.statusText);
+        const errorText = await stopsResponse.text();
+        console.error('Détails erreur:', errorText);
         showErrorToast('Erreur lors du chargement des arrêts');
       }
 
@@ -429,31 +445,40 @@ const SotralManagementPage: React.FC = () => {
                 <label className="block text-sm font-semibold text-green-700 mb-2">
                   Numéro de ligne *
                 </label>
-                <input
-                  type="number"
+                <select
                   name="line_number"
                   value={formData.line_number}
                   onChange={handleInputChange}
                   required
-                  min="1"
                   className="input text-gray-900"
-                  placeholder="Ex: 15"
-                />
+                >
+                  <option value="" disabled>Sélectionnez un numéro de ligne</option>
+                  {existingLines.map((line) => (
+                    <option key={line.id} value={line.line_number}>
+                      Ligne {line.line_number} - {line.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-green-700 mb-2">
                   Nom de la ligne *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
                   required
                   className="input text-gray-900"
-                  placeholder="Ex: Ligne 15 - Lomé Centre"
-                />
+                >
+                  <option value="" disabled>Sélectionnez un nom de ligne</option>
+                  {existingLines.map((line) => (
+                    <option key={line.id} value={line.name}>
+                      {line.name} (Ligne {line.line_number})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -2,8 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { AuthService } from '../services/authService';
 import { LoginRequest, User } from '../types/api';
 import { toast } from 'react-hot-toast';
-import { apiClient } from '../services/apiClient';
-import { AxiosError } from 'axios';
 
 interface AuthContextType {
   user: User | null;
@@ -27,46 +25,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const checkAuth = async () => {
-  // DEBUG: Affiche le contenu du localStorage à chaque refresh
-  console.log('DEBUG localStorage admin_token:', localStorage.getItem('admin_token'));
-  console.log('DEBUG localStorage admin_user:', localStorage.getItem('admin_user'));
     try {
       const storedToken = AuthService.getStoredToken();
       const storedUser = AuthService.getStoredUser();
-      
-      if (storedToken && storedUser) {
-        // Valider de manière tolérante : l'id peut être un string (ex: 'admin') ou un number
-        const idValid = typeof storedUser.id === 'number' || typeof storedUser.id === 'string';
-        const emailValid = typeof storedUser.email === 'string';
-        const nameValid = typeof storedUser.name === 'string';
 
-        if (idValid && emailValid && nameValid) {
+      if (storedToken && storedUser) {
+        // Validation basique des données utilisateur
+        const isValidUser = storedUser.id && storedUser.email && storedUser.name;
+
+        if (isValidUser) {
           setToken(storedToken);
           setUser({
             id: storedUser.id,
             email: storedUser.email,
             name: storedUser.name,
-            role: typeof storedUser.role === 'string' ? storedUser.role : 'user',
-            phone: storedUser.phone ?? '',
+            role: storedUser.role || 'user',
+            phone: storedUser.phone || '',
             is_verified: storedUser.is_verified ?? true,
-            created_at: storedUser.created_at ?? '',
-            updated_at: storedUser.updated_at ?? '',
+            created_at: storedUser.created_at || '',
+            updated_at: storedUser.updated_at || '',
           });
-          // Vérification backend désactivée pour debug : la session reste active tant que le token et le user sont présents
         } else {
-          // Si les données sont invalides, ne déconnecte pas, affiche juste un toast
+          // Données invalides, nettoyer le stockage
+          AuthService.clearStoredData();
           toast.error('Données utilisateur invalides, veuillez vous reconnecter.');
         }
       }
     } catch (err) {
       const error = err as Error;
       console.error('Erreur lors de la vérification de l\'authentification:', error);
-      // Ne pas déconnecter automatiquement, juste afficher un toast si le token est expiré
-      if (
-        (error instanceof AxiosError && error.response?.status === 401) ||
-        error.message === 'Données utilisateur invalides' ||
-        error.message === 'Token invalide'
-      ) {
+
+      // En cas d'erreur de token expiré, nettoyer et afficher un message
+      if (error.message.includes('Token') || error.message.includes('auth')) {
+        AuthService.clearStoredData();
+        setToken(null);
+        setUser(null);
         toast.error('Session expirée, veuillez vous reconnecter.');
       }
     } finally {

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import DashboardLayout from './components/DashboardLayout';
+import LoadingSpinner from './components/LoadingSpinner';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/UsersPage';
@@ -16,8 +17,6 @@ import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
 import StatisticsPage from './pages/StatisticsPage';
 import SotralManagementPage from './pages/SotralManagementPage';
-// ...existing code...
-// import RoutesPage from './pages/RoutesPage';
 import './index.css';
 
 // Configuration React Query
@@ -38,13 +37,7 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-mesh">
-        <div className="glass-container p-10 rounded-2xl shadow-xl flex flex-col items-center">
-          <div className="relative w-16 h-16">
-            <div className="absolute top-0 w-16 h-16 rounded-full border-4 border-t-primary-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
-            <div className="absolute top-0 w-16 h-16 rounded-full border-4 border-t-transparent border-r-transparent border-b-primary-300 border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
-          </div>
-          <p className="mt-4 text-secondary-600 font-medium">Chargement...</p>
-        </div>
+        <LoadingSpinner size="lg" color="green" text="Chargement..." />
       </div>
     );
   }
@@ -59,13 +52,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-mesh">
-        <div className="glass-container p-10 rounded-2xl shadow-xl flex flex-col items-center">
-          <div className="relative w-16 h-16">
-            <div className="absolute top-0 w-16 h-16 rounded-full border-4 border-t-primary-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
-            <div className="absolute top-0 w-16 h-16 rounded-full border-4 border-t-transparent border-r-transparent border-b-primary-300 border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
-          </div>
-          <p className="mt-4 text-secondary-600 font-medium">Chargement...</p>
-        </div>
+        <LoadingSpinner size="lg" color="green" text="Chargement..." />
       </div>
     );
   }

@@ -20,6 +20,11 @@ export class AuthService {
     localStorage.removeItem('admin_user');
   }
 
+  static clearStoredData(): void {
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+  }
+
   static async checkHealth(): Promise<ApiResponse<{ backend: string; database: string }>> {
     return apiClient.get<ApiResponse<{ backend: string; database: string }>>('/health');
   }

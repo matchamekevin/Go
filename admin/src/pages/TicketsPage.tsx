@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Filter, Download, QrCode, Eye, MoreVertical } from 'lucide-react';
+import { Filter, Download, QrCode, Eye, MoreVertical } from 'lucide-react';
+import SearchBar from '../components/SearchBar';
+import StatusBadge from '../components/StatusBadge';
+import Pagination from '../components/Pagination';
+import StatsCard from '../components/StatsCard';
+import DataTable from '../components/DataTable';
 
 const TicketsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,20 +51,88 @@ const TicketsPage: React.FC = () => {
     },
   ];
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <span className="status-badge status-active">Actif</span>;
-      case 'used':
-        return <span className="status-badge status-completed">Utilisé</span>;
-      case 'expired':
-        return <span className="status-badge status-inactive">Expiré</span>;
-      case 'cancelled':
-        return <span className="status-badge status-inactive">Annulé</span>;
-      default:
-        return <span className="status-badge status-pending">Inconnu</span>;
+  const ticketColumns = [
+    {
+      key: 'code',
+      header: 'Code ticket',
+      render: (value: string) => (
+        <div className="flex items-center">
+          <QrCode className="h-5 w-5 text-gray-400 mr-2" />
+          <div className="text-sm font-medium text-gray-900">{value}</div>
+        </div>
+      )
+    },
+    {
+      key: 'user',
+      header: 'Utilisateur',
+      render: (value: string) => (
+        <div className="text-sm font-medium text-gray-900">{value}</div>
+      )
+    },
+    {
+      key: 'product',
+      header: 'Produit',
+      render: (value: string) => (
+        <div className="text-sm text-gray-900">{value}</div>
+      )
+    },
+    {
+      key: 'route',
+      header: 'Route',
+      render: (value: string) => (
+        <div className="text-sm text-gray-900">{value}</div>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Statut',
+      render: (value: string) => (
+        <StatusBadge status={value} />
+      )
+    },
+    {
+      key: 'price',
+      header: 'Prix',
+      render: (value: string) => (
+        <div className="text-sm font-medium text-gray-900">{value}</div>
+      )
+    },
+    {
+      key: 'purchaseDate',
+      header: 'Date d\'achat',
+      render: (value: string, ticket: any) => (
+        <div>
+          <div className="text-sm text-gray-500">{value}</div>
+          {ticket.used && ticket.usedAt && (
+            <div className="text-xs text-green-600">Utilisé: {ticket.usedAt}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (_value: any, _ticket: any) => (
+        <div className="flex items-center space-x-2">
+          <button
+            className="text-blue-600 hover:text-blue-900"
+            title="Voir QR Code"
+          >
+            <QrCode className="h-4 w-4" />
+          </button>
+          <button
+            className="text-gray-600 hover:text-gray-900"
+            title="Voir détails"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button className="text-gray-400 hover:text-gray-600">
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </div>
+      )
     }
-  };
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -88,21 +161,15 @@ const TicketsPage: React.FC = () => {
       {/* Search and Filters */}
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher par code, utilisateur ou route..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
+          <SearchBar
+            placeholder="Rechercher par code, utilisateur ou route..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="flex-1"
+          />
           <div className="flex gap-2">
-            <select 
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <select
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#065f46] text-black bg-white"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -118,181 +185,47 @@ const TicketsPage: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="stat-card">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <QrCode className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total tickets</p>
-              <p className="text-2xl font-semibold text-gray-900">{tickets.length}</p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-              <QrCode className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Actifs</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {tickets.filter(t => t.status === 'active').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <QrCode className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Utilisés</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {tickets.filter(t => t.status === 'used').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <QrCode className="h-6 w-6 text-red-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Expirés</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {tickets.filter(t => t.status === 'expired').length}
-              </p>
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          title="Total tickets"
+          value={tickets.length}
+          icon={QrCode}
+        />
+        <StatsCard
+          title="Actifs"
+          value={tickets.filter(t => t.status === 'active').length}
+          icon={QrCode}
+        />
+        <StatsCard
+          title="Utilisés"
+          value={tickets.filter(t => t.status === 'used').length}
+          icon={QrCode}
+        />
+        <StatsCard
+          title="Expirés"
+          value={tickets.filter(t => t.status === 'expired').length}
+          icon={QrCode}
+        />
       </div>
 
       {/* Tickets Table */}
-      <div className="table-container">
-        <div className="table-header">
+      <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Liste des tickets</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Code ticket
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Utilisateur
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Route
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Prix
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date d'achat
-                </th>
-                <th className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tickets.map((ticket) => (
-                <tr key={ticket.id} className="table-row">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <QrCode className="h-5 w-5 text-gray-400 mr-2" />
-                      <div className="text-sm font-medium text-gray-900">{ticket.code}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{ticket.user}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{ticket.product}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{ticket.route}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(ticket.status)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{ticket.price}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">{ticket.purchaseDate}</div>
-                    {ticket.used && ticket.usedAt && (
-                      <div className="text-xs text-green-600">Utilisé: {ticket.usedAt}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Voir QR Code"
-                      >
-                        <QrCode className="h-4 w-4" />
-                      </button>
-                      <button 
-                        className="text-gray-600 hover:text-gray-900"
-                        title="Voir détails"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button className="text-gray-400 hover:text-gray-600">
-                        <MoreVertical className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={tickets}
+          columns={ticketColumns}
+          emptyMessage="Aucun ticket trouvé"
+        />
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="flex-1 flex justify-between sm:hidden">
-          <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-            Précédent
-          </button>
-          <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-            Suivant
-          </button>
-        </div>
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-700">
-              Affichage de <span className="font-medium">1</span> à <span className="font-medium">{tickets.length}</span> sur{' '}
-              <span className="font-medium">{tickets.length}</span> résultats
-            </p>
-          </div>
-          <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-              <button className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                Précédent
-              </button>
-              <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                1
-              </button>
-              <button className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                Suivant
-              </button>
-            </nav>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        currentPage={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        className="mt-6"
+      />
     </div>
   );
 };
