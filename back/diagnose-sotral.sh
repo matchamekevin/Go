@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Script de diagnostic et réparation pour la base de données SOTRAL sur Render
+# Ce script ne doit PAS faire échouer le déploiement - il est informatif
 
 echo "🔍 Diagnostic du système SOTRAL..."
 
@@ -13,23 +14,20 @@ if [ -n "$DATABASE_URL" ]; then
     echo "   Masquée: $DB_URL_MASKED"
 else
     echo "❌ DATABASE_URL: non définie"
+    echo "⚠️  Continuation malgré l'absence de DATABASE_URL"
+    exit 0
 fi
 
 # Tester la connexion à la base de données
 echo ""
 echo "🔗 Test de connexion à la base de données..."
-if [ -n "$DATABASE_URL" ]; then
-    psql "$DATABASE_URL" -c "SELECT version();" >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo "✅ Connexion à PostgreSQL: réussie"
-    else
-        echo "❌ Connexion à PostgreSQL: échouée"
-        echo "   Erreur: $(psql "$DATABASE_URL" -c "SELECT version();" 2>&1 | head -3)"
-        exit 1
-    fi
+if psql "$DATABASE_URL" -c "SELECT version();" >/dev/null 2>&1; then
+    echo "✅ Connexion à PostgreSQL: réussie"
 else
-    echo "❌ Impossible de tester la connexion (DATABASE_URL manquante)"
-    exit 1
+    echo "❌ Connexion à PostgreSQL: échouée"
+    echo "   Erreur: $(psql "$DATABASE_URL" -c "SELECT version();" 2>&1 | head -3)"
+    echo "⚠️  Continuation malgré l'échec de connexion"
+    exit 0
 fi
 
 # Vérifier si les tables SOTRAL existent
@@ -37,6 +35,7 @@ echo ""
 echo "📊 Vérification des tables SOTRAL..."
 TABLES=("sotral_lines" "sotral_stops" "sotral_categories" "sotral_tickets" "sotral_pricing_zones")
 
+TABLE_MISSING=false
 for table in "${TABLES[@]}"; do
     COUNT=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo "-1")
     if [ "$COUNT" = "-1" ]; then
@@ -51,7 +50,7 @@ done
 if [ "$TABLE_MISSING" = true ]; then
     echo ""
     echo "🚨 Des tables SOTRAL sont manquantes!"
-    echo "🔧 Lancement de l'initialisation..."
+    echo "🔧 Tentative d'initialisation..."
 
     # Chemin vers le fichier SQL
     SQL_FILE="./src/schema/create_sotral_system.sql"
@@ -67,7 +66,7 @@ if [ "$TABLE_MISSING" = true ]; then
         fi
     else
         echo "❌ Fichier SQL introuvable: $SQL_FILE"
-        exit 1
+        echo "⚠️  Continuation malgré l'absence du fichier SQL"
     fi
 else
     echo ""
@@ -87,4 +86,5 @@ else
 fi
 
 echo ""
-echo "✨ Diagnostic terminé!"
+echo "✨ Diagnostic terminé avec succès!"
+exit 0

@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS sotral_line_stops (
     line_id INTEGER REFERENCES sotral_lines(id) ON DELETE CASCADE,
     stop_id INTEGER REFERENCES sotral_stops(id) ON DELETE CASCADE,
     sequence_order INTEGER NOT NULL,
-    direction ENUM('aller', 'retour') NOT NULL DEFAULT 'aller',
+    direction VARCHAR(10) CHECK (direction IN ('aller', 'retour')) NOT NULL DEFAULT 'aller',
     travel_time_minutes INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(line_id, stop_id, direction, sequence_order)
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS sotral_tickets (
     stop_from_id INTEGER REFERENCES sotral_stops(id) ON DELETE SET NULL,
     stop_to_id INTEGER REFERENCES sotral_stops(id) ON DELETE SET NULL,
     price_paid_fcfa INTEGER NOT NULL,
-    status ENUM('active', 'used', 'expired', 'cancelled') DEFAULT 'active',
+    status VARCHAR(20) CHECK (status IN ('active', 'used', 'expired', 'cancelled')) DEFAULT 'active',
     purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP,
     trips_remaining INTEGER DEFAULT 1,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS sotral_ticket_validations (
     stop_id INTEGER REFERENCES sotral_stops(id),
     validated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     validator_device_id VARCHAR(100),
-    validation_method ENUM('qr_scan', 'nfc', 'manual') DEFAULT 'qr_scan',
+    validation_method VARCHAR(20) CHECK (validation_method IN ('qr_scan', 'nfc', 'manual')) DEFAULT 'qr_scan',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS sotral_schedules (
     id SERIAL PRIMARY KEY,
     line_id INTEGER REFERENCES sotral_lines(id) ON DELETE CASCADE,
     stop_id INTEGER REFERENCES sotral_stops(id) ON DELETE CASCADE,
-    direction ENUM('aller', 'retour') NOT NULL,
+    direction VARCHAR(10) CHECK (direction IN ('aller', 'retour')) NOT NULL,
     departure_time TIME NOT NULL,
     day_of_week INTEGER, -- 1=Lundi, 7=Dimanche, NULL pour tous les jours
     is_active BOOLEAN DEFAULT true,

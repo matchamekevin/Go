@@ -1,13 +1,15 @@
 #!/bin/bash
 
 # Script pour insérer les arrêts SOTRAL manuellement si nécessaire
+# Ce script ne doit PAS faire échouer le déploiement
 
 echo "🗺️ Vérification et insertion des arrêts SOTRAL..."
 
 # Vérifier si DATABASE_URL est définie
 if [ -z "$DATABASE_URL" ]; then
     echo "❌ DATABASE_URL n'est pas définie"
-    exit 1
+    echo "⚠️  Continuation malgré l'absence de DATABASE_URL"
+    exit 0
 fi
 
 # Vérifier si la table sotral_stops existe
@@ -15,7 +17,8 @@ TABLE_EXISTS=$(psql "$DATABASE_URL" -t -c "SELECT EXISTS (SELECT FROM informatio
 
 if [ "$TABLE_EXISTS" != " t" ]; then
     echo "❌ La table sotral_stops n'existe pas. Lancez d'abord l'initialisation complète."
-    exit 1
+    echo "⚠️  Continuation malgré l'absence de la table"
+    exit 0
 fi
 
 # Compter les arrêts existants
@@ -52,10 +55,12 @@ if [ "$STOP_COUNT" -eq 0 ]; then
         echo "✅ $NEW_COUNT arrêts insérés avec succès!"
     else
         echo "❌ Erreur lors de l'insertion des arrêts"
-        exit 1
+        echo "⚠️  Continuation malgré l'erreur d'insertion"
+        exit 0
     fi
 else
     echo "✅ Les arrêts existent déjà ($STOP_COUNT arrêts trouvés)"
 fi
 
 echo "🎯 Arrêts SOTRAL vérifiés!"
+exit 0

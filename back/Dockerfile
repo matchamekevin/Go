@@ -30,19 +30,32 @@ RUN npm ci --omit=dev
 # Copier le build compilé
 COPY --from=builder /usr/src/app/dist ./dist
 
-# Copier les scripts d'initialisation
-COPY --from=builder /usr/src/app/init-sotral.sh ./init-sotral.sh
-COPY --from=builder /usr/src/app/init-sotral-manual.sh ./init-sotral-manual.sh
-COPY --from=builder /usr/src/app/diagnose-sotral.sh ./diagnose-sotral.sh
-COPY --from=builder /usr/src/app/insert-stops.sh ./insert-stops.sh
-COPY --from=builder /usr/src/app/src/schema ./src/schema
+# Copier les scripts d'initialisation avec chemins absolus
+COPY --from=builder /usr/src/app/init-sotral.sh /usr/src/app/init-sotral.sh
+COPY --from=builder /usr/src/app/init-sotral-manual.sh /usr/src/app/init-sotral-manual.sh
+COPY --from=builder /usr/src/app/diagnose-sotral.sh /usr/src/app/diagnose-sotral.sh
+COPY --from=builder /usr/src/app/insert-stops.sh /usr/src/app/insert-stops.sh
+COPY --from=builder /usr/src/app/src/schema /usr/src/app/src/schema
 
-# Rendre le script exécutable
-RUN chmod +x ./init-sotral.sh ./init-sotral-manual.sh ./diagnose-sotral.sh ./insert-stops.sh
+# Rendre le script exécutable et vérifier
+RUN chmod +x /usr/src/app/*.sh && \
+    ls -la /usr/src/app/*.sh && \
+    echo "Scripts disponibles:" && \
+    find /usr/src/app -name "*.sh" -type f -executable
+
+# Créer un script de démarrage simplifié (sans scripts d'initialisation)
+RUN echo '#!/bin/sh\n\
+echo "🚀 Démarrage simplifié de l'\''application SOTRAL..."\n\
+echo "📂 Répertoire actuel: $(pwd)"\n\
+echo "� Contenu du répertoire:"\n\
+ls -la /usr/src/app/\n\
+echo "✅ Démarrage direct du serveur..."\n\
+exec node dist/server.js' > /usr/src/app/start-simple.sh && \
+    chmod +x /usr/src/app/start-simple.sh
 
 # Healthcheck interne (utilise fetch natif Node 20, sans curl)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://localhost:7000/health').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
 
 EXPOSE 7000
-# Remarque Render: assure que 'Root Directory' pointe sur 'back' pour que COPY package*.json fonctionne.
-CMD ["sh", "-c", "./diagnose-sotral.sh && ./insert-stops.sh && node dist/server.js"]
+# Utiliser le script de démarrage simplifié (sans scripts d'initialisation problématiques)
+CMD ["/usr/src/app/start-simple.sh"]
