@@ -860,7 +860,7 @@ export class AdminController {
               COUNT(t.id) as total_tickets,
               AVG(tp.price) as avg_ticket_price
             FROM tickets t
-            LEFT JOIN ticket_products tp ON t.product_id = tp.id
+            LEFT JOIN ticket_products tp ON t.product_code = tp.code
             WHERE t.purchased_at >= ${startDate}
           `),
           // Répartition par statut
@@ -870,7 +870,7 @@ export class AdminController {
               COUNT(*) as count,
               COALESCE(SUM(tp.price), 0) as revenue
             FROM tickets t
-            LEFT JOIN ticket_products tp ON t.product_id = tp.id
+            LEFT JOIN ticket_products tp ON t.product_code = tp.code
             WHERE t.purchased_at >= ${startDate}
             GROUP BY t.status
           `),
@@ -881,7 +881,7 @@ export class AdminController {
               COUNT(*) as tickets_count,
               COALESCE(SUM(tp.price), 0) as revenue
             FROM tickets t
-            LEFT JOIN ticket_products tp ON t.product_id = tp.id
+            LEFT JOIN ticket_products tp ON t.product_code = tp.code
             WHERE t.purchased_at >= ${startDate}
             GROUP BY DATE(t.purchased_at)
             ORDER BY date DESC
