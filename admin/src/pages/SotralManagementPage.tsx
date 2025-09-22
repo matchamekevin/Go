@@ -159,6 +159,23 @@ const SotralManagementPage: React.FC = () => {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      line_number: '',
+      name: '',
+      route_from: '',
+      route_to: '',
+      category_id: '1',
+      distance_km: '',
+      stops_count: ''
+    });
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setIsCreateModalOpen(true);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -190,7 +207,7 @@ const SotralManagementPage: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={openCreateModal}
             className="btn-primary flex items-center"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -384,7 +401,7 @@ const SotralManagementPage: React.FC = () => {
                   onChange={handleInputChange}
                   required
                   min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input text-gray-900"
                   placeholder="Ex: 15"
                 />
               </div>
@@ -399,7 +416,7 @@ const SotralManagementPage: React.FC = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input text-gray-900"
                   placeholder="Ex: Ligne 15 - Lomé Centre"
                 />
               </div>
@@ -415,7 +432,7 @@ const SotralManagementPage: React.FC = () => {
                     value={formData.route_from}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="input text-gray-900"
                     placeholder="Ex: Lomé Centre"
                   />
                 </div>
@@ -430,7 +447,7 @@ const SotralManagementPage: React.FC = () => {
                     value={formData.route_to}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="input text-gray-900"
                     placeholder="Ex: Adidogomé"
                   />
                 </div>
@@ -445,8 +462,9 @@ const SotralManagementPage: React.FC = () => {
                   value={formData.category_id}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="input text-gray-900"
                 >
+                  <option value="" disabled>Sélectionnez une catégorie</option>
                   <option value="1">Ordinaire</option>
                   <option value="2">Lignes étudiantes</option>
                 </select>
@@ -464,7 +482,7 @@ const SotralManagementPage: React.FC = () => {
                     onChange={handleInputChange}
                     min="0"
                     step="0.1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="input text-gray-900"
                     placeholder="Ex: 12.5"
                   />
                 </div>
@@ -479,7 +497,7 @@ const SotralManagementPage: React.FC = () => {
                     value={formData.stops_count}
                     onChange={handleInputChange}
                     min="1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="input text-gray-900"
                     placeholder="Ex: 25"
                   />
                 </div>
