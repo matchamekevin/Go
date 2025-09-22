@@ -1,7 +1,18 @@
 FROM node:20-alpine AS builder
-WORKDIR /usr/src/app
-
-# Copier manifests pour cache layer npm
+WORKDIR /usr/s# Créer un script de démarrage simplifié (sans scripts d'initialisation)
+RUN echo '#!/bin/sh\n\
+echo "🚀 Démarrage simplifié de l'\''application SOTRAL..."\n\
+echo "📂 Répertoire actuel: $(pwd)"\n\
+echo "🔍 Contenu du répertoire:"\n\
+ls -la /usr/src/app/\n\
+echo "✅ Démarrage direct du serveur..."\n\
+exec node dist/server.js' > /usr/src/app/start-simple.sh && \
+    chmod +x /usr/src/app/start-simple.sh && \
+    echo "Script start-simple.sh créé:" && \
+    cat /usr/src/app/start-simple.sh && \
+    echo "Vérification finale:" && \
+    ls -la /usr/src/app/start-simple.sh && \
+    test -x /usr/src/app/start-simple.sh && echo "✅ Script exécutable" || echo "❌ Script non exécutable" Copier manifests pour cache layer npm
 COPY package*.json ./
 # Install deps (dev inclus pour compilation TypeScript) via lockfile
 RUN npm ci
@@ -57,5 +68,5 @@ exec node dist/server.js' > /usr/src/app/start-simple.sh && \
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://localhost:7000/health').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"
 
 EXPOSE 7000
-# Utiliser le script de démarrage simplifié (sans scripts d'initialisation problématiques)
-CMD ["/usr/src/app/start-simple.sh"]
+# Démarrage direct sans script shell (plus fiable)
+CMD ["node", "dist/server.js"]
