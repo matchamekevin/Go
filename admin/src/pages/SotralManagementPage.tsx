@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, 
-  Edit, 
   Power, 
   Bus, 
   MapPin, 
-  Ticket,
   TrendingUp,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -30,15 +29,22 @@ interface LineStats {
   active_lines: number;
   total_stops: number;
   ticket_types: number;
-  total_tickets_generated?: number;
-  total_revenue?: number;
 }
 
 const SotralManagementPage: React.FC = () => {
   const [lines, setLines] = useState<SotralLine[]>([]);
   const [stats, setStats] = useState<LineStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    line_number: '',
+    name: '',
+    route_from: '',
+    route_to: '',
+    category_id: '1', // Par défaut catégorie ordinaire
+    distance_km: '',
+    stops_count: ''
+  });
 
   useEffect(() => {
     loadData();
@@ -105,63 +111,60 @@ const SotralManagementPage: React.FC = () => {
     }
   };
 
-  const generateTicketsForLine = async (lineId: number, quantity: number = 100) => {
+  const handleCreateLine = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/generate-tickets`, {
+      const lineData = {
+        line_number: parseInt(formData.line_number),
+        name: formData.name.trim(),
+        route_from: formData.route_from.trim(),
+        route_to: formData.route_to.trim(),
+        category_id: parseInt(formData.category_id),
+        distance_km: formData.distance_km ? parseFloat(formData.distance_km) : undefined,
+        stops_count: formData.stops_count ? parseInt(formData.stops_count) : undefined,
+        is_active: true
+      };
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          lineId,
-          ticketTypeCode: 'SIMPLE',
-          quantity,
-          validityHours: 24
-        })
+        body: JSON.stringify(lineData)
       });
 
       if (response.ok) {
         const result = await response.json();
         toast.success(result.message);
-        loadData(); // Recharger les statistiques
+        setIsCreateModalOpen(false);
+        setFormData({
+          line_number: '',
+          name: '',
+          route_from: '',
+          route_to: '',
+          category_id: '1',
+          distance_km: '',
+          stops_count: ''
+        });
+        loadData(); // Recharger les données
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Erreur lors de la génération');
+        toast.error(error.error || 'Erreur lors de la création de la ligne');
       }
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error('Erreur lors de la génération des tickets');
+      toast.error('Erreur lors de la création de la ligne');
     }
   };
 
-  const bulkGenerateTickets = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/bulk-generate-tickets`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ticketTypeCode: 'SIMPLE',
-          quantityPerLine: 50,
-          validityHours: 24
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        toast.success(result.message);
-        loadData();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || 'Erreur lors de la génération en masse');
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur lors de la génération en masse');
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   if (loading) {
@@ -182,23 +185,23 @@ const SotralManagementPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gestion SOTRAL</h1>
           <p className="text-gray-600 mt-1">
-            Gérez les lignes de transport, les arrêts et la génération de tickets
+            Gérez les lignes de transport et les trajets
           </p>
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={() => setIsGenerateModalOpen(true)}
+            onClick={() => setIsCreateModalOpen(true)}
             className="btn-primary flex items-center"
-          >
-            <Ticket className="h-4 w-4 mr-2" />
-            Générer des tickets
-          </button>
-          <button
-            onClick={() => console.log('Nouvelle ligne - à implémenter')}
-            className="btn-secondary flex items-center"
           >
             <Plus className="h-4 w-4 mr-2" />
             Nouvelle ligne
+          </button>
+          <button
+            onClick={loadData}
+            className="btn-secondary flex items-center"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Actualiser
           </button>
         </div>
       </div>
@@ -238,9 +241,9 @@ const SotralManagementPage: React.FC = () => {
           
           <div className="glass-container p-6 rounded-xl">
             <div className="flex items-center">
-              <Ticket className="h-8 w-8 text-orange-600" />
+              <Bus className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Types de tickets</p>
+                <p className="text-sm font-medium text-gray-600">Types de lignes</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.ticket_types || 0}</p>
               </div>
             </div>
@@ -332,29 +335,18 @@ const SotralManagementPage: React.FC = () => {
                       {line.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => generateTicketsForLine(line.id)}
-                      className="text-primary-600 hover:text-primary-900"
-                      title="Générer des tickets"
-                    >
-                      <Ticket className="h-4 w-4" />
-                    </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => toggleLineStatus(line.id)}
-                      className={`${
-                        line.is_active ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
+                      className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium ${
+                        line.is_active 
+                          ? 'text-red-700 bg-red-100 hover:bg-red-200' 
+                          : 'text-green-700 bg-green-100 hover:bg-green-200'
                       }`}
-                      title={line.is_active ? 'Désactiver' : 'Activer'}
+                      title={line.is_active ? 'Désactiver la ligne' : 'Activer la ligne'}
                     >
-                      <Power className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => console.log('Modifier ligne', line.id)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Modifier"
-                    >
-                      <Edit className="h-4 w-4" />
+                      <Power className="h-4 w-4 mr-1" />
+                      {line.is_active ? 'Désactiver' : 'Activer'}
                     </button>
                   </td>
                 </tr>
@@ -364,33 +356,151 @@ const SotralManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal de génération de tickets en masse */}
-      {isGenerateModalOpen && (
+      {/* Modal de création de ligne */}
+      {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="glass-container p-6 rounded-xl max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Générer des tickets en masse
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Cette action va générer 50 tickets pour chaque ligne active.
-            </p>
-            <div className="flex space-x-3">
+          <div className="glass-container p-6 rounded-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Créer une nouvelle ligne
+              </h3>
               <button
-                onClick={() => {
-                  bulkGenerateTickets();
-                  setIsGenerateModalOpen(false);
-                }}
-                className="btn-primary flex-1"
+                onClick={() => setIsCreateModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
               >
-                Confirmer
-              </button>
-              <button
-                onClick={() => setIsGenerateModalOpen(false)}
-                className="btn-secondary flex-1"
-              >
-                Annuler
+                <X className="h-6 w-6" />
               </button>
             </div>
+
+            <form onSubmit={handleCreateLine} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Numéro de ligne *
+                </label>
+                <input
+                  type="number"
+                  name="line_number"
+                  value={formData.line_number}
+                  onChange={handleInputChange}
+                  required
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Ex: 15"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nom de la ligne *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Ex: Ligne 15 - Lomé Centre"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Départ *
+                  </label>
+                  <input
+                    type="text"
+                    name="route_from"
+                    value={formData.route_from}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Ex: Lomé Centre"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Arrivée *
+                  </label>
+                  <input
+                    type="text"
+                    name="route_to"
+                    value={formData.route_to}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Ex: Adidogomé"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Catégorie *
+                </label>
+                <select
+                  name="category_id"
+                  value={formData.category_id}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="1">Ordinaire</option>
+                  <option value="2">Lignes étudiantes</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Distance (km)
+                  </label>
+                  <input
+                    type="number"
+                    name="distance_km"
+                    value={formData.distance_km}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Ex: 12.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre d'arrêts
+                  </label>
+                  <input
+                    type="number"
+                    name="stops_count"
+                    value={formData.stops_count}
+                    onChange={handleInputChange}
+                    min="1"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Ex: 25"
+                  />
+                </div>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="submit"
+                  className="btn-primary flex-1"
+                >
+                  Créer la ligne
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
