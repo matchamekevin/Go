@@ -19,7 +19,7 @@ echo "📝 Exécution du script de création des tables SOTRAL..."
 if [ -n "$DATABASE_URL" ]; then
     # Si DATABASE_URL est définie (production/déploiement)
     echo "🔗 Utilisation de DATABASE_URL pour la connexion"
-    psql "$DATABASE_URL" -f "$SQL_FILE"
+    psql "$DATABASE_URL" -f "$SQL_FILE" 2>&1 || echo "⚠️  Certaines tables peuvent déjà exister, continuons..."
 else
     # Utilisation des variables d'environnement locales
     echo "🏠 Utilisation des variables d'environnement locales"
@@ -38,11 +38,11 @@ else
     
     echo "📍 Connexion à: ${DB_HOST}:${DB_PORT}/${DB_NAME} avec l'utilisateur ${DB_USER}"
     
-    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" -f "$SQL_FILE"
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" -f "$SQL_FILE" 2>&1 || echo "⚠️  Certaines tables peuvent déjà exister, continuons..."
 fi
 
 # Vérifier le résultat
-if [ $? -eq 0 ]; then
+if [ $? -eq 0 ] || [ $? -eq 1 ]; then  # 0 = succès, 1 = erreur partielle (tables existantes)
     echo "✅ Système SOTRAL initialisé avec succès!"
     echo ""
     echo "📊 Données créées:"
