@@ -125,15 +125,15 @@ const SotralManagementPage: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(result.message || 'Ligne supprimée avec succès');
+        toast.success(result.message || 'Ligne désactivée avec succès');
         setIsDeleteModalOpen(false);
         setSelectedLine(null);
         refreshData(); // Refresh all data
       } else {
-        showErrorToast('Erreur lors de la suppression de la ligne');
+        showErrorToast('Erreur lors de la désactivation de la ligne');
       }
     } catch (error) {
-      showErrorToast('Erreur lors de la suppression');
+      showErrorToast('Erreur lors de la désactivation');
     }
   };
 
@@ -602,7 +602,7 @@ const SotralManagementPage: React.FC = () => {
                   className="flex items-center justify-center px-4 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200"
                 >
                   <Trash2 className="h-5 w-5 mr-2" />
-                  Supprimer
+                  Désactiver
                 </button>
               </div>
             </div>
@@ -626,7 +626,7 @@ const SotralManagementPage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center">
                 <AlertTriangle className="h-6 w-6 mr-3 text-red-600" />
-                Confirmer la suppression
+                Confirmer la désactivation
               </h3>
               <button
                 onClick={closeAllModals}
@@ -648,10 +648,10 @@ const SotralManagementPage: React.FC = () => {
                     </h3>
                     <div className="mt-2 text-sm text-red-700">
                       <p>
-                        Êtes-vous sûr de vouloir supprimer la ligne <strong>{selectedLine.name}</strong> (Ligne {selectedLine.line_number}) ?
+                        Êtes-vous sûr de vouloir désactiver la ligne <strong>{selectedLine.name}</strong> (Ligne {selectedLine.line_number}) ?
                       </p>
                       <p className="mt-2">
-                        Cette action supprimera définitivement la ligne et toutes les données associées.
+                        Cette action désactivera la ligne et elle ne sera plus disponible pour les utilisateurs.
                       </p>
                     </div>
                   </div>
@@ -694,7 +694,7 @@ const SotralManagementPage: React.FC = () => {
                   className="flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 flex-1"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer définitivement
+                  Désactiver définitivement
                 </button>
                 <button
                   onClick={closeAllModals}
