@@ -12,19 +12,8 @@ import {
 import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { scanService } from '../src/services/scanService';
-
-interface ScanResult {
-  success: boolean;
-  ticket?: {
-    id: string;
-    type: string;
-    user: string;
-    route?: string;
-    validUntil: string;
-  };
-  message: string;
-}
+import { ScanService } from '../src/services/scanService';
+import type { TicketValidationResult } from '../src/types/api';
 
 export default function ScannerScreen() {
   const router = useRouter();
@@ -55,16 +44,16 @@ export default function ScannerScreen() {
       console.log('Scan QR Code:', data);
       
       // Validation du ticket via l'API
-      const result: ScanResult = await scanService.validateTicket(data);
+      const result: TicketValidationResult = await ScanService.validateTicket(data);
       
-      if (result.success) {
+      if (result.isValid) {
         // Ticket valide - feedback positif
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Vibration.vibrate([0, 200, 100, 200]);
-        
+        const ticket = result.ticket;
         Alert.alert(
           '✅ Ticket Valide',
-          `Type: ${result.ticket?.type}\nUtilisateur: ${result.ticket?.user}\nValidité: ${result.ticket?.validUntil}`,
+          `Code: ${ticket?.code}\nProduit: ${ticket?.product_name || 'N/A'}\nUtilisateur: ${ticket?.user_email || 'N/A'}`,
           [
             {
               text: 'Scanner Suivant',
@@ -83,7 +72,7 @@ export default function ScannerScreen() {
         
         Alert.alert(
           '❌ Ticket Invalide',
-          result.message,
+          result.message || 'Ticket invalide',
           [
             {
               text: 'Scanner Autre',
@@ -172,10 +161,10 @@ export default function ScannerScreen() {
         >
           <View style={styles.overlay}>
             <View style={styles.scanArea}>
-              <View style={styles.corner} style={[styles.corner, styles.topLeft]} />
-              <View style={styles.corner} style={[styles.corner, styles.topRight]} />
-              <View style={styles.corner} style={[styles.corner, styles.bottomLeft]} />
-              <View style={styles.corner} style={[styles.corner, styles.bottomRight]} />
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
             </View>
           </View>
         </CameraView>

@@ -51,4 +51,7 @@ router.get('/dashboard/recent-activity', AdminController.getRecentActivity as an
 router.get('/payments/stats', AdminController.getPaymentStats as any);
 router.get('/payments', AdminController.getAllPayments as any);
 
+// Routes pour les rapports
+router.get('/reports/period', AdminController.getPeriodReport as any);
+
 export default router;

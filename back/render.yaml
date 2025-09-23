@@ -23,6 +23,15 @@ services:
         value: $DATABASE_URL # définir dans le dashboard (ou utiliser fromDatabase quand supporté)
       - key: PORT
         value: 7000
+      - key: JWT_SECRET
+        value: $JWT_SECRET
+      - key: ADMIN_EMAIL
+        value: $ADMIN_EMAIL
+      - key: ADMIN_PASSWORD
+        value: $ADMIN_PASSWORD
+    healthCheckPath: /health
+    # Ajouter un délai de démarrage pour permettre l'initialisation
+    startCommand: "sh -c 'echo \"🚀 Démarrage de l\\'application SOTRAL...\" && (./diagnose-sotral.sh || echo \"⚠️ Diagnostic échoué, continuation...\") && (./insert-stops.sh || echo \"⚠️ Insertion des arrêts échouée, continuation...\") && echo \"✅ Scripts d\\'initialisation terminés\" && node dist/server.js'"
 
 databases:
   - name: gosotral-db

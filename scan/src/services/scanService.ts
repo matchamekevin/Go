@@ -57,4 +57,17 @@ export class ScanService {
       }
     }
   }
+
+  // Récupérer l'historique des scans
+  static async getScanHistory(): Promise<Array<any>> {
+    try {
+      const response = await apiClient.get<ApiResponse<any>>('/scan/history')
+      if (!response.success || !response.data) {
+        return []
+      }
+      return response.data
+    } catch (error) {
+      return []
+    }
+  }
 }
