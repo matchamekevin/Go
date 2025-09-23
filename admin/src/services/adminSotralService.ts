@@ -20,11 +20,16 @@ class AdminSotralService {
 
   async getLines(): Promise<ApiResponse<SotralLine[]>> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/lines`);
-      return {
-        success: true,
-        data: response.data?.data || response.data || []
-      };
+      const cacheKey = 'sotral:lines';
+      const cached = this.getCachedData<SotralLine[]>(cacheKey);
+      if (cached) {
+        return { success: true, data: cached };
+      }
+
+      const payload = await apiClient.get<any>(`${this.baseUrl}/lines`);
+      const data = payload?.data ?? payload ?? [];
+      this.setCachedData(cacheKey, data, 10); // cache 10 minutes
+      return { success: true, data };
     } catch (error) {
       return this.handleError('Erreur lors de la récupération des lignes', error);
     }
@@ -32,10 +37,10 @@ class AdminSotralService {
 
   async getLineById(id: number): Promise<ApiResponse<SotralLine>> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/lines/${id}`);
+      const payload = await apiClient.get<any>(`${this.baseUrl}/lines/${id}`);
       return {
         success: true,
-        data: response.data?.data || response.data
+        data: payload?.data ?? payload
       };
     } catch (error) {
       return this.handleError(`Erreur lors de la récupération de la ligne ${id}`, error);
@@ -44,10 +49,10 @@ class AdminSotralService {
 
   async createLine(lineData: Partial<SotralLine>): Promise<ApiResponse<SotralLine>> {
     try {
-      const response = await apiClient.post(`${this.baseUrl}/lines`, lineData);
+      const payload = await apiClient.post<any>(`${this.baseUrl}/lines`, lineData);
       return {
         success: true,
-        data: response.data?.data || response.data,
+        data: payload?.data ?? payload,
         message: 'Ligne créée avec succès'
       };
     } catch (error) {
@@ -57,10 +62,10 @@ class AdminSotralService {
 
   async updateLine(id: number, lineData: Partial<SotralLine>): Promise<ApiResponse<SotralLine>> {
     try {
-      const response = await apiClient.put(`${this.baseUrl}/lines/${id}`, lineData);
+      const payload = await apiClient.put<any>(`${this.baseUrl}/lines/${id}`, lineData);
       return {
         success: true,
-        data: response.data?.data || response.data,
+        data: payload?.data ?? payload,
         message: 'Ligne mise à jour avec succès'
       };
     } catch (error) {
@@ -86,11 +91,16 @@ class AdminSotralService {
 
   async getTicketTypes(): Promise<ApiResponse<SotralTicketType[]>> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/ticket-types`);
-      return {
-        success: true,
-        data: response.data?.data || response.data || []
-      };
+      const cacheKey = 'sotral:ticket-types';
+      const cached = this.getCachedData<SotralTicketType[]>(cacheKey);
+      if (cached) {
+        return { success: true, data: cached };
+      }
+
+      const payload = await apiClient.get<any>(`${this.baseUrl}/ticket-types`);
+      const data = payload?.data ?? payload ?? [];
+      this.setCachedData(cacheKey, data, 10);
+      return { success: true, data };
     } catch (error) {
       return this.handleError('Erreur lors de la récupération des types de tickets', error);
     }
@@ -98,10 +108,10 @@ class AdminSotralService {
 
   async createTicketType(typeData: Partial<SotralTicketType>): Promise<ApiResponse<SotralTicketType>> {
     try {
-      const response = await apiClient.post(`${this.baseUrl}/ticket-types`, typeData);
+      const payload = await apiClient.post<any>(`${this.baseUrl}/ticket-types`, typeData);
       return {
         success: true,
-        data: response.data?.data || response.data,
+        data: payload?.data ?? payload,
         message: 'Type de ticket créé avec succès'
       };
     } catch (error) {
@@ -127,10 +137,10 @@ class AdminSotralService {
         validityHours
       };
 
-      const response = await apiClient.post(`${this.baseUrl}/generate-tickets`, requestData);
+      const payload = await apiClient.post<any>(`${this.baseUrl}/generate-tickets`, requestData);
       return {
         success: true,
-        data: response.data?.data || response.data,
+        data: payload?.data ?? payload,
         message: `${quantity} tickets générés avec succès`
       };
     } catch (error) {
@@ -142,10 +152,10 @@ class AdminSotralService {
     try {
       const requestData: BulkTicketGenerationRequest = { requests };
 
-      const response = await apiClient.post(`${this.baseUrl}/bulk-generate-tickets`, requestData);
+      const payload = await apiClient.post<any>(`${this.baseUrl}/bulk-generate-tickets`, requestData);
       return {
         success: true,
-        data: response.data?.data || response.data,
+        data: payload?.data ?? payload,
         message: 'Génération en lot réussie'
       };
     } catch (error) {
@@ -169,10 +179,10 @@ class AdminSotralService {
         });
       }
 
-      const response = await apiClient.get(`${this.baseUrl}/tickets?${params.toString()}`);
+      const payload = await apiClient.get<any>(`${this.baseUrl}/tickets?${params.toString()}`);
       return {
         success: true,
-        data: response.data
+        data: payload?.data ?? payload
       };
     } catch (error) {
       return this.handleError('Erreur lors de la récupération des tickets', error);
@@ -181,10 +191,10 @@ class AdminSotralService {
 
   async getTicketById(id: number): Promise<ApiResponse<SotralTicketWithDetails>> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/tickets/${id}`);
+      const payload = await apiClient.get<any>(`${this.baseUrl}/tickets/${id}`);
       return {
         success: true,
-        data: response.data?.data || response.data
+        data: payload?.data ?? payload
       };
     } catch (error) {
       return this.handleError(`Erreur lors de la récupération du ticket ${id}`, error);
@@ -193,10 +203,10 @@ class AdminSotralService {
 
   async updateTicketStatus(id: number, status: string): Promise<ApiResponse<SotralTicketWithDetails>> {
     try {
-      const response = await apiClient.patch(`${this.baseUrl}/tickets/${id}/status`, { status });
+      const payload = await apiClient.patch<any>(`${this.baseUrl}/tickets/${id}/status`, { status });
       return {
         success: true,
-        data: response.data?.data || response.data,
+        data: payload?.data ?? payload,
         message: 'Statut du ticket mis à jour'
       };
     } catch (error) {
@@ -226,10 +236,10 @@ class AdminSotralService {
       if (dateFrom) params.append('dateFrom', dateFrom);
       if (dateTo) params.append('dateTo', dateTo);
 
-      const response = await apiClient.get(`${this.baseUrl}/analytics?${params.toString()}`);
+      const payload = await apiClient.get<any>(`${this.baseUrl}/analytics?${params.toString()}`);
       return {
         success: true,
-        data: response.data?.data || response.data
+        data: payload?.data ?? payload
       };
     } catch (error) {
       return this.handleError('Erreur lors de la récupération des analytics', error);
@@ -238,10 +248,10 @@ class AdminSotralService {
 
   async getRevenueSummary(period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/analytics/revenue?period=${period}`);
+      const payload = await apiClient.get<any>(`${this.baseUrl}/analytics/revenue?period=${period}`);
       return {
         success: true,
-        data: response.data?.data || response.data
+        data: payload?.data ?? payload
       };
     } catch (error) {
       return this.handleError('Erreur lors de la récupération du résumé des revenus', error);
@@ -250,10 +260,10 @@ class AdminSotralService {
 
   async getPopularLines(limit: number = 10): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/analytics/popular-lines?limit=${limit}`);
+      const payload = await apiClient.get<any>(`${this.baseUrl}/analytics/popular-lines?limit=${limit}`);
       return {
         success: true,
-        data: response.data?.data || response.data
+        data: payload?.data ?? payload
       };
     } catch (error) {
       return this.handleError('Erreur lors de la récupération des lignes populaires', error);
@@ -266,10 +276,10 @@ class AdminSotralService {
 
   async downloadTicketQR(ticketId: number): Promise<Blob> {
     try {
-      const response = await apiClient.get(`${this.baseUrl}/tickets/${ticketId}/qr`, {
-        responseType: 'blob'
-      });
-      return response.data;
+      const payload = await apiClient.get<Blob>(`${this.baseUrl}/tickets/${ticketId}/qr`, {
+        responseType: 'blob' as any
+      } as any);
+      return payload;
     } catch (error) {
       throw new Error('Erreur lors du téléchargement du QR code');
     }
@@ -288,10 +298,10 @@ class AdminSotralService {
         });
       }
 
-      const response = await apiClient.get(`${this.baseUrl}/tickets/export?${params.toString()}`, {
-        responseType: 'blob'
-      });
-      return response.data;
+      const payload = await apiClient.get<Blob>(`${this.baseUrl}/tickets/export?${params.toString()}`, {
+        responseType: 'blob' as any
+      } as any);
+      return payload;
     } catch (error) {
       throw new Error('Erreur lors de l\'exportation des tickets');
     }
@@ -299,10 +309,10 @@ class AdminSotralService {
 
   async validateTicket(ticketCode: string): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.post(`${this.baseUrl}/tickets/validate`, { ticketCode });
+      const payload = await apiClient.post<any>(`${this.baseUrl}/tickets/validate`, { ticketCode });
       return {
         success: true,
-        data: response.data?.data || response.data,
+        data: payload?.data ?? payload,
         message: 'Ticket validé avec succès'
       };
     } catch (error) {

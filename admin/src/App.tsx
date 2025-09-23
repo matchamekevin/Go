@@ -9,8 +9,6 @@ import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/UsersPage';
 import TicketsPage from './pages/TicketsPage';
-import PaymentsPage from './pages/PaymentsPage';
-import ProductsPage from './pages/ProductsPage';
 import ReportsPage from './pages/ReportsPage';
 import MessagesPage from './pages/MessagesPage';
 import HelpPage from './pages/HelpPage';
@@ -87,8 +85,6 @@ const AppContent: React.FC = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="tickets" element={<TicketsPage />} />
-          <Route path="payments" element={<PaymentsPage />} />
-          <Route path="products" element={<ProductsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="messages" element={<MessagesPage />} />
           <Route path="help" element={<HelpPage />} />

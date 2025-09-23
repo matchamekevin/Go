@@ -617,6 +617,84 @@ export class SotralRepository {
     }
   }
 
+  async updateLine(id: number, lineData: Partial<SotralLine>): Promise<SotralLineWithDetails | null> {
+    const client = await pool.connect();
+    try {
+      const fields: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+
+      if (lineData.line_number !== undefined) {
+        fields.push(`line_number = $${idx++}`);
+        values.push(lineData.line_number);
+      }
+      if (lineData.name !== undefined) {
+        fields.push(`name = $${idx++}`);
+        values.push(lineData.name);
+      }
+      if (lineData.route_from !== undefined) {
+        fields.push(`route_from = $${idx++}`);
+        values.push(lineData.route_from);
+      }
+      if (lineData.route_to !== undefined) {
+        fields.push(`route_to = $${idx++}`);
+        values.push(lineData.route_to);
+      }
+      if (lineData.category_id !== undefined) {
+        fields.push(`category_id = $${idx++}`);
+        values.push(lineData.category_id);
+      }
+      if (lineData.distance_km !== undefined) {
+        fields.push(`distance_km = $${idx++}`);
+        values.push(lineData.distance_km);
+      }
+      if (lineData.stops_count !== undefined) {
+        fields.push(`stops_count = $${idx++}`);
+        values.push(lineData.stops_count);
+      }
+      if (lineData.is_active !== undefined) {
+        fields.push(`is_active = $${idx++}`);
+        values.push(lineData.is_active);
+      }
+
+      // Always set updated_at
+      fields.push('updated_at = CURRENT_TIMESTAMP');
+
+      if (fields.length === 0) {
+        // Nothing to update
+        return this.getLineById(id);
+      }
+
+      const query = `UPDATE sotral_lines SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;
+      values.push(id);
+
+      const result = await client.query(query, values);
+      if (result.rows.length === 0) return null;
+      const row = result.rows[0];
+
+      return {
+        id: row.id,
+        line_number: row.line_number,
+        name: row.name,
+        route_from: row.route_from,
+        route_to: row.route_to,
+        category_id: row.category_id,
+        distance_km: parseFloat(row.distance_km) || 0,
+        stops_count: row.stops_count,
+        is_active: row.is_active,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        category: row.category_name ? {
+          id: row.category_id,
+          name: row.category_name,
+          description: row.category_description
+        } : undefined
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   async generateBulkTickets(
     requests: Array<{
       lineId: number;

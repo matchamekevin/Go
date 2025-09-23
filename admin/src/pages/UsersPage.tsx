@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import StatsCard from '../components/StatsCard';
 import DataTable from '../components/DataTable';
+import ConfirmModal from '../components/ConfirmModal';
 
 const UsersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,6 +17,9 @@ const UsersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -48,15 +52,29 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = async (userId: number) => {
+  const openToggleModal = (user: User) => {
+    setSelectedUser(user);
+    setModalOpen(true);
+  };
+
+  const confirmToggleStatus = async () => {
+    if (!selectedUser) return;
     try {
-      const response = await UserService.toggleUserStatus(userId);
+      setActionLoading(true);
+      const response = await UserService.toggleUserStatus(selectedUser.id);
       if (response.success) {
         toast.success('Statut utilisateur modifié');
-        fetchUsers(); // Recharger la liste
+        // Après succès, on referme et recharge la liste
+        setModalOpen(false);
+        setSelectedUser(null);
+        fetchUsers();
+      } else {
+        toast.error('Impossible de modifier le statut');
       }
-    } catch (error) {
-      toast.error('Erreur lors du changement de statut');
+    } catch (error: any) {
+      toast.error(error?.message || 'Erreur lors du changement de statut');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -123,10 +141,10 @@ const UsersPage: React.FC = () => {
     {
       key: 'actions',
       header: 'Actions',
-      render: (_value: any, user: User) => (
+          render: (_value: any, user: User) => (
         <div className="flex space-x-2">
           <button
-            onClick={() => handleToggleStatus(user.id)}
+            onClick={() => openToggleModal(user)}
             className={`px-3 py-1 rounded text-xs font-medium ${
               user.is_verified
                 ? 'bg-red-100 text-red-800 hover:bg-red-200'
@@ -220,6 +238,16 @@ const UsersPage: React.FC = () => {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         className="mt-6"
+      />
+
+      <ConfirmModal
+        isOpen={modalOpen}
+        title={selectedUser ? (selectedUser.is_verified ? 'Suspendre l\'utilisateur' : 'Activer l\'utilisateur') : 'Confirmer'}
+        description={selectedUser ? (selectedUser.is_verified ? `Êtes-vous sûr de vouloir suspendre ${selectedUser.name} ? L'utilisateur ne pourra plus se connecter jusqu'à réactivation.` : `Êtes-vous sûr de vouloir activer ${selectedUser.name} ?`) : ''}
+        confirmLabel={selectedUser && selectedUser.is_verified ? 'Suspendre' : 'Activer'}
+        danger={selectedUser ? selectedUser.is_verified : false}
+        onConfirm={confirmToggleStatus}
+        onClose={() => { if (!actionLoading) { setModalOpen(false); setSelectedUser(null); } }}
       />
     </div>
   );

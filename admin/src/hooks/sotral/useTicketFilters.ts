@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminSotralService } from '../../services/adminSotralService';
-import { 
+import type { 
   SotralTicketWithDetails, 
   TicketFilters, 
-  PaginatedResponse,
   LoadingState 
 } from '../../types/sotral';
 

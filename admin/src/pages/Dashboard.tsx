@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Ticket, CreditCard, TrendingUp, Activity, DollarSign} from 'lucide-react';
+import { Users, Ticket, TrendingUp, Activity, DollarSign} from 'lucide-react';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -264,24 +264,6 @@ const Dashboard: React.FC = () => {
             <h3 className="text-lg font-bold text-[#065f46] mb-4">Actions rapides</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Navigation corrigée vers les vraies pages */}
-              <button
-                className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors min-w-[140px]"
-                onClick={() => navigate('/products')}
-              >
-                <div className="bg-[#d1fae5] p-2 rounded mr-2">
-                  <Ticket className="h-4 w-4 text-[#065f46]" />
-                </div>
-                <span className="text-xs font-bold text-[#065f46]">Nouveau produit</span>
-              </button>
-              <button
-                className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors min-w-[140px]"
-                onClick={() => navigate('/payments')}
-              >
-                <div className="bg-[#d1fae5] p-2 rounded mr-2">
-                  <CreditCard className="h-4 w-4 text-[#065f46]" />
-                </div>
-                <span className="text-xs font-bold text-[#065f46]">Voir paiements</span>
-              </button>
               <button
                 className="flex items-center p-3 rounded border border-[#d1fae5] hover:border-[#065f46] hover:bg-[#d1fae5] transition-colors min-w-[140px]"
                 onClick={() => navigate('/reports')}

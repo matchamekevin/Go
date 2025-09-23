@@ -13,4 +13,5 @@ export * from '../components/sotral';
 export * as adminSotralService from '../services/adminSotralService';
 
 // Pages (nouvelle architecture)
-export { default as SotralTicketManagementPageNew } from '../pages/SotralTicketManagementPage.new';
+// La page principale actuelle
+export { default as SotralTicketManagementPage } from '../pages/SotralTicketManagementPage';

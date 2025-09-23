@@ -3,21 +3,27 @@ import { User } from './User.model';
 
 export const UserRepository = {
   async findByEmail(email: string): Promise<User | null> {
-  const res = await pool.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [email]);
+  const res = await pool.query(
+    'SELECT id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE email = $1 LIMIT 1',
+    [email]
+  );
   if (!res.rows[0]) return null;
   // Ajout du rôle par défaut si absent
   return { ...res.rows[0], role: res.rows[0].role || 'user' };
   },
 
   async findById(id: string): Promise<User | null> {
-  const res = await pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [parseInt(id)]);
+  const res = await pool.query(
+    'SELECT id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE id = $1 LIMIT 1',
+    [parseInt(id)]
+  );
   if (!res.rows[0]) return null;
   return { ...res.rows[0], role: res.rows[0].role || 'user' };
   },
 
   async create(data: { email: string; name: string; password: string; phone?: string; is_verified?: boolean }): Promise<User> {
     const res = await pool.query(
-      'INSERT INTO users (email, name, password, phone, is_verified) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      'INSERT INTO users (email, name, password, phone, is_verified) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at, role',
       [data.email, data.name, data.password, data.phone || null, data.is_verified || false]
     );
     return res.rows[0];

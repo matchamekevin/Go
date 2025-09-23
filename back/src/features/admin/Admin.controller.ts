@@ -20,7 +20,7 @@ export class AdminController {
       const role = req.query.role ? String(req.query.role) : 'all';
 
       let query = `
-        SELECT id, email, name, phone, is_verified::boolean, created_at, updated_at
+        SELECT id, email, name, phone, is_verified::boolean, created_at, COALESCE(updated_at, created_at) AS updated_at
         FROM users 
         WHERE 1=1
       `;
@@ -47,10 +47,10 @@ export class AdminController {
       query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
       params.push(limit, offset);
 
-      const result = await pool.query(query, params);
+  const result = await pool.query(query, params);
 
       // Compter le total
-      let countQuery = `SELECT COUNT(*) FROM users WHERE 1=1`;
+  let countQuery = `SELECT COUNT(*) FROM users WHERE 1=1`;
       const countParams: any[] = [];
       let countIndex = 1;
 
@@ -93,7 +93,7 @@ export class AdminController {
     try {
       const { id } = req.params;
       const result = await pool.query(
-        'SELECT id, email, name, phone, is_verified, created_at, updated_at FROM users WHERE id = $1',
+        'SELECT id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at FROM users WHERE id = $1',
         [id]
       );
       
@@ -123,7 +123,7 @@ export class AdminController {
              is_verified = COALESCE($3, is_verified),
              updated_at = NOW()
          WHERE id = $4 
-         RETURNING id, email, name, phone, is_verified, created_at, updated_at`,
+         RETURNING id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at`,
         [name, phone, is_verified, id]
       );
 
@@ -169,7 +169,7 @@ export class AdminController {
         `UPDATE users 
          SET is_verified = NOT is_verified, updated_at = NOW()
          WHERE id = $1 
-         RETURNING id, email, name, phone, is_verified, created_at, updated_at`,
+         RETURNING id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at`,
         [id]
       );
 
@@ -861,7 +861,7 @@ export class AdminController {
               AVG(tp.price) as avg_ticket_price
             FROM tickets t
             LEFT JOIN ticket_products tp ON t.product_code = tp.code
-            WHERE t.purchased_at >= ${startDate}
+            WHERE COALESCE(t.purchased_at, t.created_at) >= ${startDate}
           `),
           // Répartition par statut
           pool.query(`
@@ -871,19 +871,19 @@ export class AdminController {
               COALESCE(SUM(tp.price), 0) as revenue
             FROM tickets t
             LEFT JOIN ticket_products tp ON t.product_code = tp.code
-            WHERE t.purchased_at >= ${startDate}
+            WHERE COALESCE(t.purchased_at, t.created_at) >= ${startDate}
             GROUP BY t.status
           `),
           // Données par jour
           pool.query(`
             SELECT 
-              DATE(t.purchased_at) as date,
+              DATE(COALESCE(t.purchased_at, t.created_at)) as date,
               COUNT(*) as tickets_count,
               COALESCE(SUM(tp.price), 0) as revenue
             FROM tickets t
             LEFT JOIN ticket_products tp ON t.product_code = tp.code
-            WHERE t.purchased_at >= ${startDate}
-            GROUP BY DATE(t.purchased_at)
+            WHERE COALESCE(t.purchased_at, t.created_at) >= ${startDate}
+            GROUP BY DATE(COALESCE(t.purchased_at, t.created_at))
             ORDER BY date DESC
             LIMIT 30
           `)

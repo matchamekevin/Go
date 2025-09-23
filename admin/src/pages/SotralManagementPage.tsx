@@ -24,23 +24,8 @@ import { useSotralLines } from '../hooks/useSotralLines';
 import { useSotralStops } from '../hooks/useSotralStops';
 import { useSotralStats } from '../hooks/useSotralStats';
 
-interface SotralStop {
-  id: number;
-  name: string;
-  code: string;
-  latitude?: number;
-  longitude?: number;
-  address?: string;
-  is_major_stop: boolean;
-  is_active: boolean;
-}
-
-interface LineStats {
-  total_lines: number;
-  active_lines: number;
-  total_stops: number;
-  ticket_types: number;
-}
+// Le type SotralStop et LineStats ne sont pas utilisés directement ici;
+// les hooks fournissent déjà les données typées.
 
 const SotralManagementPage: React.FC = () => {
   const [suspendedLines, setSuspendedLines] = useState<SotralLine[]>([]);
