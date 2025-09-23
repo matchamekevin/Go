@@ -7,9 +7,14 @@ import {
   Edit,
   Trash2,
   AlertTriangle,
+  CheckCircle,
+  Ticket,
+  BarChart3,
   Bus,
-  XCircle
+  XCircle,
+  Info
 } from 'lucide-react';
+import SotralTicketManagementPage from './SotralTicketManagementPage';
 import toast from 'react-hot-toast';
 import { SotralLine } from '../services/sotralService';
 import StatsCards from '../components/StatsCards';
@@ -19,10 +24,27 @@ import { useSotralLines } from '../hooks/useSotralLines';
 import { useSotralStops } from '../hooks/useSotralStops';
 import { useSotralStats } from '../hooks/useSotralStats';
 
+interface SotralStop {
+  id: number;
+  name: string;
+  code: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  is_major_stop: boolean;
+  is_active: boolean;
+}
 
+interface LineStats {
+  total_lines: number;
+  active_lines: number;
+  total_stops: number;
+  ticket_types: number;
+}
 
 const SotralManagementPage: React.FC = () => {
   const [suspendedLines, setSuspendedLines] = useState<SotralLine[]>([]);
+  const [showTicketManagement, setShowTicketManagement] = useState(false);
 
   // Charger les lignes suspendues depuis localStorage au démarrage
   useEffect(() => {
@@ -40,7 +62,7 @@ const SotralManagementPage: React.FC = () => {
 
   // Use custom hooks for API calls
   const { lines: apiLines, loading: linesLoading, error: linesError, loadLines } = useSotralLines();
-  const { loading: stopsLoading, error: stopsError, loadStops } = useSotralStops();
+  const { stops, loading: stopsLoading, error: stopsError, loadStops } = useSotralStops();
   const { stats, loading: statsLoading, error: statsError, loadStats } = useSotralStats();
 
   // Calculer les lignes affichées - utiliser uniquement les données de l'API
@@ -83,7 +105,7 @@ const SotralManagementPage: React.FC = () => {
     stops_count: ''
   });
 
-  const showErrorToast = (message: string) => {
+  const showErrorToast = (message: string, type: 'error' | 'warning' | 'info' = 'error') => {
     toast.error(message);
   };
 
@@ -125,15 +147,15 @@ const SotralManagementPage: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(result.message || 'Ligne désactivée avec succès');
+        toast.success(result.message || 'Ligne supprimée avec succès');
         setIsDeleteModalOpen(false);
         setSelectedLine(null);
         refreshData(); // Refresh all data
       } else {
-        showErrorToast('Erreur lors de la désactivation de la ligne');
+        showErrorToast('Erreur lors de la suppression de la ligne');
       }
     } catch (error) {
-      showErrorToast('Erreur lors de la désactivation');
+      showErrorToast('Erreur lors de la suppression');
     }
   };
 
@@ -290,6 +312,24 @@ const SotralManagementPage: React.FC = () => {
     );
   }
 
+  // Navigation conditionnelle vers la gestion des tickets
+  if (showTicketManagement) {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <button
+            onClick={() => setShowTicketManagement(false)}
+            className="flex items-center text-blue-600 hover:text-blue-800 mb-4 transition-colors"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Retour à la gestion des lignes
+          </button>
+        </div>
+        <SotralTicketManagementPage />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* En-tête */}
@@ -301,6 +341,13 @@ const SotralManagementPage: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-3">
+          <button
+            onClick={() => setShowTicketManagement(true)}
+            className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+          >
+            <Ticket className="h-5 w-5 mr-2" />
+            Gestion Tickets
+          </button>
           <button
             onClick={openCreateModal}
             className="flex items-center px-6 py-3 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -602,7 +649,7 @@ const SotralManagementPage: React.FC = () => {
                   className="flex items-center justify-center px-4 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200"
                 >
                   <Trash2 className="h-5 w-5 mr-2" />
-                  Désactiver
+                  Supprimer
                 </button>
               </div>
             </div>
@@ -626,7 +673,7 @@ const SotralManagementPage: React.FC = () => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center">
                 <AlertTriangle className="h-6 w-6 mr-3 text-red-600" />
-                Confirmer la désactivation
+                Confirmer la suppression
               </h3>
               <button
                 onClick={closeAllModals}
@@ -648,10 +695,10 @@ const SotralManagementPage: React.FC = () => {
                     </h3>
                     <div className="mt-2 text-sm text-red-700">
                       <p>
-                        Êtes-vous sûr de vouloir désactiver la ligne <strong>{selectedLine.name}</strong> (Ligne {selectedLine.line_number}) ?
+                        Êtes-vous sûr de vouloir supprimer la ligne <strong>{selectedLine.name}</strong> (Ligne {selectedLine.line_number}) ?
                       </p>
                       <p className="mt-2">
-                        Cette action désactivera la ligne et elle ne sera plus disponible pour les utilisateurs.
+                        Cette action supprimera définitivement la ligne et toutes les données associées.
                       </p>
                     </div>
                   </div>
@@ -694,7 +741,7 @@ const SotralManagementPage: React.FC = () => {
                   className="flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 flex-1"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Désactiver définitivement
+                  Supprimer définitivement
                 </button>
                 <button
                   onClick={closeAllModals}
@@ -726,8 +773,50 @@ const SotralManagementPage: React.FC = () => {
             </div>
 
             <form onSubmit={updateLine} className="space-y-6">
+              {apiError && (
+                <div className={`border rounded-lg p-4 mb-4 ${
+                  apiError.type === 'auth' ? 'bg-red-50 border-red-200' :
+                  apiError.type === 'server' ? 'bg-orange-50 border-orange-200' :
+                  apiError.type === 'validation' ? 'bg-yellow-50 border-yellow-200' :
+                  'bg-blue-50 border-blue-200'
+                }`}>
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      {apiError.type === 'auth' && <XCircle className="h-5 w-5 text-red-400" />}
+                      {apiError.type === 'server' && <AlertTriangle className="h-5 w-5 text-orange-400" />}
+                      {apiError.type === 'validation' && <Info className="h-5 w-5 text-yellow-400" />}
+                      {apiError.type === 'network' && <XCircle className="h-5 w-5 text-red-400" />}
+                      {apiError.type === 'not_found' && <AlertTriangle className="h-5 w-5 text-orange-400" />}
+                    </div>
+                    <div className="ml-3">
+                      <h3 className={`text-sm font-medium ${
+                        apiError.type === 'auth' ? 'text-red-800' :
+                        apiError.type === 'server' ? 'text-orange-800' :
+                        apiError.type === 'validation' ? 'text-yellow-800' :
+                        apiError.type === 'network' ? 'text-red-800' :
+                        'text-blue-800'
+                      }`}>
+                        {apiError.message}
+                      </h3>
+                      <div className={`mt-2 text-sm ${
+                        apiError.type === 'auth' ? 'text-red-700' :
+                        apiError.type === 'server' ? 'text-orange-700' :
+                        apiError.type === 'validation' ? 'text-yellow-700' :
+                        apiError.type === 'network' ? 'text-red-700' :
+                        'text-blue-800'
+                      }`}>
+                        <p>{apiError.details}</p>
+                        {apiError.suggestion && (
+                          <p className="mt-1 font-medium">{apiError.suggestion}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
-                <label className="block text-sm font-semibold text-green-700 mb-2">
+                <label className="block text-sm font-semibold text-blue-700 mb-2">
                   Numéro de ligne *
                 </label>
                 <input
@@ -742,7 +831,7 @@ const SotralManagementPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-green-700 mb-2">
+                <label className="block text-sm font-semibold text-blue-700 mb-2">
                   Nom de la ligne *
                 </label>
                 <input
@@ -757,36 +846,48 @@ const SotralManagementPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-green-700 mb-2">
+                  <label className="block text-sm font-semibold text-blue-700 mb-2">
                     Départ *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="route_from"
                     value={formData.route_from}
                     onChange={handleInputChange}
                     required
                     className="input text-gray-900"
-                  />
+                  >
+                    <option value="" disabled>Sélectionnez un arrêt de départ</option>
+                    {stops.map((stop) => (
+                      <option key={stop.id} value={stop.name}>
+                        {stop.name} {stop.is_major_stop && '(Principal)'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-green-700 mb-2">
+                  <label className="block text-sm font-semibold text-blue-700 mb-2">
                     Arrivée *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="route_to"
                     value={formData.route_to}
                     onChange={handleInputChange}
                     required
                     className="input text-gray-900"
-                  />
+                  >
+                    <option value="" disabled>Sélectionnez un arrêt d'arrivée</option>
+                    {stops.map((stop) => (
+                      <option key={stop.id} value={stop.name}>
+                        {stop.name} {stop.is_major_stop && '(Principal)'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-green-700 mb-2">
+                <label className="block text-sm font-semibold text-blue-700 mb-2">
                   Catégorie *
                 </label>
                 <select
@@ -804,7 +905,7 @@ const SotralManagementPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-green-700 mb-2">
+                  <label className="block text-sm font-semibold text-blue-700 mb-2">
                     Distance (km)
                   </label>
                   <input
@@ -820,7 +921,7 @@ const SotralManagementPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-green-700 mb-2">
+                  <label className="block text-sm font-semibold text-blue-700 mb-2">
                     Nombre d'arrêts
                   </label>
                   <input
@@ -838,8 +939,9 @@ const SotralManagementPage: React.FC = () => {
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  className="btn-success-dark flex-1"
+                  className="btn-success flex-1"
                 >
+                  <CheckCircle className="h-4 w-4 mr-2 inline" />
                   Modifier la ligne
                 </button>
                 <button

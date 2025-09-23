@@ -617,58 +617,73 @@ export class SotralRepository {
     }
   }
 
-  async updateLine(id: number, lineData: Partial<SotralLine>): Promise<SotralLine | null> {
+  async generateBulkTickets(
+    requests: Array<{
+      lineId: number;
+      ticketTypeCode: string;
+      quantity: number;
+      validityHours?: number;
+    }>
+  ): Promise<{
+    totalGenerated: number;
+    tickets: SotralTicket[];
+    lineBreakdown: Array<{
+      lineId: number;
+      lineName: string;
+      ticketType: string;
+      quantity: number;
+      totalPrice: number;
+    }>;
+  }> {
     const client = await pool.connect();
     try {
-      const updateFields = [];
-      const values = [];
-      let paramCount = 1;
+      await client.query('BEGIN');
 
-      if (lineData.line_number !== undefined) {
-        updateFields.push(`line_number = $${paramCount++}`);
-        values.push(lineData.line_number);
-      }
-      if (lineData.name !== undefined) {
-        updateFields.push(`name = $${paramCount++}`);
-        values.push(lineData.name);
-      }
-      if (lineData.route_from !== undefined) {
-        updateFields.push(`route_from = $${paramCount++}`);
-        values.push(lineData.route_from);
-      }
-      if (lineData.route_to !== undefined) {
-        updateFields.push(`route_to = $${paramCount++}`);
-        values.push(lineData.route_to);
-      }
-      if (lineData.distance_km !== undefined) {
-        updateFields.push(`distance_km = $${paramCount++}`);
-        values.push(lineData.distance_km);
-      }
-      if (lineData.stops_count !== undefined) {
-        updateFields.push(`stops_count = $${paramCount++}`);
-        values.push(lineData.stops_count);
-      }
-      if (lineData.is_active !== undefined) {
-        updateFields.push(`is_active = $${paramCount++}`);
-        values.push(lineData.is_active);
+      let allTickets: SotralTicket[] = [];
+      const lineBreakdown: Array<{
+        lineId: number;
+        lineName: string;
+        ticketType: string;
+        quantity: number;
+        totalPrice: number;
+      }> = [];
+
+      for (const request of requests) {
+        const tickets = await this.generateTicketsForLine(
+          request.lineId,
+          request.ticketTypeCode,
+          request.quantity,
+          request.validityHours || 24
+        );
+
+        allTickets = allTickets.concat(tickets);
+
+        // Récupérer le nom de la ligne pour le breakdown
+        const lineQuery = `SELECT line_name FROM sotral_lines WHERE id = $1`;
+        const lineResult = await client.query(lineQuery, [request.lineId]);
+        const lineName = lineResult.rows[0]?.line_name || `Ligne ${request.lineId}`;
+
+        const totalPrice = tickets.reduce((sum, ticket) => sum + ticket.price_paid_fcfa, 0);
+
+        lineBreakdown.push({
+          lineId: request.lineId,
+          lineName,
+          ticketType: request.ticketTypeCode,
+          quantity: request.quantity,
+          totalPrice
+        });
       }
 
-      if (updateFields.length === 0) {
-        throw new Error('Aucun champ à mettre à jour');
-      }
+      await client.query('COMMIT');
 
-      updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
-      values.push(id);
-
-      const query = `
-        UPDATE sotral_lines 
-        SET ${updateFields.join(', ')}
-        WHERE id = $${paramCount}
-        RETURNING *
-      `;
-      
-      const result = await client.query(query, values);
-      return result.rows.length > 0 ? result.rows[0] : null;
+      return {
+        totalGenerated: allTickets.length,
+        tickets: allTickets,
+        lineBreakdown
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
     } finally {
       client.release();
     }
@@ -782,10 +797,14 @@ export class SotralRepository {
 
       const line = lineResult.rows[0];
 
-      // Calculer le prix selon la distance
+      // Calculer le prix selon la distance et le type
       const isStudent = ticketType.is_student_discount;
-      const price = isStudent ? SOTRAL_CONFIG.STUDENT_PRICE_FCFA : 
-        this.calculatePriceByDistance(line.distance_km);
+      let price = ticketType.price_fcfa;
+      
+      // Pour les lignes ordinaires, calculer selon la distance
+      if (!isStudent && line.category_id === 1) {
+        price = this.calculatePriceByDistance(parseFloat(line.distance_km) || 0);
+      }
 
       // Générer les tickets
       const generatedTickets: SotralTicket[] = [];
