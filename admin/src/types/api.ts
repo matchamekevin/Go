@@ -22,6 +22,7 @@ export interface User {
   email: string;
   name: string;
   phone?: string;
+  is_suspended?: boolean;
   is_verified: boolean;
   role: string;
   created_at: string;

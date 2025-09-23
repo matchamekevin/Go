@@ -35,6 +35,10 @@ export class UserService {
     return apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-status`);
   }
 
+  static async toggleUserSuspension(id: number): Promise<ApiResponse<User>> {
+    return apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-suspension`);
+  }
+
   static async getUserStats(): Promise<ApiResponse<{
     total: number;
     verified: number;

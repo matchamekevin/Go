@@ -7,8 +7,9 @@ interface ConfirmModalProps {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   onClose: () => void;
+  children?: React.ReactNode;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -20,6 +21,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   danger = false,
   onConfirm,
   onClose,
+  children
 }) => {
   if (!isOpen) return null;
 
@@ -32,22 +34,29 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           {description ? (
             <p className="mt-3 text-sm text-gray-600">{description}</p>
           ) : null}
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              {cancelLabel}
-            </button>
-            <button
-              onClick={onConfirm}
-              className={`px-4 py-2 rounded-md font-medium ${
-                danger ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
-            >
-              {confirmLabel}
-            </button>
-          </div>
+
+          {children ? (
+            <div className="mt-4">{children}</div>
+          ) : (
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+              >
+                {cancelLabel}
+              </button>
+              {onConfirm ? (
+                <button
+                  onClick={onConfirm}
+                  className={`px-4 py-2 rounded-md font-medium ${
+                    danger ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  {confirmLabel}
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </div>

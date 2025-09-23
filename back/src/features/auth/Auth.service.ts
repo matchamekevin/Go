@@ -229,6 +229,8 @@ export class AuthService {
     if (!user) throw new Error('Utilisateur introuvable');
     const ok = await comparePassword(password, user.password);
     if (!ok) throw new Error('Mot de passe invalide');
+    // If user is suspended, block login explicitly
+    if ((user as any).is_suspended) throw new Error('Compte suspendu');
     if (!user.is_verified) throw new Error('Compte non vérifié');
 
   const token = generateJWT({ id: user.id, email: user.email, name: user.name, role: user.role || 'user' });

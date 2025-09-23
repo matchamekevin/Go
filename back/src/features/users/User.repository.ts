@@ -4,7 +4,7 @@ import { User } from './User.model';
 export const UserRepository = {
   async findByEmail(email: string): Promise<User | null> {
   const res = await pool.query(
-    'SELECT id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE email = $1 LIMIT 1',
+    'SELECT id, email, name, phone, password, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE email = $1 LIMIT 1',
     [email]
   );
   if (!res.rows[0]) return null;
@@ -14,7 +14,7 @@ export const UserRepository = {
 
   async findById(id: string): Promise<User | null> {
   const res = await pool.query(
-    'SELECT id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE id = $1 LIMIT 1',
+    'SELECT id, email, name, phone, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE id = $1 LIMIT 1',
     [parseInt(id)]
   );
   if (!res.rows[0]) return null;
@@ -23,8 +23,8 @@ export const UserRepository = {
 
   async create(data: { email: string; name: string; password: string; phone?: string; is_verified?: boolean }): Promise<User> {
     const res = await pool.query(
-      'INSERT INTO users (email, name, password, phone, is_verified) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, phone, is_verified, created_at, COALESCE(updated_at, created_at) AS updated_at, role',
-      [data.email, data.name, data.password, data.phone || null, data.is_verified || false]
+      'INSERT INTO users (email, name, password, phone, is_verified, is_suspended) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name, phone, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role',
+      [data.email, data.name, data.password, data.phone || null, data.is_verified || false, false]
     );
     return res.rows[0];
   },

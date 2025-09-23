@@ -14,6 +14,7 @@ interface DataTableProps<T> {
   loading?: boolean;
   emptyMessage?: string;
   className?: string;
+  onRowClick?: (item: T) => void;
 }
 
 function DataTable<T extends Record<string, any>>({
@@ -21,7 +22,8 @@ function DataTable<T extends Record<string, any>>({
   columns,
   loading = false,
   emptyMessage = "Aucune donnée trouvée",
-  className = ""
+  className = "",
+  onRowClick
 }: DataTableProps<T>) {
   if (loading) {
     return (
@@ -56,7 +58,11 @@ function DataTable<T extends Record<string, any>>({
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {data.map((item, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-gray-50">
+            <tr
+              key={rowIndex}
+              className={`hover:bg-gray-50 ${onRowClick ? 'cursor-pointer' : ''}`}
+              onClick={onRowClick ? () => onRowClick(item) : undefined}
+            >
               {columns.map((column, colIndex) => {
                 const value = item[column.key as keyof T];
                 const renderedValue = column.render ? column.render(value, item) : value;

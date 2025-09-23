@@ -8,7 +8,7 @@ import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import StatsCard from '../components/StatsCard';
 import DataTable from '../components/DataTable';
-import ConfirmModal from '../components/ConfirmModal';
+import UserActionsModal from '../components/UserActionsModal';
 
 const UsersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,9 +17,8 @@ const UsersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [modalOpen, setModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [actionsModalOpen, setActionsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -52,30 +51,13 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const openToggleModal = (user: User) => {
+  const openActionsForUser = (user: User) => {
     setSelectedUser(user);
-    setModalOpen(true);
+    setActionsModalOpen(true);
   };
 
-  const confirmToggleStatus = async () => {
-    if (!selectedUser) return;
-    try {
-      setActionLoading(true);
-      const response = await UserService.toggleUserStatus(selectedUser.id);
-      if (response.success) {
-        toast.success('Statut utilisateur modifié');
-        // Après succès, on referme et recharge la liste
-        setModalOpen(false);
-        setSelectedUser(null);
-        fetchUsers();
-      } else {
-        toast.error('Impossible de modifier le statut');
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Erreur lors du changement de statut');
-    } finally {
-      setActionLoading(false);
-    }
+  const onActionComplete = () => {
+    fetchUsers();
   };
 
   const userColumns = [
@@ -116,10 +98,10 @@ const UsersPage: React.FC = () => {
       )
     },
     {
-      key: 'is_verified',
+      key: 'is_suspended',
       header: 'Statut',
-      render: (value: boolean) => (
-        <StatusBadge status={value ? 'verified' : 'unverified'} />
+      render: (_value: boolean, user: User) => (
+        <StatusBadge status={user.is_suspended ? 'suspended' : 'active'} />
       )
     },
     {
@@ -138,28 +120,10 @@ const UsersPage: React.FC = () => {
         </span>
       )
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-          render: (_value: any, user: User) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => openToggleModal(user)}
-            className={`px-3 py-1 rounded text-xs font-medium ${
-              user.is_verified
-                ? 'bg-red-100 text-red-800 hover:bg-red-200'
-                : 'bg-green-100 text-green-800 hover:bg-green-200'
-            }`}
-          >
-            {user.is_verified ? 'Suspendre' : 'Activer'}
-          </button>
-        </div>
-      )
-    }
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-12">
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-center">
@@ -190,6 +154,7 @@ const UsersPage: React.FC = () => {
               <option value="all">Tous les statuts</option>
               <option value="verified">Vérifiés</option>
               <option value="unverified">Non vérifiés</option>
+              <option value="suspended">Suspendus</option>
             </select>
           </div>
         </div>
@@ -229,6 +194,7 @@ const UsersPage: React.FC = () => {
           columns={userColumns}
           loading={loading}
           emptyMessage="Aucun utilisateur trouvé"
+          onRowClick={(user) => openActionsForUser(user)}
         />
       </div>
 
@@ -240,14 +206,11 @@ const UsersPage: React.FC = () => {
         className="mt-6"
       />
 
-      <ConfirmModal
-        isOpen={modalOpen}
-        title={selectedUser ? (selectedUser.is_verified ? 'Suspendre l\'utilisateur' : 'Activer l\'utilisateur') : 'Confirmer'}
-        description={selectedUser ? (selectedUser.is_verified ? `Êtes-vous sûr de vouloir suspendre ${selectedUser.name} ? L'utilisateur ne pourra plus se connecter jusqu'à réactivation.` : `Êtes-vous sûr de vouloir activer ${selectedUser.name} ?`) : ''}
-        confirmLabel={selectedUser && selectedUser.is_verified ? 'Suspendre' : 'Activer'}
-        danger={selectedUser ? selectedUser.is_verified : false}
-        onConfirm={confirmToggleStatus}
-        onClose={() => { if (!actionLoading) { setModalOpen(false); setSelectedUser(null); } }}
+      <UserActionsModal
+        user={selectedUser}
+        isOpen={actionsModalOpen}
+        onClose={() => { setActionsModalOpen(false); setSelectedUser(null); }}
+        onActionComplete={onActionComplete}
       />
     </div>
   );
