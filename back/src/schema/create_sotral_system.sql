@@ -158,26 +158,26 @@ ON CONFLICT (code) DO NOTHING;
 -- Lignes SOTRAL (données réelles fournies par l'utilisateur)
 INSERT INTO sotral_lines (line_number, name, route_from, route_to, category_id, distance_km, stops_count) VALUES
 -- Lignes ordinaires (tarifs multiples selon distance)
-(1, 'Zanguéra ↔ BIA (Centre-ville)', 'Zanguéra', 'BIA (Centre-ville)', 1, 19.4, 68),
-(2, 'Adétikopé ↔ REX (front de mer)', 'Adétikopé', 'REX (front de mer)', 1, 24.5, 62),
-(3, 'Akato ↔ BIA', 'Akato', 'BIA', 1, 19.2, 68),
-(6, 'Agoè-Assiyéyé ↔ BIA', 'Agoè-Assiyéyé', 'BIA', 1, 16.3, 60),
-(7, 'Kpogan ↔ BIA', 'Kpogan', 'BIA', 1, 19.7, 58),
-(8, 'Djagblé ↔ REX', 'Djagblé', 'REX', 1, 18.9, 49),
-(10, 'Legbassito ↔ BIA', 'Legbassito', 'BIA', 1, 24.2, 74),
-(11, 'Attiegouvi ↔ REX', 'Attiegouvi', 'REX', 1, 9.5, 43),
-(12, 'Entreprise de l''Union ↔ BIA', 'Entreprise de l''Union', 'BIA', 1, 15.3, 66),
+(1, 'Zanguéra ↔ BIA (Centre-ville)', 'Zanguéra', 'BIA (Centre-ville)', 1, 19.468, 7),
+(2, 'Adétikopé ↔ REX (front de mer)', 'Adétikopé', 'REX (front de mer)', 1, 24.562, 8),
+(3, 'Akato ↔ BIA', 'Akato', 'BIA', 1, 19.268, 9),
+(6, 'Agoè-Assiyéyé ↔ BIA', 'Agoè-Assiyéyé', 'BIA', 1, 16.360, 10),
+(7, 'Kpogan ↔ BIA', 'Kpogan', 'BIA', 1, 19.758, 11),
+(8, 'Djagblé ↔ REX', 'Djagblé', 'REX', 1, 18.949, 12),
+(10, 'Legbassito ↔ BIA', 'Legbassito', 'BIA', 1, 24.274, 13),
+(11, 'Attiegouvi ↔ REX', 'Attiegouvi', 'REX', 1, 9.543, 14),
+(12, 'Entreprise de l''Union ↔ BIA', 'Entreprise de l''Union', 'BIA', 1, 15.366, 15),
 -- Lignes étudiantes (tarif unique 100 FCFA)
-(13, 'Adétikopé ↔ Campus (Université)', 'Adétikopé', 'Campus (Université)', 2, 17.8, 51),
-(14, 'Legbassito ↔ Campus', 'Legbassito', 'Campus', 2, 17.3, 38),
-(15, 'Zanguéra ↔ Campus', 'Zanguéra', 'Campus', 2, 13.2, 64),
-(16, 'Akato ↔ Campus', 'Akato', 'Campus', 2, 18.0, 58),
-(17, 'Adjalolo ↔ Campus', 'Adjalolo', 'Campus', 2, 11.1, 40),
-(18, 'Adakpamé ↔ Campus', 'Adakpamé', 'Campus', 2, 13.0, 56),
-(19, 'Akodesséwa-Bè ↔ Campus', 'Akodesséwa-Bè', 'Campus', 2, 13.0, 45),
-(20, 'Avépozo ↔ Campus', 'Avépozo', 'Campus', 2, 18.0, 71),
-(21, 'Entreprise de l''Union ↔ Campus', 'Entreprise de l''Union', 'Campus', 2, 11.0, 45),
-(22, 'Djagblé ↔ Campus', 'Djagblé', 'Campus', 2, 16.4, 41)
+(13, 'Adétikopé ↔ Campus (Université)', 'Adétikopé', 'Campus (Université)', 2, 17.851, 16),
+(14, 'Legbassito ↔ Campus', 'Legbassito', 'Campus', 2, 17.338, 17),
+(15, 'Zanguéra ↔ Campus', 'Zanguéra', 'Campus', 2, 13.264, 18),
+(16, 'Akato ↔ Campus', 'Akato', 'Campus', 2, 18.058, 19),
+(17, 'Adjalolo ↔ Campus', 'Adjalolo', 'Campus', 2, 11.140, 20),
+(18, 'Adakpamé ↔ Campus', 'Adakpamé', 'Campus', 2, 13.056, 21),
+(19, 'Akodesséwa-Bè ↔ Campus', 'Akodesséwa-Bè', 'Campus', 2, 13.045, 22),
+(20, 'Avépozo ↔ Campus', 'Avépozo', 'Campus', 2, 18.071, 23),
+(21, 'Entreprise de l''Union ↔ Campus', 'Entreprise de l''Union', 'Campus', 2, 11.045, 24),
+(22, 'Djagblé ↔ Campus', 'Djagblé', 'Campus', 2, 16.441, 25)
 ON CONFLICT (line_number) DO NOTHING;
 
 -- Arrêts principaux (mis à jour selon les données fournies)
