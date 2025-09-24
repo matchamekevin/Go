@@ -21,7 +21,14 @@ router.post('/calculate-price', sotralController.calculatePrice.bind(sotralContr
 
 // Achat de tickets (authentification optionnelle pour l'instant)
 router.post('/purchase', sotralController.purchaseTicket.bind(sotralController));
-router.get('/my-tickets', sotralController.getMyTickets.bind(sotralController));
+router.get('/my-tickets', authMiddleware as any, sotralController.getMyTickets);
+router.delete('/my-tickets/:id', authMiddleware as any, sotralController.cancelUserTicket);
+
+// Tickets générés par l'admin (publics pour le mobile)
+router.get('/generated-tickets', sotralController.getGeneratedTickets.bind(sotralController));
+
+// Gestion des tickets admin (privé)
+router.delete('/tickets/:id', sotralController.deleteTicketAdmin.bind(sotralController));
 
 // Health check
 router.get('/health', sotralController.healthCheck.bind(sotralController));

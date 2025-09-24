@@ -412,6 +412,95 @@ export class SotralRepository {
   }
 
   // ==========================================
+  // TICKETS GÉNÉRÉS PAR L'ADMIN (POUR MOBILE)
+  // ==========================================
+
+  /**
+   * Récupérer les tickets générés par l'admin pour l'affichage mobile (données filtrées)
+   */
+  async getGeneratedTicketsForPublic(options: {
+    lineId?: number;
+    limit?: number;
+    offset?: number;
+    status?: string;
+  } = {}): Promise<{
+    tickets: Array<{
+      id: number;
+      ticket_code: string;
+      qr_code: string;
+      line_id?: number;
+      line_name?: string;
+      price_paid_fcfa: number;
+      status: string;
+      expires_at?: string;
+      trips_remaining: number;
+      created_at: string;
+    }>;
+    total: number;
+  }> {
+    const client = await pool.connect();
+    try {
+      const { lineId, limit = 50, offset = 0, status } = options;
+      
+      let whereClause = 'WHERE t.user_id IS NULL'; // Tickets générés par admin (sans user_id)
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (lineId) {
+        whereClause += ` AND t.line_id = $${paramIndex}`;
+        params.push(lineId);
+        paramIndex++;
+      }
+
+      if (status) {
+        whereClause += ` AND t.status = $${paramIndex}`;
+        params.push(status);
+        paramIndex++;
+      }
+
+      const query = `
+        SELECT 
+          t.id,
+          t.ticket_code,
+          t.qr_code,
+          t.line_id,
+          l.name as line_name,
+          t.price_paid_fcfa,
+          t.status,
+          t.expires_at,
+          t.trips_remaining,
+          t.created_at
+        FROM sotral_tickets t
+        LEFT JOIN sotral_lines l ON t.line_id = l.id
+        ${whereClause}
+        ORDER BY t.created_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+
+      params.push(limit, offset);
+      
+      const result = await client.query(query, params);
+
+      // Compter le total
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM sotral_tickets t
+        ${whereClause}
+      `;
+      
+      const countResult = await client.query(countQuery, params.slice(0, -2));
+      const total = parseInt(countResult.rows[0]?.total || '0');
+
+      return {
+        tickets: result.rows,
+        total
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  // ==========================================
   // VALIDATION DE TICKETS
   // ==========================================
 
@@ -1100,6 +1189,103 @@ export class SotralRepository {
   }
 
   // ==========================================
+  // TICKETS PUBLICS POUR L'APP MOBILE
+  // ==========================================
+
+  /**
+   * Récupérer les tickets générés par l'admin pour l'affichage public mobile
+   * Filtré pour ne pas exposer les données sensibles
+   */
+  async getPublicGeneratedTickets(options: {
+    lineId?: number;
+    ticketTypeCode?: string;
+    limit?: number;
+    page?: number;
+  } = {}): Promise<{ data: SotralTicketWithDetails[]; total: number }> {
+    const client = await pool.connect();
+    try {
+      const { lineId, ticketTypeCode, limit = 20, page = 1 } = options;
+      const conditions = ['t.user_id IS NULL']; // Tickets générés par admin (pas d'utilisateur spécifique)
+      const values = [];
+      let paramCount = 1;
+
+      // Filtrer par ligne si spécifiée
+      if (lineId) {
+        conditions.push(`t.line_id = $${paramCount++}`);
+        values.push(lineId);
+      }
+
+      // Filtrer par type de ticket si spécifié
+      if (ticketTypeCode) {
+        conditions.push(`tt.code = $${paramCount++}`);
+        values.push(ticketTypeCode);
+      }
+
+      // Seulement les tickets actifs et non expirés
+      conditions.push(`t.status = 'active'`);
+      conditions.push(`(t.expires_at IS NULL OR t.expires_at > NOW())`);
+      conditions.push(`t.trips_remaining > 0`);
+
+      const whereClause = `WHERE ${conditions.join(' AND ')}`;
+      
+      // Compter le total
+      const countQuery = `
+        SELECT COUNT(*) as total
+        FROM sotral_tickets t
+        LEFT JOIN sotral_ticket_types tt ON t.ticket_type_id = tt.id
+        ${whereClause}
+      `;
+      
+      const countResult = await client.query(countQuery, values);
+      const total = parseInt(countResult.rows[0].total);
+
+      // Récupérer les tickets avec pagination
+      const offset = (page - 1) * limit;
+      values.push(limit, offset);
+
+      const dataQuery = `
+        SELECT 
+          t.id,
+          t.ticket_code,
+          t.qr_code,
+          t.ticket_type_id,
+          t.line_id,
+          t.stop_from_id,
+          t.stop_to_id,
+          t.price_paid_fcfa,
+          t.status,
+          t.expires_at,
+          t.trips_remaining,
+          t.created_at,
+          tt.name as ticket_type_name,
+          tt.code as ticket_type_code,
+          tt.description as ticket_type_description,
+          l.name as line_name,
+          l.line_number,
+          l.route_from,
+          l.route_to,
+          sf.name as stop_from_name,
+          st.name as stop_to_name
+        FROM sotral_tickets t
+        LEFT JOIN sotral_ticket_types tt ON t.ticket_type_id = tt.id
+        LEFT JOIN sotral_lines l ON t.line_id = l.id
+        LEFT JOIN sotral_stops sf ON t.stop_from_id = sf.id
+        LEFT JOIN sotral_stops st ON t.stop_to_id = st.id
+        ${whereClause}
+        ORDER BY t.created_at DESC
+        LIMIT $${paramCount++} OFFSET $${paramCount++}
+      `;
+
+      const dataResult = await client.query(dataQuery, values);
+      const tickets = dataResult.rows.map(row => this.mapPublicTicketWithDetails(row));
+
+      return { data: tickets, total };
+    } finally {
+      client.release();
+    }
+  }
+
+  // ==========================================
   // MÉTHODES UTILITAIRES PRIVÉES
   // ==========================================
 
@@ -1149,6 +1335,61 @@ export class SotralRepository {
         line_number: row.line_number,
         route_from: '',
         route_to: '',
+        category_id: 0,
+        is_active: true
+      } : undefined,
+      stop_from: row.stop_from_name ? {
+        id: row.stop_from_id,
+        name: row.stop_from_name,
+        code: '',
+        is_major_stop: false,
+        is_active: true
+      } : undefined,
+      stop_to: row.stop_to_name ? {
+        id: row.stop_to_id,
+        name: row.stop_to_name,
+        code: '',
+        is_major_stop: false,
+        is_active: true
+      } : undefined
+    };
+  }
+
+  private mapPublicTicketWithDetails(row: any): SotralTicketWithDetails {
+    return {
+      id: row.id,
+      ticket_code: row.ticket_code,
+      qr_code: row.qr_code,
+      user_id: undefined, // Ne pas exposer l'ID utilisateur publiquement
+      ticket_type_id: row.ticket_type_id,
+      line_id: row.line_id,
+      stop_from_id: row.stop_from_id,
+      stop_to_id: row.stop_to_id,
+      price_paid_fcfa: row.price_paid_fcfa,
+      status: row.status,
+      purchased_at: undefined, // Ne pas exposer les détails d'achat
+      expires_at: row.expires_at,
+      trips_remaining: row.trips_remaining,
+      payment_method: undefined, // Ne pas exposer les détails de paiement
+      payment_reference: undefined, // Ne pas exposer les références de paiement
+      created_at: row.created_at,
+      updated_at: undefined, // Ne pas exposer les détails de mise à jour
+      ticket_type: row.ticket_type_name ? {
+        id: row.ticket_type_id,
+        name: row.ticket_type_name,
+        code: row.ticket_type_code,
+        description: row.ticket_type_description,
+        price_fcfa: row.price_paid_fcfa,
+        max_trips: row.trips_remaining || 1,
+        is_student_discount: false,
+        is_active: true
+      } : undefined,
+      line: row.line_name ? {
+        id: row.line_id,
+        name: row.line_name,
+        line_number: row.line_number,
+        route_from: row.route_from,
+        route_to: row.route_to,
         category_id: 0,
         is_active: true
       } : undefined,

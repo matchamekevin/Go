@@ -100,3 +100,75 @@ export interface RegisterRequest {
   name: string;
   phone: string;
 }
+
+// ==========================================
+// TYPES SOTRAL SPÉCIFIQUES
+// ==========================================
+
+export interface SotralLine {
+  id: number;
+  line_number: number;
+  name: string;
+  route_from: string;
+  route_to: string;
+  category_id: number;
+  distance_km?: number;
+  stops_count?: number;
+  is_active: boolean;
+  category?: {
+    id: number;
+    name: string;
+    description?: string;
+  };
+}
+
+export interface SotralStop {
+  id: number;
+  name: string;
+  code: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  is_major_stop: boolean;
+  is_active: boolean;
+}
+
+export interface SotralTicketType {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  price_fcfa: number;
+  validity_duration_hours?: number;
+  max_trips: number;
+  is_student_discount: boolean;
+  is_active: boolean;
+}
+
+export interface PricingZone {
+  id: number;
+  name: string;
+  base_price_fcfa: number;
+  student_discount_percent: number;
+  description?: string;
+}
+
+export interface SotralTicket {
+  id: number;
+  ticket_code: string;
+  qr_code: string;
+  user_id?: number;
+  ticket_type_id: number;
+  line_id?: number;
+  stop_from_id?: number;
+  stop_to_id?: number;
+  price_paid_fcfa: number;
+  status: 'active' | 'used' | 'expired' | 'cancelled';
+  purchased_at: string;
+  expires_at?: string;
+  trips_remaining: number;
+  payment_method?: string;
+  payment_reference?: string;
+  created_at: string;
+  updated_at: string;
+}

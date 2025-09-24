@@ -12,7 +12,7 @@ import {
 } from '../types/sotral';
 
 class AdminSotralService {
-  private readonly baseUrl = '/api/admin/sotral';
+  private readonly baseUrl = '/admin/sotral';
 
   // ==========================================
   // GESTION DES LIGNES

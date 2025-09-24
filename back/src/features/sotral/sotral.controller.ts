@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { sotralRepository } from './sotral.repository';
+import pool from '../../shared/database/client';
 import {
   SotralTicketPurchaseSchema,
   QRCodeValidationSchema,
@@ -232,7 +233,7 @@ export class SotralController {
       }
 
       const tickets = await sotralRepository.getUserTickets(userId);
-      
+
       res.json({
         success: true,
         data: tickets,
@@ -243,6 +244,98 @@ export class SotralController {
       res.status(500).json({
         success: false,
         error: 'Erreur lors de la récupération des tickets'
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/sotral/my-tickets/:id
+   * Annuler un ticket utilisateur
+   */
+  async cancelUserTicket(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentification requise'
+        });
+        return;
+      }
+
+      const ticketId = parseInt(req.params.id);
+      if (!ticketId) {
+        res.status(400).json({
+          success: false,
+          error: 'ID de ticket requis'
+        });
+        return;
+      }
+
+      const ticket = await sotralRepository.getTicketById(ticketId);
+      if (!ticket) {
+        res.status(404).json({
+          success: false,
+          error: 'Ticket non trouvé'
+        });
+        return;
+      }
+
+      // Vérifier que le ticket appartient à l'utilisateur
+      if (ticket.user_id !== userId) {
+        res.status(403).json({
+          success: false,
+          error: 'Accès non autorisé à ce ticket'
+        });
+        return;
+      }
+
+      // Vérifier que le ticket peut être annulé (actif et non utilisé)
+      if (ticket.status !== 'active') {
+        res.status(400).json({
+          success: false,
+          error: 'Seuls les tickets actifs peuvent être annulés'
+        });
+        return;
+      }
+
+      // Annuler le ticket (mettre à jour le statut à 'cancelled')
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const updateQuery = `
+          UPDATE sotral_tickets SET
+            status = 'cancelled',
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1 AND user_id = $2 AND status = 'active'
+        `;
+
+        const updateResult = await client.query(updateQuery, [ticketId, userId]);
+
+        if (updateResult.rowCount === 0) {
+          await client.query('ROLLBACK');
+          res.status(404).json({
+            success: false,
+            error: 'Ticket non trouvé ou déjà annulé'
+          });
+          return;
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Ticket annulé avec succès'
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Erreur cancelUserTicket:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur lors de l\'annulation du ticket'
       });
     }
   }
@@ -404,6 +497,108 @@ export class SotralController {
   // ==========================================
 
   /**
+   * GET /api/sotral/generated-tickets
+   * Récupérer les tickets générés par l'admin pour l'affichage mobile public
+   */
+  async getGeneratedTickets(req: Request, res: Response): Promise<void> {
+    try {
+      const { 
+        lineId, 
+        ticketTypeCode,
+        page = 1, 
+        limit = 20 
+      } = req.query;
+
+      const options = {
+        lineId: lineId ? parseInt(lineId as string) : undefined,
+        ticketTypeCode: ticketTypeCode as string,
+        page: parseInt(page as string),
+        limit: Math.min(parseInt(limit as string), 50) // Limiter à 50 max
+      };
+
+      const result = await sotralRepository.getPublicGeneratedTickets(options);
+      
+      res.json({
+        success: true,
+        data: result.data,
+        pagination: {
+          page: options.page,
+          limit: options.limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / options.limit)
+        },
+        count: result.data.length
+      });
+    } catch (error) {
+      console.error('Erreur getGeneratedTickets:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur lors de la récupération des tickets générés'
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/admin/sotral/tickets/:id
+   * Supprimer définitivement un ticket (admin)
+   */
+  async deleteTicketAdmin(req: Request, res: Response): Promise<void> {
+    try {
+      const ticketId = parseInt(req.params.id);
+      if (!ticketId) {
+        res.status(400).json({
+          success: false,
+          error: 'ID de ticket requis'
+        });
+        return;
+      }
+
+      // Vérifier que le ticket existe
+      const ticket = await sotralRepository.getTicketById(ticketId);
+      if (!ticket) {
+        res.status(404).json({
+          success: false,
+          error: 'Ticket non trouvé'
+        });
+        return;
+      }
+
+      // Supprimer définitivement le ticket
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+
+        const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = $1';
+        const deleteResult = await client.query(deleteQuery, [ticketId]);
+
+        if (deleteResult.rowCount === 0) {
+          await client.query('ROLLBACK');
+          res.status(404).json({
+            success: false,
+            error: 'Ticket non trouvé'
+          });
+          return;
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Ticket supprimé définitivement avec succès'
+        });
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Erreur deleteTicketAdmin:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur lors de la suppression du ticket'
+      });
+    }
+  }
+
+  /**
    * GET /api/sotral/health
    * Vérification de l'état du service
    */
@@ -411,7 +606,7 @@ export class SotralController {
     try {
       // Tester une requête simple
       const lines = await sotralRepository.getAllLines();
-      
+
       res.json({
         success: true,
         service: 'SOTRAL API',

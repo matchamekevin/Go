@@ -7,6 +7,8 @@ import { theme } from '../../src/styles/theme';
 import HelpFAB from '../../src/components/HelpFAB';
 import { UserTicketService, type UserTicket, type UserTicketHistory } from '../../src/services/userTicketService';
 import { SearchService, type SearchResult } from '../../src/services/searchService';
+import { SotralMobileService } from '../../services/sotral-service';
+import type { SotralTicket } from '../../src/types/api';
 
 export default function SearchTab() {
   // Capturer le paramètre focus envoyé depuis Home
@@ -175,6 +177,7 @@ export default function SearchTab() {
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [activeTickets, setActiveTickets] = useState<UserTicket[]>([]);
   const [historyTickets, setHistoryTickets] = useState<UserTicketHistory[]>([]);
+  const [availableTickets, setAvailableTickets] = useState<SotralTicket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
 
   // Charger les tickets depuis l'API
@@ -182,15 +185,18 @@ export default function SearchTab() {
     const loadTickets = async () => {
       try {
         setTicketsLoading(true);
-        
-        // Charger les tickets actifs et l'historique en parallèle
-        const [activeData, historyData] = await Promise.all([
-          UserTicketService.getActiveTickets(),
-          UserTicketService.getTicketHistory(),
+
+        // Charger les tickets actifs, l'historique et les tickets disponibles en parallèle
+        const [activeData, historyData, availableResult] = await Promise.all([
+          UserTicketService.getActiveTickets().catch(() => []),
+          UserTicketService.getTicketHistory().catch(() => []),
+          SotralMobileService.getGeneratedTickets().catch(() => ({ success: false, data: [] })),
         ]);
-        
+
         setActiveTickets(activeData);
         setHistoryTickets(historyData);
+        // Cast to SotralTicket[] since we know the structure matches
+        setAvailableTickets(availableResult.success ? availableResult.data as SotralTicket[] : []);
       } catch (error) {
         console.error('Erreur lors du chargement des tickets:', error);
       } finally {
@@ -290,10 +296,10 @@ export default function SearchTab() {
         </View>
       </View>
       <View style={styles.usedBadge}>
-        <Ionicons 
-          name={ticket.status === 'expired' ? "time-outline" : "checkmark-circle"} 
-          size={14} 
-          color={ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600]} 
+        <Ionicons
+          name={ticket.status === 'expired' ? "time-outline" : "checkmark-circle"}
+          size={14}
+          color={ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600]}
         />
         <Text style={[
           styles.usedText,
@@ -301,6 +307,85 @@ export default function SearchTab() {
         ]}>
           {ticket.status === 'expired' ? 'Expiré' : 'Utilisé'}
         </Text>
+      </View>
+    </View>
+  );
+
+  const renderAvailableTicket = (ticket: SotralTicket) => (
+    <View key={ticket.id} style={styles.ticketCard}>
+      {/* Ticket Header */}
+      <View style={styles.ticketHeader}>
+        <View style={styles.ticketInfo}>
+          <View style={styles.transportBadge}>
+            <Text style={styles.transportBadgeText}>SOTRAL</Text>
+          </View>
+          <Text style={styles.routeText}>
+            {(ticket as any).line_name || `Ligne ${ticket.line_id}`}
+          </Text>
+        </View>
+        <View style={styles.statusBadge}>
+          <View style={styles.statusDot} />
+          <Text style={styles.statusText}>Disponible</Text>
+        </View>
+      </View>
+      {/* Ticket Body */}
+      <View style={styles.ticketBody}>
+        <View style={styles.ticketDetails}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="pricetag" size={16} color={theme.colors.secondary[500]} />
+              <Text style={styles.detailLabel}>Code</Text>
+              <Text style={styles.detailValue}>{ticket.ticket_code}</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="refresh" size={16} color={theme.colors.secondary[500]} />
+              <Text style={styles.detailLabel}>Trajets</Text>
+              <Text style={styles.detailValue}>{ticket.trips_remaining}</Text>
+            </View>
+          </View>
+          <View style={styles.detailRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="cash" size={16} color={theme.colors.secondary[500]} />
+              <Text style={styles.detailLabel}>Prix</Text>
+              <Text style={styles.detailValue}>{ticket.price_paid_fcfa} FCFA</Text>
+            </View>
+            {ticket.expires_at && (
+              <View style={styles.detailItem}>
+                <Ionicons name="time" size={16} color={theme.colors.secondary[500]} />
+                <Text style={styles.detailLabel}>Expire</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(ticket.expires_at).toLocaleDateString('fr-FR')}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+        {/* QR Code */}
+        <View style={styles.qrContainer}>
+          <QRCode
+            value={ticket.qr_code}
+            size={100}
+            color={theme.colors.secondary[900]}
+            backgroundColor={theme.colors.white}
+          />
+        </View>
+      </View>
+      {/* Ticket Footer */}
+      <View style={styles.ticketFooter}>
+        <View style={styles.expiryInfo}>
+          <Ionicons name="time-outline" size={16} color={theme.colors.warning[600]} />
+          <Text style={styles.expiryText}>Généré par l'admin</Text>
+        </View>
+        <TouchableOpacity style={styles.showButton}>
+          <Text style={styles.showButtonText}>Acheter</Text>
+          <Ionicons name="card" size={16} color={theme.colors.primary[600]} />
+        </TouchableOpacity>
+      </View>
+      {/* Ticket perforation */}
+      <View style={styles.perforation}>
+        {Array.from({ length: 15 }).map((_, index) => (
+          <View key={index} style={styles.perforationDot} />
+        ))}
       </View>
     </View>
   );
@@ -410,6 +495,24 @@ export default function SearchTab() {
               <Ionicons name="ticket-outline" size={48} color={theme.colors.secondary[300]} />
               <Text style={styles.emptyText}>Aucun billet actif</Text>
               <Text style={styles.emptySubtext}>Vos prochains voyages apparaîtront ici</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Tickets disponibles (générés par admin) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Billets disponibles SOTRAL</Text>
+          {ticketsLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Chargement des tickets disponibles...</Text>
+            </View>
+          ) : availableTickets.length > 0 ? (
+            availableTickets.map(renderAvailableTicket)
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
+              <Text style={styles.emptyText}>Aucun ticket disponible</Text>
+              <Text style={styles.emptySubtext}>Les tickets générés par l'admin apparaîtront ici</Text>
             </View>
           )}
         </View>
