@@ -392,11 +392,13 @@ export class TicketRepository {
   /**
    * [ADMIN] Supprimer plusieurs tickets par leurs ids
    */
-  static async deleteTicketsByIds(ids: number[]): Promise<number> {
+  static async deleteTicketsByIds(ids: (number | string)[]): Promise<number> {
     if (!ids || ids.length === 0) return 0;
+    // Use text[] to avoid casting issues when ids are integers or uuids.
+    const stringIds = ids.map(id => String(id));
     const result = await pool.query(
-      'DELETE FROM tickets WHERE id = ANY($1::uuid[])',
-      [ids]
+      'DELETE FROM tickets WHERE id = ANY($1::text[])',
+      [stringIds]
     );
     return result.rowCount || 0;
   }

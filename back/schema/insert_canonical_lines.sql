@@ -24,8 +24,7 @@ VALUES
   (20, 20, 'Avépozo ↔ Campus', 'Avépozo', 'Campus', 1, 18.0, 71, true),
   (21, 21, 'Entreprise de l''Union ↔ Campus', 'Entreprise de l''Union', 'Campus', 1, 11.0, 45, true),
   (22, 22, 'Djagblé ↔ Campus', 'Djagblé', 'Campus', 1, 16.4, 41, true)
-ON CONFLICT (id) DO UPDATE SET
-  line_number = EXCLUDED.line_number,
+ON CONFLICT (line_number) DO UPDATE SET
   name = EXCLUDED.name,
   route_from = EXCLUDED.route_from,
   route_to = EXCLUDED.route_to,

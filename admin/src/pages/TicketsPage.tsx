@@ -764,9 +764,9 @@ const SotralTicketManagementPage: React.FC = () => {
                 className="input text-gray-900"
               >
                 <option value="">Toutes les lignes</option>
-                {lines.map(line => (
-                  <option key={line.id} value={line.id}>
-                    Ligne {line.line_number} - {line.name}
+                {allLinesForSelection.map(line => (
+                  <option key={line.id} value={line.id} disabled={!line.is_active}>
+                    Ligne {line.line_number} - {line.name}{!line.is_active ? ' (Inactive)' : ''}
                   </option>
                 ))}
               </select>

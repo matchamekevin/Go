@@ -33,11 +33,39 @@ const SotralManagementPage: React.FC = () => {
   // Les lignes viennent directement de l'API (toutes, actives et inactives)
   const lines = apiLines;
 
-  // Créer des listes d'options uniques pour les selects
-  const uniqueLineNumbers = [...new Set(lines.map(line => line.line_number))].sort((a, b) => a - b);
-  const uniqueLineNames = [...new Set(lines.map(line => line.name))].sort();
-  const uniqueRouteFrom = [...new Set(lines.map(line => line.route_from))].sort();
-  const uniqueRouteTo = [...new Set(lines.map(line => line.route_to))].sort();
+  // Listes de sélection indépendantes (ne changent pas avec les actions sur la table)
+  // Basées sur les lignes canoniques + possibilité de saisie libre
+  const selectionOptions = {
+    lineNumbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
+    lineNames: [
+      'Zanguéra ↔ BIA (Centre-ville)',
+      'Adétikopé ↔ REX (front de mer)', 
+      'Akato ↔ BIA',
+      'Agoè-Assiyéyé ↔ BIA',
+      'Kpogan ↔ BIA',
+      'Djagblé ↔ REX',
+      'Legbassito ↔ BIA',
+      'Attiegouvi ↔ REX',
+      'Entreprise de l\'Union ↔ BIA',
+      'Adétikopé ↔ Campus (Université)',
+      'Legbassito ↔ Campus',
+      'Zanguéra ↔ Campus',
+      'Akato ↔ Campus',
+      'Adjalolo ↔ Campus',
+      'Adakpamé ↔ Campus',
+      'Akodesséwa-Bè ↔ Campus',
+      'Avépozo ↔ Campus',
+      'Entreprise de l\'Union ↔ Campus',
+      'Djagblé ↔ Campus'
+    ],
+    routePoints: [
+      'Zanguéra', 'BIA', 'Adétikopé', 'REX', 'Akato', 'Agoè-Assiyéyé', 
+      'Kpogan', 'Djagblé', 'Legbassito', 'Attiegouvi', 'Entreprise de l\'Union',
+      'Campus', 'Adjalolo', 'Adakpamé', 'Akodesséwa-Bè', 'Avépozo'
+    ].sort(),
+    distances: [9.5, 11.0, 11.1, 13.0, 13.2, 15.3, 16.3, 16.4, 17.3, 17.8, 18.0, 18.9, 19.2, 19.4, 19.7, 24.2, 24.5],
+    stopsCounts: [38, 40, 41, 43, 45, 49, 51, 56, 58, 60, 62, 64, 66, 68, 71, 74]
+  };
 
   const loading = linesLoading || stopsLoading || statsLoading;
   const apiError = linesError || stopsError || statsError;
@@ -339,40 +367,42 @@ const SotralManagementPage: React.FC = () => {
                 <label className="block text-sm font-semibold text-green-700 mb-2">
                   Numéro de ligne *
                 </label>
-                <select
+                <input
+                  type="number"
                   name="line_number"
-                  value={formData.line_number}
+                  value={formData.line_number || ''}
                   onChange={handleInputChange}
+                  placeholder="Numéro de ligne (ex: 1, 2, 3...)"
+                  list="line-numbers-datalist"
                   required
                   className="input text-gray-900"
-                >
-                  <option value="">Sélectionnez un numéro de ligne</option>
-                  {uniqueLineNumbers.map((number) => (
-                    <option key={number} value={number}>
-                      {number}
-                    </option>
+                />
+                <datalist id="line-numbers-datalist">
+                  {selectionOptions.lineNumbers.map((number) => (
+                    <option key={number} value={number} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-green-700 mb-2">
                   Nom de la ligne *
                 </label>
-                <select
+                <input
+                  type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
+                  placeholder="Nom de la ligne (ex: Zanguéra ↔ BIA)"
+                  list="line-names-datalist"
                   required
                   className="input text-gray-900"
-                >
-                  <option value="">Sélectionnez un nom de ligne</option>
-                  {uniqueLineNames.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
+                />
+                <datalist id="line-names-datalist">
+                  {selectionOptions.lineNames.map((name) => (
+                    <option key={name} value={name} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -380,40 +410,42 @@ const SotralManagementPage: React.FC = () => {
                   <label className="block text-sm font-semibold text-green-700 mb-2">
                     Départ *
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="route_from"
                     value={formData.route_from}
                     onChange={handleInputChange}
+                    placeholder="Point de départ (ex: Zanguéra)"
+                    list="route-from-datalist"
                     required
                     className="input text-gray-900"
-                  >
-                    <option value="">Sélectionnez un départ</option>
-                    {uniqueRouteFrom.map((route) => (
-                      <option key={route} value={route}>
-                        {route}
-                      </option>
+                  />
+                  <datalist id="route-from-datalist">
+                    {selectionOptions.routePoints.map((route) => (
+                      <option key={route} value={route} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-green-700 mb-2">
                     Arrivée *
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="route_to"
                     value={formData.route_to}
                     onChange={handleInputChange}
+                    placeholder="Point d'arrivée (ex: BIA)"
+                    list="route-to-datalist"
                     required
                     className="input text-gray-900"
-                  >
-                    <option value="">Sélectionnez une arrivée</option>
-                    {uniqueRouteTo.map((route) => (
-                      <option key={route} value={route}>
-                        {route}
-                      </option>
+                  />
+                  <datalist id="route-to-datalist">
+                    {selectionOptions.routePoints.map((route) => (
+                      <option key={route} value={route} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
 
@@ -441,14 +473,19 @@ const SotralManagementPage: React.FC = () => {
                   </label>
                   <input
                     type="number"
-                    name="distance_km"
-                    value={formData.distance_km}
-                    onChange={handleInputChange}
-                    min="0"
                     step="0.1"
+                    name="distance_km"
+                    value={formData.distance_km || ''}
+                    onChange={handleInputChange}
+                    placeholder="Distance en km (ex: 15.3)"
+                    list="distances-datalist"
                     className="input text-gray-900"
-                    placeholder="Ex: 12.5"
                   />
+                  <datalist id="distances-datalist">
+                    {selectionOptions.distances.map((d) => (
+                      <option key={d} value={d} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -458,12 +495,17 @@ const SotralManagementPage: React.FC = () => {
                   <input
                     type="number"
                     name="stops_count"
-                    value={formData.stops_count}
+                    value={formData.stops_count || ''}
                     onChange={handleInputChange}
-                    min="1"
+                    placeholder="Nombre d'arrêts (ex: 45)"
+                    list="stops-count-datalist"
                     className="input text-gray-900"
-                    placeholder="Ex: 25"
                   />
+                  <datalist id="stops-count-datalist">
+                    {selectionOptions.stopsCounts.map((n) => (
+                      <option key={n} value={n} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -783,12 +825,18 @@ const SotralManagementPage: React.FC = () => {
                 <input
                   type="number"
                   name="line_number"
-                  value={formData.line_number}
+                  value={formData.line_number || ''}
                   onChange={handleInputChange}
+                  placeholder="Numéro de ligne (ex: 1, 2, 3...)"
+                  list="edit-line-numbers-datalist"
                   required
-                  min="1"
                   className="input text-gray-900"
                 />
+                <datalist id="edit-line-numbers-datalist">
+                  {selectionOptions.lineNumbers.map((number) => (
+                    <option key={number} value={number} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
@@ -800,9 +848,16 @@ const SotralManagementPage: React.FC = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
+                  placeholder="Nom de la ligne (ex: Zanguéra ↔ BIA)"
+                  list="edit-line-names-datalist"
                   required
                   className="input text-gray-900"
                 />
+                <datalist id="edit-line-names-datalist">
+                  {selectionOptions.lineNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -810,40 +865,42 @@ const SotralManagementPage: React.FC = () => {
                   <label className="block text-sm font-semibold text-blue-700 mb-2">
                     Départ *
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="route_from"
                     value={formData.route_from}
                     onChange={handleInputChange}
+                    placeholder="Point de départ (ex: Zanguéra)"
+                    list="edit-route-from-datalist"
                     required
                     className="input text-gray-900"
-                  >
-                    <option value="" disabled>Sélectionnez un arrêt de départ</option>
-                    {stops.map((stop) => (
-                      <option key={stop.id} value={stop.name}>
-                        {stop.name} {stop.is_major_stop && '(Principal)'}
-                      </option>
+                  />
+                  <datalist id="edit-route-from-datalist">
+                    {selectionOptions.routePoints.map((route) => (
+                      <option key={route} value={route} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-blue-700 mb-2">
                     Arrivée *
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="route_to"
                     value={formData.route_to}
                     onChange={handleInputChange}
+                    placeholder="Point d'arrivée (ex: BIA)"
+                    list="edit-route-to-datalist"
                     required
                     className="input text-gray-900"
-                  >
-                    <option value="" disabled>Sélectionnez un arrêt d'arrivée</option>
-                    {stops.map((stop) => (
-                      <option key={stop.id} value={stop.name}>
-                        {stop.name} {stop.is_major_stop && '(Principal)'}
-                      </option>
+                  />
+                  <datalist id="edit-route-to-datalist">
+                    {selectionOptions.routePoints.map((route) => (
+                      <option key={route} value={route} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
 
@@ -871,14 +928,19 @@ const SotralManagementPage: React.FC = () => {
                   </label>
                   <input
                     type="number"
-                    name="distance_km"
-                    value={formData.distance_km}
-                    onChange={handleInputChange}
-                    min="0"
                     step="0.1"
+                    name="distance_km"
+                    value={formData.distance_km || ''}
+                    onChange={handleInputChange}
+                    placeholder="Distance en km (ex: 15.3)"
+                    list="edit-distances-datalist"
                     className="input text-gray-900"
-                    placeholder="Ex: 12.5"
                   />
+                  <datalist id="edit-distances-datalist">
+                    {selectionOptions.distances.map((d) => (
+                      <option key={d} value={d} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div>
@@ -888,12 +950,17 @@ const SotralManagementPage: React.FC = () => {
                   <input
                     type="number"
                     name="stops_count"
-                    value={formData.stops_count}
+                    value={formData.stops_count || ''}
                     onChange={handleInputChange}
-                    min="1"
+                    placeholder="Nombre d'arrêts (ex: 45)"
+                    list="edit-stops-count-datalist"
                     className="input text-gray-900"
-                    placeholder="Ex: 25"
                   />
+                  <datalist id="edit-stops-count-datalist">
+                    {selectionOptions.stopsCounts.map((n) => (
+                      <option key={n} value={n} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
