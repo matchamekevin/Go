@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Power,
   RefreshCw,
@@ -37,6 +37,12 @@ const SotralManagementPage: React.FC = () => {
   // Les lignes viennent directement de l'API (toutes, actives et inactives)
   const lines = apiLines;
 
+  // Créer des listes d'options uniques pour les selects
+  const uniqueLineNumbers = [...new Set(lines.map(line => line.line_number))].sort((a, b) => a - b);
+  const uniqueLineNames = [...new Set(lines.map(line => line.name))].sort();
+  const uniqueRouteFrom = [...new Set(lines.map(line => line.route_from))].sort();
+  const uniqueRouteTo = [...new Set(lines.map(line => line.route_to))].sort();
+
   const loading = linesLoading || stopsLoading || statsLoading;
   const apiError = linesError || stopsError || statsError;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -62,8 +68,14 @@ const SotralManagementPage: React.FC = () => {
     await Promise.all([loadLines(), loadStops(), loadStats()]);
   };
 
+  const [togglingLines, setTogglingLines] = useState<Set<number>>(new Set());
+
   const toggleLineStatus = async (lineId: number) => {
+    if (togglingLines.has(lineId)) return; // Éviter les clics multiples
+
     try {
+      setTogglingLines(prev => new Set(prev).add(lineId));
+
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines/${lineId}/toggle-status`, {
         method: 'POST',
         headers: {
@@ -81,6 +93,12 @@ const SotralManagementPage: React.FC = () => {
       }
     } catch (error) {
       showErrorToast('Erreur de connexion');
+    } finally {
+      setTogglingLines(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(lineId);
+        return newSet;
+      });
     }
   };
 
@@ -350,29 +368,40 @@ const SotralManagementPage: React.FC = () => {
                 <label className="block text-sm font-semibold text-green-700 mb-2">
                   Numéro de ligne *
                 </label>
-                <input
-                  type="number"
+                <select
                   name="line_number"
                   value={formData.line_number}
                   onChange={handleInputChange}
                   required
-                  min="1"
                   className="input text-gray-900"
-                />
+                >
+                  <option value="">Sélectionnez un numéro de ligne</option>
+                  {uniqueLineNumbers.map((number) => (
+                    <option key={number} value={number}>
+                      {number}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-green-700 mb-2">
                   Nom de la ligne *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
                   required
                   className="input text-gray-900"
-                />
+                >
+                  <option value="">Sélectionnez un nom de ligne</option>
+                  {uniqueLineNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -380,28 +409,40 @@ const SotralManagementPage: React.FC = () => {
                   <label className="block text-sm font-semibold text-green-700 mb-2">
                     Départ *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="route_from"
                     value={formData.route_from}
                     onChange={handleInputChange}
                     required
                     className="input text-gray-900"
-                  />
+                  >
+                    <option value="">Sélectionnez un départ</option>
+                    {uniqueRouteFrom.map((route) => (
+                      <option key={route} value={route}>
+                        {route}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-green-700 mb-2">
                     Arrivée *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="route_to"
                     value={formData.route_to}
                     onChange={handleInputChange}
                     required
                     className="input text-gray-900"
-                  />
+                  >
+                    <option value="">Sélectionnez une arrivée</option>
+                    {uniqueRouteTo.map((route) => (
+                      <option key={route} value={route}>
+                        {route}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
