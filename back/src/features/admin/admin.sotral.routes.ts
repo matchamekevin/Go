@@ -65,7 +65,11 @@ router.post('/bulk-generate-tickets', adminSotralController.bulkGenerateTickets)
 // Statistiques du dashboard SOTRAL
 router.get('/dashboard-stats', adminSotralController.getDashboardStats);
 
+// TODO: Implémenter la méthode getAllTickets dans AdminSotralController
 // Récupérer tous les tickets avec filtres
 router.get('/tickets', adminSotralController.getAllTickets);
+
+// Supprimer un ticket individuel
+router.delete('/tickets/:id', adminSotralController.deleteTicket);
 
 export default router;

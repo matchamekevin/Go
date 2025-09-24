@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import SotralService, { type SotralLine, type SotralStop } from '../services/sotralService';
+import { adminSotralService } from '../services/adminSotralService';
+import { type SotralLine } from '../types/sotral';
+
+// Type temporaire pour les arrêts (à implémenter plus tard)
+interface SotralStop {
+  id: number;
+  name: string;
+  code: string;
+  is_active: boolean;
+  is_major_stop: boolean;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
 
 interface LineCardProps {
   line: SotralLine;
@@ -31,17 +44,13 @@ const LineCard: React.FC<LineCardProps> = ({ line, onViewStops }) => {
           </div>
           
           <h3 className="mt-2 text-lg font-semibold text-gray-900">
-            {line.name}
+            {line.line_name}
           </h3>
           
           <div className="mt-2 space-y-1 text-sm text-gray-600">
             <div className="flex items-center">
-              <span className="w-16 font-medium">De:</span>
-              <span>{line.route_from}</span>
-            </div>
-            <div className="flex items-center">
-              <span className="w-16 font-medium">Vers:</span>
-              <span>{line.route_to}</span>
+              <span className="w-16 font-medium">Ligne:</span>
+              <span>{line.line_number}</span>
             </div>
             {line.distance_km && (
               <div className="flex items-center">
@@ -57,10 +66,10 @@ const LineCard: React.FC<LineCardProps> = ({ line, onViewStops }) => {
             )}
           </div>
 
-          {line.category && (
+          {line.category_id && (
             <div className="mt-3">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {line.category.name}
+                Catégorie {line.category_id}
               </span>
             </div>
           )}
@@ -104,10 +113,10 @@ const StopsModal: React.FC<StopsModalProps> = ({ line, stops, loading, onClose }
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg leading-6 font-medium text-gray-900">
-                  Arrêts - Ligne {line.line_number}: {line.name}
+                  Arrêts - Ligne {line.line_number}: {line.line_name}
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  {line.route_from} → {line.route_to}
+                  Ligne {line.line_number}
                 </p>
               </div>
               <button
@@ -203,8 +212,12 @@ const SotralLines: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await SotralService.getAllLines();
-      setLines(data);
+      const result = await adminSotralService.getLines();
+      if (result.success && result.data) {
+        setLines(result.data);
+      } else {
+        setError(result.error || 'Erreur lors du chargement des lignes');
+      }
     } catch (err) {
       setError('Erreur lors du chargement des lignes');
       console.error('Error loading SOTRAL lines:', err);
@@ -213,11 +226,11 @@ const SotralLines: React.FC = () => {
     }
   };
 
-  const loadStops = async (line: SotralLine) => {
+  const loadStops = async (_line: SotralLine) => {
     try {
       setStopsLoading(true);
-      const data = await SotralService.getStopsByLine(line.id);
-      setStops(data);
+      // TODO: Implement stops loading for admin
+      setStops([]);
     } catch (err) {
       console.error('Error loading stops:', err);
       setStops([]);
@@ -241,9 +254,7 @@ const SotralLines: React.FC = () => {
   }, []);
 
   const filteredLines = lines.filter(line =>
-    line.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    line.route_from.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    line.route_to.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    line.line_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     line.line_number.toString().includes(searchTerm)
   );
 

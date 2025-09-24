@@ -41,7 +41,7 @@ export class AdminController {
       }
 
       const offset = (page - 1) * limit;
-      const query = `SELECT id, email, name, phone, is_verified::boolean, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) as updated_at FROM users ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
+      const query = `SELECT id, email, name, phone, is_verified::boolean, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) as updated_at FROM users ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
       params.push(limit, offset);
 
       const data = await pool.query(query, params);
@@ -59,7 +59,7 @@ export class AdminController {
   static async getUserById(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
-      const r = await pool.query('SELECT id, email, name, phone, is_verified, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at FROM users WHERE id = $1', [id]);
+      const r = await pool.query('SELECT id, email, name, phone, is_verified, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at FROM users WHERE id = $1', [id]);
       if (r.rows.length === 0) return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
       return res.status(200).json({ success: true, data: r.rows[0] });
     } catch (err: any) {
@@ -105,13 +105,23 @@ export class AdminController {
     }
   }
 
-  // toggle suspension -- this is the endpoint that previously returned 404
+  // toggle admin role -- previously toggle suspension
   static async toggleUserSuspension(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
       console.log('ToggleUserSuspension called with id:', id);
 
-      const r = await pool.query('UPDATE users SET is_suspended = NOT COALESCE(is_suspended,false), updated_at = NOW() WHERE id = $1 RETURNING id, email, name, phone, is_verified, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at', [id]);
+      // First get current suspension status
+      const currentUser = await pool.query('SELECT COALESCE(is_suspended, false) as is_suspended FROM users WHERE id = $1', [id]);
+      if (currentUser.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+      }
+
+      const currentSuspended = currentUser.rows[0].is_suspended;
+      const newSuspended = !currentSuspended;
+
+      const r = await pool.query('UPDATE users SET is_suspended = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, name, phone, is_verified, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at', [newSuspended, id]);
+
       console.log('Query result:', r.rows.length, 'rows affected');
 
       if (r.rows.length === 0) {
@@ -123,7 +133,7 @@ export class AdminController {
       return res.status(200).json({ success: true, data: r.rows[0] });
     } catch (err: any) {
       console.error('[AdminController.toggleUserSuspension]', err);
-      return res.status(500).json({ success: false, error: 'Erreur lors du changement de suspension' });
+      return res.status(500).json({ success: false, error: 'Erreur lors du changement de statut de suspension' });
     }
   }
 

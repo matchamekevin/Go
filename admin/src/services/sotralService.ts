@@ -182,7 +182,7 @@ export class SotralService {
   // ==========================================
 
   static async deleteTicket(ticketId: number): Promise<void> {
-    await apiClient.delete(`${this.BASE_URL}/tickets/${ticketId}`);
+    await apiClient.delete(`${this.BASE_URL}/admin/sotral/tickets/${ticketId}`);
   }
 
   static async getAllTickets(params?: {

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { sotralRepository } from '../sotral/sotral.repository';
 import { SotralLineSchema, SotralStopSchema, SotralTicketTypeSchema } from '../sotral/sotral.types';
+import pool from '../../shared/database/client';
 
 export class AdminSotralController {
 
@@ -467,44 +468,51 @@ export class AdminSotralController {
     }
   }
 
-  /**
+    /**
    * GET /admin/sotral/tickets
-   * Récupérer tous les tickets avec pagination
+   * Récupérer tous les tickets avec filtres et pagination pour l'admin
    */
   async getAllTickets(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        page = 1, 
-        limit = 50, 
-        status, 
-        lineId, 
+      const {
+        page = 1,
+        limit = 50,
+        status,
         userId,
         dateFrom,
-        dateTo 
+        dateTo
       } = req.query;
+
+      const pageNum = parseInt(page as string) || 1;
+      const limitNum = parseInt(limit as string) || 50;
+
+      // Validation des paramètres
+      if (pageNum < 1 || limitNum < 1 || limitNum > 100) {
+        res.status(400).json({
+          success: false,
+          error: 'Paramètres de pagination invalides'
+        });
+        return;
+      }
 
       const filters = {
         status: status as string,
-        lineId: lineId ? parseInt(lineId as string) : undefined,
+        lineId: undefined, // Pour l'admin, on peut ajouter ce filtre plus tard si nécessaire
         userId: userId ? parseInt(userId as string) : undefined,
         dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
         dateTo: dateTo ? new Date(dateTo as string) : undefined
       };
 
-      const tickets = await sotralRepository.getAllTicketsWithFilters(
-        parseInt(page as string),
-        parseInt(limit as string),
-        filters
-      );
-      
+      const result = await sotralRepository.getAllTicketsWithFilters(pageNum, limitNum, filters);
+
       res.json({
         success: true,
-        data: tickets.data,
+        data: result.data,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
-          total: tickets.total,
-          totalPages: Math.ceil(tickets.total / parseInt(limit as string))
+          page: pageNum,
+          limit: limitNum,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limitNum)
         }
       });
     } catch (error) {
@@ -512,6 +520,58 @@ export class AdminSotralController {
       res.status(500).json({
         success: false,
         error: 'Erreur lors de la récupération des tickets'
+      });
+    }
+  }
+
+    /**
+   * DELETE /admin/sotral/tickets/:id
+   * Supprimer un ticket individuel
+   */
+  async deleteTicket(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const ticketId = parseInt(id);
+
+      if (isNaN(ticketId)) {
+        res.status(400).json({
+          success: false,
+          error: 'ID de ticket invalide'
+        });
+        return;
+      }
+
+      // Vérifier que le ticket existe
+      const ticket = await sotralRepository.getTicketById(ticketId);
+      if (!ticket) {
+        res.status(404).json({
+          success: false,
+          error: 'Ticket non trouvé'
+        });
+        return;
+      }
+
+      // Supprimer le ticket
+      const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = $1';
+      const deleteResult = await pool.query(deleteQuery, [ticketId]);
+
+      if (deleteResult.rowCount === 0) {
+        res.status(404).json({
+          success: false,
+          error: 'Ticket non trouvé'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: 'Ticket supprimé avec succès'
+      });
+    } catch (error) {
+      console.error('Erreur deleteTicket:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur lors de la suppression du ticket'
       });
     }
   }

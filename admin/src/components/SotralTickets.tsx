@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, AlertTriangle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SotralService, { type SotralTicket } from '../services/sotralService';
+import { adminSotralService } from '../services/adminSotralService';
 
 interface TicketCardProps {
   ticket: SotralTicket;
@@ -446,9 +447,13 @@ const SotralTickets: React.FC = () => {
     }
 
     try {
-      await SotralService.deleteTicket(ticket.id);
-      toast.success('Ticket supprimé avec succès');
-      loadTickets(); // Recharger la liste
+      const result = await adminSotralService.deleteTicket(ticket.id);
+      if (result.success) {
+        toast.success(result.message || 'Ticket supprimé avec succès');
+        loadTickets(); // Recharger la liste
+      } else {
+        toast.error(result.error || 'Erreur lors de la suppression du ticket');
+      }
     } catch (error) {
       console.error('Erreur lors de la suppression du ticket:', error);
       toast.error('Erreur lors de la suppression du ticket');
