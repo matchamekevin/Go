@@ -388,4 +388,16 @@ export class TicketRepository {
     );
     return result.rows[0] || null;
   }
+
+  /**
+   * [ADMIN] Supprimer plusieurs tickets par leurs ids
+   */
+  static async deleteTicketsByIds(ids: number[]): Promise<number> {
+    if (!ids || ids.length === 0) return 0;
+    const result = await pool.query(
+      'DELETE FROM tickets WHERE id = ANY($1::uuid[])',
+      [ids]
+    );
+    return result.rowCount || 0;
+  }
 }

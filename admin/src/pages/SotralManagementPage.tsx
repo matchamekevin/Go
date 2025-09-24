@@ -8,12 +8,10 @@ import {
   Trash2,
   AlertTriangle,
   CheckCircle,
-  Ticket,
   Bus,
   XCircle,
   Info
 } from 'lucide-react';
-import SotralTicketManagementPage from './SotralTicketManagementPage';
 import toast from 'react-hot-toast';
 import { SotralLine } from '../services/sotralService';
 import StatsCards from '../components/StatsCards';
@@ -27,8 +25,6 @@ import { useSotralStats } from '../hooks/useSotralStats';
 // les hooks fournissent déjà les données typées.
 
 const SotralManagementPage: React.FC = () => {
-  const [showTicketManagement, setShowTicketManagement] = useState(false);
-
   // Use custom hooks for API calls
   const { lines: apiLines, loading: linesLoading, error: linesError, loadLines } = useSotralLines();
   const { stops, loading: stopsLoading, error: stopsError, loadStops } = useSotralStops();
@@ -279,24 +275,6 @@ const SotralManagementPage: React.FC = () => {
     );
   }
 
-  // Navigation conditionnelle vers la gestion des tickets
-  if (showTicketManagement) {
-    return (
-      <div className="p-6">
-        <div className="mb-6">
-          <button
-            onClick={() => setShowTicketManagement(false)}
-            className="flex items-center text-blue-600 hover:text-blue-800 mb-4 transition-colors"
-          >
-            <X className="h-4 w-4 mr-2" />
-            Retour à la gestion des lignes
-          </button>
-        </div>
-        <SotralTicketManagementPage />
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 space-y-6">
       {/* En-tête */}
@@ -309,22 +287,15 @@ const SotralManagementPage: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={() => setShowTicketManagement(true)}
-            className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            <Ticket className="h-5 w-5 mr-2" />
-            Gestion Tickets
-          </button>
-          <button
             onClick={openCreateModal}
-            className="flex items-center px-6 py-3 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="flex items-center px-6 py-3 bg-green-600 text-white font-semibold rounded-full transition-all duration-200 shadow-lg"
           >
             <Plus className="h-5 w-5 mr-2" />
             Nouvelle ligne
           </button>
           <button
             onClick={refreshData}
-            className="flex items-center px-6 py-3 bg-green-500 text-white font-semibold rounded-full hover:bg-green-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="flex items-center px-6 py-3 bg-green-500 text-white font-semibold rounded-full transition-all duration-200 shadow-lg"
           >
             <RefreshCw className="h-5 w-5 mr-2" />
             Actualiser
@@ -357,7 +328,7 @@ const SotralManagementPage: React.FC = () => {
               </h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-lg"
+                className="text-gray-400 transition-colors duration-200 p-2 rounded-lg"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -527,7 +498,7 @@ const SotralManagementPage: React.FC = () => {
               </h3>
               <button
                 onClick={closeAllModals}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-lg"
+                className="text-gray-400 transition-colors duration-200 p-2 rounded-lg"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -613,7 +584,7 @@ const SotralManagementPage: React.FC = () => {
                     setIsDetailsModalOpen(false);
                     openEditModal(selectedLine);
                   }}
-                  className="flex items-center justify-center px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all duration-200"
+                  className="flex items-center justify-center px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg transition-all duration-200"
                 >
                   <Edit className="h-5 w-5 mr-2" />
                   Modifier
@@ -623,8 +594,8 @@ const SotralManagementPage: React.FC = () => {
                   onClick={() => toggleLineStatus(selectedLine.id)}
                   className={`flex items-center justify-center px-4 py-3 font-semibold rounded-lg transition-all duration-200 ${
                     selectedLine.is_active
-                      ? 'bg-orange-600 text-white hover:bg-orange-700'
-                      : 'bg-green-600 text-white hover:bg-green-700'
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-green-600 text-white'
                   }`}
                 >
                   <Power className="h-5 w-5 mr-2" />
@@ -636,7 +607,7 @@ const SotralManagementPage: React.FC = () => {
                     setIsDetailsModalOpen(false);
                     openDeleteModal(selectedLine);
                   }}
-                  className="flex items-center justify-center px-4 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200"
+                  className="flex items-center justify-center px-4 py-3 bg-red-600 text-white font-semibold rounded-lg transition-all duration-200"
                 >
                   <Trash2 className="h-5 w-5 mr-2" />
                   Supprimer
@@ -647,7 +618,7 @@ const SotralManagementPage: React.FC = () => {
             <div className="flex justify-end mt-6">
               <button
                 onClick={closeAllModals}
-                className="px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-400 transition-all duration-200"
+                className="px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg transition-all duration-200"
               >
                 Fermer
               </button>
@@ -667,7 +638,7 @@ const SotralManagementPage: React.FC = () => {
               </h3>
               <button
                 onClick={closeAllModals}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-lg"
+                className="text-gray-400 transition-colors duration-200 p-2 rounded-lg"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -728,14 +699,14 @@ const SotralManagementPage: React.FC = () => {
               <div className="flex space-x-3 pt-4">
                 <button
                   onClick={() => deleteLine(selectedLine.id)}
-                  className="flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-200 flex-1"
+                  className="flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 flex-1"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Supprimer définitivement
                 </button>
                 <button
                   onClick={closeAllModals}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-400 transition-all duration-200 flex-1"
+                  className="px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg transition-all duration-200 flex-1"
                 >
                   Annuler
                 </button>
@@ -756,7 +727,7 @@ const SotralManagementPage: React.FC = () => {
               </h3>
               <button
                 onClick={closeAllModals}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-lg"
+                className="text-gray-400 transition-colors duration-200 p-2 rounded-lg"
               >
                 <X className="h-6 w-6" />
               </button>

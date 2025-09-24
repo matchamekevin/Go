@@ -42,9 +42,11 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error }) => {
             error.type === 'server' ? 'text-orange-700' :
             'text-yellow-700'
           }`}>
-            <p>{error.details}</p>
+            {error.details && error.details.split('\n').map((line, idx) => (
+              <div key={idx}>{line}</div>
+            ))}
             {error.suggestion && (
-              <p className="mt-1 font-medium">{error.suggestion}</p>
+              <div className="mt-1 font-medium">{error.suggestion}</div>
             )}
           </div>
         </div>

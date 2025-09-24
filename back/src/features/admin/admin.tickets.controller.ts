@@ -258,4 +258,26 @@ export class AdminTicketsController {
       return res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour du statut' });
     }
   }
+
+  /**
+   * [ADMIN] Supprimer plusieurs tickets par ids
+   */
+  static async deleteTickets(req: RequestWithUser, res: Response) {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Accès admin requis' });
+      }
+
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ success: false, error: 'Aucun id fourni' });
+      }
+
+      const result = await TicketRepository.deleteTicketsByIds(ids);
+      return res.status(200).json({ success: true, message: `${result} ticket(s) supprimé(s)` });
+    } catch (error) {
+      console.error('[AdminTicketsController.deleteTickets] error:', error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la suppression des tickets' });
+    }
+  }
 }

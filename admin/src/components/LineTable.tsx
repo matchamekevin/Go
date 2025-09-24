@@ -35,13 +35,14 @@ const LineTable: React.FC<LineTableProps> = ({ lines, onDetailsClick }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Statut
               </th>
+              {/* Actions column removed */}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {lines.map((line) => (
               <tr 
                 key={line.id} 
-                className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                className="cursor-pointer transition-colors duration-200"
                 onClick={() => onDetailsClick(line)}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -92,6 +93,7 @@ const LineTable: React.FC<LineTableProps> = ({ lines, onDetailsClick }) => {
                     {line.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
+                {/* Actions cell removed */}
               </tr>
             ))}
           </tbody>
