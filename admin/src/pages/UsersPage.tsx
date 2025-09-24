@@ -142,14 +142,14 @@ const UsersPage: React.FC = () => {
           <SearchBar
             placeholder="Rechercher par nom, email ou téléphone..."
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={(v) => { setSearchQuery(v); setCurrentPage(1); }}
             className="flex-1"
           />
           <div className="flex gap-2 items-center">
             <select
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#065f46] text-black bg-white"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
             >
               <option value="all">Tous les statuts</option>
               <option value="verified">Vérifiés</option>
@@ -177,11 +177,7 @@ const UsersPage: React.FC = () => {
           value={users.filter(u => u.is_verified === false).length}
           icon={Shield}
         />
-        <StatsCard
-          title="Admins"
-          value={users.filter(u => u.email?.includes('admin')).length}
-          icon={ShieldCheck}
-        />
+        {/* Admins card removed to avoid confusing "Admins 0" display */}
       </div>
 
       {/* Users Table */}

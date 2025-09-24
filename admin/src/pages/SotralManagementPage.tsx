@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Ticket,
-  BarChart3,
   Bus,
   XCircle,
   Info
@@ -90,7 +89,7 @@ const SotralManagementPage: React.FC = () => {
     stops_count: ''
   });
 
-  const showErrorToast = (message: string, type: 'error' | 'warning' | 'info' = 'error') => {
+  const showErrorToast = (message: string) => {
     toast.error(message);
   };
 
