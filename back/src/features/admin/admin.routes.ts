@@ -1,6 +1,6 @@
 import { Router } from 'express';
 // Make sure the file exists at the specified path, or update the path if needed
-import { AdminController } from './Admin.controller';
+import AdminController from './Admin.controller';
 import { authMiddleware, AuthenticatedRequest } from '../../shared/midddleawers/auth.middleware';
 
 const router = Router();

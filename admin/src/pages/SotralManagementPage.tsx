@@ -20,6 +20,7 @@ import ErrorDisplay from '../components/ErrorDisplay';
 import { useSotralLines } from '../hooks/useSotralLines';
 import { useSotralStops } from '../hooks/useSotralStops';
 import { useSotralStats } from '../hooks/useSotralStats';
+import { adminSotralService } from '../services/adminSotralService';
 
 // Le type SotralStop et LineStats ne sont pas utilisés directement ici;
 // les hooks fournissent déjà les données typées.
@@ -100,20 +101,13 @@ const SotralManagementPage: React.FC = () => {
     try {
       setTogglingLines(prev => new Set(prev).add(lineId));
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines/${lineId}/toggle-status`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await adminSotralService.toggleLineStatus(lineId);
 
-      if (response.ok) {
-        const result = await response.json();
-        toast.success(result.message);
+      if (result.success) {
+        toast.success(result.message || 'Statut de la ligne mis à jour avec succès');
         refreshData(); // Refresh all data
       } else {
-        showErrorToast('Erreur lors du changement de statut');
+        showErrorToast(result.error || 'Erreur lors du changement de statut');
       }
     } catch (error) {
       showErrorToast('Erreur de connexion');
@@ -218,8 +212,12 @@ const SotralManagementPage: React.FC = () => {
         setSelectedLine(null);
         refreshData();
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
-        showErrorToast(errorData.error || 'Erreur lors de la modification de la ligne');
+          const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+          if (errorData.error && errorData.error.includes('duplicate key value')) {
+            showErrorToast('Ce numéro de ligne existe déjà. Veuillez choisir un numéro unique.');
+          } else {
+            showErrorToast(errorData.error || 'Erreur lors de la modification de la ligne');
+          }
       }
     } catch (error) {
       console.error('Erreur lors de la modification:', error);
@@ -295,8 +293,12 @@ const SotralManagementPage: React.FC = () => {
         resetForm();
         refreshData();
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
-        showErrorToast(errorData.error || 'Erreur lors de la création de la ligne');
+          const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+          if (errorData.error && errorData.error.includes('duplicate key value')) {
+            showErrorToast('Ce numéro de ligne existe déjà. Veuillez choisir un numéro unique.');
+          } else {
+            showErrorToast(errorData.error || 'Erreur lors de la création de la ligne');
+          }
       }
     } catch (error) {
       console.error('Erreur lors de la création:', error);
@@ -403,6 +405,28 @@ const SotralManagementPage: React.FC = () => {
 
       {/* Error Display */}
       <ErrorDisplay error={apiError} />
+
+      {/* Notification temporaire de maintenance */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-yellow-800">
+              Maintenance en cours
+            </h3>
+            <div className="mt-2 text-sm text-yellow-700">
+              <p>
+                Certaines fonctionnalités (suspension d'utilisateurs, suppression de tickets) sont temporairement indisponibles pendant la mise à jour du serveur. 
+                La suspension de lignes SOTRAL fonctionne normalement.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Statistiques */}
       <StatsCards stats={stats} />

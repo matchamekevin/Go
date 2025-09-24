@@ -430,6 +430,11 @@ const SotralTicketManagementPage: React.FC = () => {
   // Suppression de tickets (un ou plusieurs)
   const deleteTickets = async (ids: number[]) => {
     if (ids.length === 0) return;
+    
+    // Message temporaire en attendant le redéploiement du serveur
+    toast.error('Suppression de tickets temporairement indisponible. Serveur en cours de mise à jour...');
+    return;
+    
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/tickets`, {
         method: 'DELETE',

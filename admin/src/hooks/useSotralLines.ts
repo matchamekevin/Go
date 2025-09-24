@@ -17,22 +17,24 @@ export const useSotralLines = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, {
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/api/admin/sotral/lines`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        setLines(data.data || []);
+        // S'assurer que nous prenons bien les données du bon champ
+        setLines(Array.isArray(data.data) ? data.data : data || []);
       } else {
+        const errorData = await response.json().catch(() => ({}));
         setError({
           type: 'server',
           message: 'Erreur lors du chargement des lignes',
-          details: 'Impossible de récupérer les données des lignes.',
+          details: errorData.error || 'Impossible de récupérer les données des lignes.',
           suggestion: 'Vérifiez votre connexion et réessayez.'
         });
       }

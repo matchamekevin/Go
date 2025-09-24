@@ -20,15 +20,9 @@ class AdminSotralService {
 
   async getLines(): Promise<ApiResponse<SotralLine[]>> {
     try {
-      const cacheKey = 'sotral:lines';
-      const cached = this.getCachedData<SotralLine[]>(cacheKey);
-      if (cached) {
-        return { success: true, data: cached };
-      }
-
+      // Désactivation du cache : on récupère toujours les données fraîches
       const payload = await apiClient.get<any>(`${this.baseUrl}/lines`);
       const data = payload?.data ?? payload ?? [];
-      this.setCachedData(cacheKey, data, 10); // cache 10 minutes
       return { success: true, data };
     } catch (error) {
       return this.handleError('Erreur lors de la récupération des lignes', error);
@@ -82,6 +76,22 @@ class AdminSotralService {
       };
     } catch (error) {
       return this.handleError(`Erreur lors de la suppression de la ligne ${id}`, error);
+    }
+  }
+
+  async toggleLineStatus(id: number): Promise<ApiResponse<SotralLine>> {
+    try {
+      // Invalider le cache avant de faire la requête
+      this.clearCache();
+
+      const payload = await apiClient.post<any>(`${this.baseUrl}/lines/${id}/toggle-status`);
+      return {
+        success: true,
+        data: payload?.data ?? payload,
+        message: payload?.message || 'Statut de la ligne mis à jour avec succès'
+      };
+    } catch (error) {
+      return this.handleError(`Erreur lors du changement de statut de la ligne ${id}`, error);
     }
   }
 

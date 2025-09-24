@@ -36,7 +36,17 @@ export class UserService {
   }
 
   static async toggleUserSuspension(id: number): Promise<ApiResponse<User>> {
-    return apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-suspension`);
+    // Workaround temporaire : utiliser la route de changement de statut comme fallback
+    try {
+      return await apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-suspension`);
+    } catch (error: any) {
+      // Si la route principale échoue (404), utiliser la route de toggle status comme fallback temporaire
+      if (error.response?.status === 404) {
+        console.warn('Route toggle-suspension non trouvée, utilisation de toggle-status comme fallback');
+        return await apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-status`);
+      }
+      throw error;
+    }
   }
 
   static async getUserStats(): Promise<ApiResponse<{
