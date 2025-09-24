@@ -27,50 +27,15 @@ import { useSotralStats } from '../hooks/useSotralStats';
 // les hooks fournissent déjà les données typées.
 
 const SotralManagementPage: React.FC = () => {
-  const [suspendedLines, setSuspendedLines] = useState<SotralLine[]>([]);
   const [showTicketManagement, setShowTicketManagement] = useState(false);
-
-  // Charger les lignes suspendues depuis localStorage au démarrage
-  useEffect(() => {
-    const savedSuspended = localStorage.getItem('sotral_suspended_lines');
-    if (savedSuspended) {
-      try {
-        const parsedSuspended = JSON.parse(savedSuspended);
-        setSuspendedLines(parsedSuspended);
-      } catch (error) {
-        console.error('Erreur lors du chargement des lignes suspendues:', error);
-        localStorage.removeItem('sotral_suspended_lines');
-      }
-    }
-  }, []);
 
   // Use custom hooks for API calls
   const { lines: apiLines, loading: linesLoading, error: linesError, loadLines } = useSotralLines();
   const { stops, loading: stopsLoading, error: stopsError, loadStops } = useSotralStops();
   const { stats, loading: statsLoading, error: statsError, loadStats } = useSotralStats();
 
-  // Calculer les lignes affichées - utiliser uniquement les données de l'API
-  const lines = useMemo(() => {
-    // Utiliser les données de l'API uniquement
-    if (apiLines.length > 0) {
-      const mergedLines = [...apiLines];
-
-      // Appliquer les statuts suspendus
-      suspendedLines.forEach(suspendedLine => {
-        const existingIndex = mergedLines.findIndex(line => line.id === suspendedLine.id);
-        if (existingIndex >= 0) {
-          // Mettre à jour la ligne existante avec le statut suspendu
-          mergedLines[existingIndex] = { ...mergedLines[existingIndex], is_active: false };
-        }
-      });
-
-      return mergedLines;
-    }
-
-    // Pas de données API disponibles - retourner un tableau vide
-    console.warn('Aucune donnée API disponible pour les lignes');
-    return [];
-  }, [apiLines, suspendedLines]);
+  // Les lignes viennent directement de l'API (toutes, actives et inactives)
+  const lines = apiLines;
 
   const loading = linesLoading || stopsLoading || statsLoading;
   const apiError = linesError || stopsError || statsError;

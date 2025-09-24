@@ -14,7 +14,7 @@ export class AdminSotralController {
    */
   async getAllLines(req: Request, res: Response): Promise<void> {
     try {
-      const lines = await sotralRepository.getAllLines();
+      const lines = await sotralRepository.getAllLinesForAdmin();
       
       res.json({
         success: true,
@@ -143,7 +143,7 @@ export class AdminSotralController {
   async toggleLineStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const line = await sotralRepository.getLineById(parseInt(id));
+      const line = await sotralRepository.getLineByIdForAdmin(parseInt(id));
       
       if (!line) {
         res.status(404).json({
@@ -315,7 +315,7 @@ export class AdminSotralController {
       }
 
       // Vérifier que la ligne existe
-      const line = await sotralRepository.getLineById(lineId);
+      const line = await sotralRepository.getLineByIdForAdmin(lineId);
       if (!line) {
         res.status(404).json({
           success: false,

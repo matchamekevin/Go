@@ -62,6 +62,44 @@ export class SotralRepository {
     }
   }
 
+  // Pour l'admin : récupérer toutes les lignes (actives et inactives)
+  async getAllLinesForAdmin(): Promise<SotralLineWithDetails[]> {
+    const client = await pool.connect();
+    try {
+      const query = `
+        SELECT 
+          l.*,
+          c.name as category_name,
+          c.description as category_description
+        FROM sotral_lines l
+        LEFT JOIN sotral_line_categories c ON l.category_id = c.id
+        ORDER BY l.line_number ASC
+      `;
+      
+      const result = await client.query(query);
+      return result.rows.map((row: any) => ({
+        id: row.id,
+        line_number: row.line_number,
+        name: row.name,
+        route_from: row.route_from,
+        route_to: row.route_to,
+        category_id: row.category_id,
+        distance_km: parseFloat(row.distance_km) || 0,
+        stops_count: row.stops_count,
+        is_active: row.is_active,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        category: row.category_name ? {
+          id: row.category_id,
+          name: row.category_name,
+          description: row.category_description
+        } : undefined
+      }));
+    } finally {
+      client.release();
+    }
+  }
+
   async getLineById(id: number): Promise<SotralLineWithDetails | null> {
     const client = await pool.connect();
     try {
@@ -73,6 +111,47 @@ export class SotralRepository {
         FROM sotral_lines l
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
         WHERE l.id = $1 AND l.is_active = true
+      `;
+      
+      const result = await client.query(query, [id]);
+      if (result.rows.length === 0) return null;
+      
+      const row = result.rows[0];
+      return {
+        id: row.id,
+        line_number: row.line_number,
+        name: row.name,
+        route_from: row.route_from,
+        route_to: row.route_to,
+        category_id: row.category_id,
+        distance_km: parseFloat(row.distance_km) || 0,
+        stops_count: row.stops_count,
+        is_active: row.is_active,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        category: row.category_name ? {
+          id: row.category_id,
+          name: row.category_name,
+          description: row.category_description
+        } : undefined
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  // Pour l'admin : récupérer une ligne par ID (même inactive)
+  async getLineByIdForAdmin(id: number): Promise<SotralLineWithDetails | null> {
+    const client = await pool.connect();
+    try {
+      const query = `
+        SELECT 
+          l.*,
+          c.name as category_name,
+          c.description as category_description
+        FROM sotral_lines l
+        LEFT JOIN sotral_line_categories c ON l.category_id = c.id
+        WHERE l.id = $1
       `;
       
       const result = await client.query(query, [id]);
