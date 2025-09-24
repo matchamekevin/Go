@@ -143,9 +143,13 @@ export class AdminSotralController {
   async toggleLineStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      console.log('ToggleLineStatus called with id:', id);
+
       const line = await sotralRepository.getLineByIdForAdmin(parseInt(id));
-      
+      console.log('Line found:', line);
+
       if (!line) {
+        console.log('Line not found, returning 404');
         res.status(404).json({
           success: false,
           error: 'Ligne non trouvée'
@@ -156,6 +160,7 @@ export class AdminSotralController {
       const updatedLine = await sotralRepository.updateLine(parseInt(id), {
         is_active: !line.is_active
       });
+      console.log('Line updated:', updatedLine);
 
       res.json({
         success: true,

@@ -155,15 +155,52 @@ const SotralManagementPage: React.FC = () => {
     if (!selectedLine) return;
 
     try {
+      // Validation des champs requis
+      if (!formData.line_number || isNaN(Number(formData.line_number))) {
+        showErrorToast('Le numéro de ligne est requis et doit être un nombre valide');
+        return;
+      }
+
+      if (!formData.name?.trim()) {
+        showErrorToast('Le nom de la ligne est requis');
+        return;
+      }
+
+      if (!formData.route_from?.trim()) {
+        showErrorToast('Le point de départ est requis');
+        return;
+      }
+
+      if (!formData.route_to?.trim()) {
+        showErrorToast('Le point d\'arrivée est requis');
+        return;
+      }
+
+      if (!formData.category_id || isNaN(Number(formData.category_id))) {
+        showErrorToast('La catégorie est requise');
+        return;
+      }
+
       const lineData = {
-        line_number: parseInt(formData.line_number),
+        line_number: Number(formData.line_number),
         name: formData.name.trim(),
         route_from: formData.route_from.trim(),
         route_to: formData.route_to.trim(),
-        category_id: parseInt(formData.category_id),
-        distance_km: formData.distance_km ? parseFloat(formData.distance_km) : null,
-        stops_count: formData.stops_count ? parseInt(formData.stops_count) : null
+        category_id: Number(formData.category_id),
+        distance_km: formData.distance_km ? Number(formData.distance_km) : undefined,
+        stops_count: formData.stops_count ? Number(formData.stops_count) : undefined
       };
+
+      // Validation supplémentaire des valeurs numériques
+      if (lineData.distance_km !== undefined && (isNaN(lineData.distance_km) || lineData.distance_km <= 0)) {
+        showErrorToast('La distance doit être un nombre positif');
+        return;
+      }
+
+      if (lineData.stops_count !== undefined && (isNaN(lineData.stops_count) || lineData.stops_count <= 0)) {
+        showErrorToast('Le nombre d\'arrêts doit être un nombre positif');
+        return;
+      }
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines/${selectedLine.id}`, {
         method: 'PUT',
@@ -179,12 +216,14 @@ const SotralManagementPage: React.FC = () => {
         toast.success(result.message || 'Ligne modifiée avec succès');
         setIsEditModalOpen(false);
         setSelectedLine(null);
-        refreshData(); // Refresh all data
+        refreshData();
       } else {
-        showErrorToast('Erreur lors de la modification de la ligne');
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        showErrorToast(errorData.error || 'Erreur lors de la modification de la ligne');
       }
     } catch (error) {
-      showErrorToast('Erreur lors de la modification');
+      console.error('Erreur lors de la modification:', error);
+      showErrorToast('Erreur lors de la modification de la ligne');
     }
   };
 
@@ -192,16 +231,53 @@ const SotralManagementPage: React.FC = () => {
     e.preventDefault();
 
     try {
+      // Validation des champs requis
+      if (!formData.line_number || isNaN(Number(formData.line_number))) {
+        showErrorToast('Le numéro de ligne est requis et doit être un nombre valide');
+        return;
+      }
+
+      if (!formData.name?.trim()) {
+        showErrorToast('Le nom de la ligne est requis');
+        return;
+      }
+
+      if (!formData.route_from?.trim()) {
+        showErrorToast('Le point de départ est requis');
+        return;
+      }
+
+      if (!formData.route_to?.trim()) {
+        showErrorToast('Le point d\'arrivée est requis');
+        return;
+      }
+
+      if (!formData.category_id || isNaN(Number(formData.category_id))) {
+        showErrorToast('La catégorie est requise');
+        return;
+      }
+
       const lineData = {
-        line_number: parseInt(formData.line_number),
+        line_number: Number(formData.line_number),
         name: formData.name.trim(),
         route_from: formData.route_from.trim(),
         route_to: formData.route_to.trim(),
-        category_id: parseInt(formData.category_id),
-        distance_km: formData.distance_km ? parseFloat(formData.distance_km) : undefined,
-        stops_count: formData.stops_count ? parseInt(formData.stops_count) : undefined,
+        category_id: Number(formData.category_id),
+        distance_km: formData.distance_km ? Number(formData.distance_km) : undefined,
+        stops_count: formData.stops_count ? Number(formData.stops_count) : undefined,
         is_active: true
       };
+
+      // Validation supplémentaire des valeurs numériques
+      if (lineData.distance_km !== undefined && (isNaN(lineData.distance_km) || lineData.distance_km <= 0)) {
+        showErrorToast('La distance doit être un nombre positif');
+        return;
+      }
+
+      if (lineData.stops_count !== undefined && (isNaN(lineData.stops_count) || lineData.stops_count <= 0)) {
+        showErrorToast('Le nombre d\'arrêts doit être un nombre positif');
+        return;
+      }
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, {
         method: 'POST',
@@ -214,22 +290,16 @@ const SotralManagementPage: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
-        toast.success(result.message);
+        toast.success(result.message || 'Ligne créée avec succès');
         setIsCreateModalOpen(false);
-        setFormData({
-          line_number: '',
-          name: '',
-          route_from: '',
-          route_to: '',
-          category_id: '1',
-          distance_km: '',
-          stops_count: ''
-        });
-        refreshData(); // Refresh all data
+        resetForm();
+        refreshData();
       } else {
-        showErrorToast('Erreur lors de la création de la ligne');
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        showErrorToast(errorData.error || 'Erreur lors de la création de la ligne');
       }
     } catch (error) {
+      console.error('Erreur lors de la création:', error);
       showErrorToast('Erreur lors de la création de la ligne');
     }
   };
@@ -641,7 +711,7 @@ const SotralManagementPage: React.FC = () => {
                   }`}
                 >
                   <Power className="h-5 w-5 mr-2" />
-                  {selectedLine.is_active ? 'Suspendre' : 'Activer'}
+                  {selectedLine.is_active ? 'Suspendre la ligne' : 'Activer la ligne'}
                 </button>
 
                 <button
@@ -652,7 +722,7 @@ const SotralManagementPage: React.FC = () => {
                   className="flex items-center justify-center px-4 py-3 bg-red-600 text-white font-semibold rounded-lg transition-all duration-200"
                 >
                   <Trash2 className="h-5 w-5 mr-2" />
-                  Supprimer
+                  Désactiver définitivement
                 </button>
               </div>
             </div>
@@ -694,14 +764,14 @@ const SotralManagementPage: React.FC = () => {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">
-                      Action irréversible
+                      Action définitive
                     </h3>
                     <div className="mt-2 text-sm text-red-700">
                       <p>
-                        Êtes-vous sûr de vouloir supprimer la ligne <strong>{selectedLine.name}</strong> (Ligne {selectedLine.line_number}) ?
+                        Êtes-vous sûr de vouloir <strong>désactiver définitivement</strong> la ligne <strong>{selectedLine.name}</strong> (Ligne {selectedLine.line_number}) ?
                       </p>
                       <p className="mt-2">
-                        Cette action supprimera définitivement la ligne et toutes les données associées.
+                        Cette ligne ne sera plus visible dans la liste et ne pourra plus être utilisée. Cette action peut être annulée en réactivant la ligne plus tard.
                       </p>
                     </div>
                   </div>
@@ -744,7 +814,7 @@ const SotralManagementPage: React.FC = () => {
                   className="flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 flex-1"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer définitivement
+                  Désactiver définitivement
                 </button>
                 <button
                   onClick={closeAllModals}

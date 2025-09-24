@@ -109,8 +109,17 @@ export class AdminController {
   static async toggleUserSuspension(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
+      console.log('ToggleUserSuspension called with id:', id);
+
       const r = await pool.query('UPDATE users SET is_suspended = NOT COALESCE(is_suspended,false), updated_at = NOW() WHERE id = $1 RETURNING id, email, name, phone, is_verified, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at', [id]);
-      if (r.rows.length === 0) return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+      console.log('Query result:', r.rows.length, 'rows affected');
+
+      if (r.rows.length === 0) {
+        console.log('User not found, returning 404');
+        return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+      }
+
+      console.log('User suspension toggled successfully');
       return res.status(200).json({ success: true, data: r.rows[0] });
     } catch (err: any) {
       console.error('[AdminController.toggleUserSuspension]', err);

@@ -431,7 +431,7 @@ const SotralTicketManagementPage: React.FC = () => {
   const deleteTickets = async (ids: number[]) => {
     if (ids.length === 0) return;
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/tickets`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/tickets`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,

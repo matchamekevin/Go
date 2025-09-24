@@ -21,6 +21,6 @@ router.delete('/routes/:id', AdminTicketsController.deleteRoute);
 router.get('/tickets', AdminTicketsController.getAllTickets);
 router.patch('/tickets/:id/status', AdminTicketsController.updateTicketStatus);
 // Suppression en masse de tickets
-router.delete('/tickets', AdminTicketsController.deleteTickets);
+router.delete('/', AdminTicketsController.deleteTickets);
 
 export default router;
