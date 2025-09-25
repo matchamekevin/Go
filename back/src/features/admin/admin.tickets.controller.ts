@@ -317,8 +317,12 @@ export class AdminTicketsController {
       if (req.user?.role !== 'admin') {
         return res.status(403).json({ success: false, error: 'Accès admin requis' });
       }
+      // Debug logging to help diagnose routing/availability issues
+      console.log('[AdminTicketsController.deleteTickets] called. method=', req.method, 'path=', req.path);
+      console.log('[AdminTicketsController.deleteTickets] headers=', Object.keys(req.headers));
+      console.log('[AdminTicketsController.deleteTickets] raw body=', req.body);
 
-      const { ids } = req.body;
+      const { ids } = req.body || {};
       if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ success: false, error: 'Aucun id fourni' });
       }
