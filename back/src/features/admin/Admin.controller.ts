@@ -106,6 +106,17 @@ export class AdminController {
   }
 
   // toggle admin role -- previously toggle suspension
+  static async getSuspendedUsers(_req: AuthenticatedRequest, res: Response) {
+    try {
+      const query = `SELECT id, email, name, phone, is_verified::boolean, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) as updated_at FROM users WHERE COALESCE(is_suspended,false) = true ORDER BY created_at DESC`;
+      const data = await pool.query(query);
+      return res.status(200).json({ success: true, data: data.rows, count: data.rows.length });
+    } catch (err: any) {
+      console.error('[AdminController.getSuspendedUsers]', err);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des comptes suspendus' });
+    }
+  }
+
   static async toggleUserSuspension(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;

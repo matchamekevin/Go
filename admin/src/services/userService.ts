@@ -49,13 +49,8 @@ export class UserService {
     }
   }
 
-  static async getUserStats(): Promise<ApiResponse<{
-    total: number;
-    verified: number;
-    unverified: number;
-    recently_registered: number;
-  }>> {
-    return apiClient.get<ApiResponse<any>>('/admin/users/stats');
+  static async getSuspendedUsers(): Promise<ApiResponse<User[]>> {
+    return apiClient.get<ApiResponse<User[]>>('/admin/users/suspended');
   }
 
   static async createUser(data: {

@@ -451,15 +451,13 @@ const SotralTicketManagementPage: React.FC = () => {
         return { resp, payload, text };
       };
 
-      // Try the primary endpoint first
-      let result = await doDelete(`${base}/admin/tickets`);
+      // Try the alias endpoint which is the dedicated route for mass ticket deletion
+      let result = await doDelete(`${base}/admin/tickets/tickets`);
 
-      // If the server returned an HTML 404 like "Cannot DELETE /admin/tickets", try the alias endpoint
-      const isHtml = typeof result.text === 'string' && result.text.trim().startsWith('<!DOCTYPE html>');
-      const htmlContainsCannotDelete = isHtml && /Cannot\s+DELETE\s+\/admin\/tickets/i.test(result.text);
-      if ((result.resp.status === 404 && isHtml) || htmlContainsCannotDelete) {
-        console.warn('Primary delete returned HTML 404; retrying alias /admin/tickets/tickets');
-        result = await doDelete(`${base}/admin/tickets/tickets`);
+      // If that fails, try the generic endpoint as fallback
+      if (result.resp.status === 404) {
+        console.warn('Alias delete failed; retrying generic /admin/tickets');
+        result = await doDelete(`${base}/admin/tickets`);
       }
 
       const response = result.resp;

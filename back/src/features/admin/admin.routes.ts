@@ -20,6 +20,7 @@ router.use(adminMiddleware);
 // Routes pour la gestion des utilisateurs
 router.get('/users/stats', AdminController.getUserStats as any);
 router.get('/users', AdminController.getAllUsers as any);
+router.get('/users/suspended', AdminController.getSuspendedUsers as any);
 router.get('/users/:id', AdminController.getUserById as any);
 router.put('/users/:id', AdminController.updateUser as any);
 router.delete('/users/:id', AdminController.deleteUser as any);

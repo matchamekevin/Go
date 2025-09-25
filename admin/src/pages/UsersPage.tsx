@@ -19,9 +19,12 @@ const UsersPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionsModalOpen, setActionsModalOpen] = useState(false);
+  const [suspendedUsers, setSuspendedUsers] = useState<User[]>([]);
+  const [suspendedLoading, setSuspendedLoading] = useState(false);
 
   useEffect(() => {
     fetchUsers();
+    fetchSuspendedUsers();
   }, [currentPage, searchQuery, filterStatus]);
 
   const fetchUsers = async () => {
@@ -51,6 +54,20 @@ const UsersPage: React.FC = () => {
     }
   };
 
+  const fetchSuspendedUsers = async () => {
+    try {
+      setSuspendedLoading(true);
+      const response = await UserService.getSuspendedUsers();
+      if (response.success && response.data) {
+        setSuspendedUsers(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des utilisateurs suspendus:', error);
+    } finally {
+      setSuspendedLoading(false);
+    }
+  };
+
   const openActionsForUser = (user: User) => {
     setSelectedUser(user);
     setActionsModalOpen(true);
@@ -58,6 +75,7 @@ const UsersPage: React.FC = () => {
 
   const onActionComplete = () => {
     fetchUsers();
+    fetchSuspendedUsers();
   };
 
   const userColumns = [
@@ -180,8 +198,61 @@ const UsersPage: React.FC = () => {
           value={users.filter(u => u.is_verified === false).length}
           icon={Shield}
         />
-        {/* Admins card removed to avoid confusing "Admins 0" display */}
+        <StatsCard
+          title="Suspendus"
+          value={suspendedUsers.length}
+          icon={Shield}
+        />
       </div>
+
+      {/* Comptes Suspendus */}
+      {suspendedUsers.length > 0 && (
+        <div className="mb-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-red-900 flex items-center">
+                <Shield className="h-5 w-5 mr-2" />
+                Comptes Suspendus ({suspendedUsers.length})
+              </h3>
+              <button
+                onClick={fetchSuspendedUsers}
+                disabled={suspendedLoading}
+                className="text-red-600 hover:text-red-800 disabled:opacity-50"
+              >
+                {suspendedLoading ? 'Chargement...' : 'Actualiser'}
+              </button>
+            </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {suspendedUsers.slice(0, 5).map((user) => (
+                <div key={user.id} className="flex items-center justify-between bg-white p-3 rounded border">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-xs font-medium text-red-700">
+                        {user.name.split(' ').map(n => n[0]).join('')}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                      <div className="text-sm text-gray-500">{user.email}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => openActionsForUser(user)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Gérer
+                  </button>
+                </div>
+              ))}
+              {suspendedUsers.length > 5 && (
+                <div className="text-center text-sm text-gray-500 pt-2">
+                  Et {suspendedUsers.length - 5} autres...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Users Table */}
       <div className="bg-white shadow-sm rounded-lg border border-gray-200">
