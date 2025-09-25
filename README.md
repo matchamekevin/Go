@@ -2,6 +2,26 @@
 
 Système de billetterie électronique pour les transports en commun SOTRAL.
 
+## 📁 **Structure Organisée du Projet**
+```
+├── 📖 docs/                    # Documentation centralisée
+│   ├── guides/                # Guides utilisateur & technique
+│   ├── deployment/            # Guides de déploiement
+│   ├── api/                   # Documentation API
+│   └── deployment-solutions.md
+├── 🔧 scripts/                 # Scripts automatisation & tests
+├── ⚙️  admin/                  # Interface administration Web
+├── 🚀 back/                    # Backend Node.js/Express API
+├── 📱 front/                   # App mobile utilisateur (React Native)
+├── 📱 scan/                    # App mobile scanner QR
+├── .gitignore
+├── package.json                # Scripts projet
+├── README.md                   # Cette documentation
+└── TODO.md                     # Notes de développement
+```
+
+**✅ Projet réorganisé pour une meilleure maintenance !**
+
 ## 🚀 **Démarrage Ultra-Rapide**
 
 ### Backend + Frontend en 3 commandes
