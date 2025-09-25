@@ -34,6 +34,8 @@ const SotralManagementPage: React.FC = () => {
   // Les lignes viennent directement de l'API (toutes, actives et inactives)
   const lines = apiLines;
 
+  console.log('Rendering SotralManagementPage with lines:', lines);
+
   // Listes de sélection indépendantes (ne changent pas avec les actions sur la table)
   // Basées sur les lignes canoniques + possibilité de saisie libre
   const selectionOptions = {

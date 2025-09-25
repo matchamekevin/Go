@@ -115,6 +115,7 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       setError(null);
 
       const response = await adminSotralService.getLines();
+      console.log('Fetched lines:', response);
 
       if (response.success && response.data) {
         setLines(response.data);

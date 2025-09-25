@@ -35,7 +35,7 @@ export class SotralRepository {
           c.description as category_description
         FROM sotral_lines l
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
-        ${includeInactive ? '' : 'WHERE l.is_active = true'}
+        ${includeInactive ? '' : ''}
         ORDER BY l.line_number ASC
       `;
       
@@ -78,6 +78,8 @@ export class SotralRepository {
       `;
       
       const result = await client.query(query);
+      console.log('All lines for admin:', result);
+
       return result.rows.map((row: any) => ({
         id: row.id,
         line_number: row.line_number,

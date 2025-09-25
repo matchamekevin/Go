@@ -9,7 +9,7 @@
 export const SOTRAL_CONFIG = {
   // API Configuration
   API: {
-    BASE_URL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api',
+    BASE_URL: process.env.VITE_API_BASE_URL || 'http://localhost:7000/api',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3,
     CACHE_EXPIRY: 5 * 60 * 1000, // 5 minutes
