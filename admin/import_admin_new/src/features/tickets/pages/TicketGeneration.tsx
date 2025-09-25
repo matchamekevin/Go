@@ -1,0 +1,1 @@
+export { TicketGeneration } from '../../../modules/tickets/components/TicketGeneration';

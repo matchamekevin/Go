@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { SotralLine, SotralTicketType, TicketFilters, TicketStatus } from '../../types/sotral';
+import { SotralLine, TicketFilters, TicketStatus } from '../../types/sotral';
 import { Filter, X, Search, Calendar, RefreshCw } from 'lucide-react';
 
 interface FilterPanelProps {
   lines: SotralLine[];
-  ticketTypes: SotralTicketType[];
   filters: TicketFilters;
   onFiltersChange: (filters: Partial<TicketFilters>) => void;
   onReset: () => void;
@@ -13,7 +12,6 @@ interface FilterPanelProps {
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   lines,
-  ticketTypes,
   filters,
   onFiltersChange,
   onReset,
@@ -98,7 +96,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 type="text"
                 placeholder="Rechercher par code ticket..."
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                onChange={(e) => {
+                onChange={() => {
                   // Pour l'instant, on peut implémenter une recherche simple
                   // TODO: Implémenter la recherche par code ticket
                 }}

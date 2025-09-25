@@ -440,24 +440,30 @@ const SotralTicketManagementPage: React.FC = () => {
         },
         body: JSON.stringify({ ids })
       });
+      // read text first (some responses may be empty or not valid JSON)
+      const text = await response.text().catch(() => '');
+      let payload: any = {};
+      if (text) {
+        try {
+          payload = JSON.parse(text);
+        } catch (e) {
+          payload = { raw: text };
+        }
+      }
 
-      const payload = await response.json().catch(() => ({}));
       if (response.ok) {
-        toast.success(payload.message || `${ids.length} ticket(s) supprimé(s)`);
+        const successMessage = payload?.message || `${ids.length} ticket(s) supprimé(s)`;
+        toast.success(successMessage);
         // Retirer des états locaux
         setTickets(prev => prev.filter(t => !ids.includes(t.id)));
         setSelectedTicketIds(prev => prev.filter(id => !ids.includes(id)));
         setApiError(null);
       } else {
-        // If API provides an errors array or message, display each on its own line
-        if (payload && payload.errors && Array.isArray(payload.errors)) {
-          setApiError({ type: 'server', message: 'Erreur lors de la suppression des tickets', details: payload.errors.join('\n') });
-        } else if (payload && payload.error) {
-          setApiError({ type: 'server', message: 'Erreur lors de la suppression des tickets', details: String(payload.error) });
-        } else {
-          setApiError({ type: 'server', message: 'Erreur lors de la suppression des tickets', details: 'Erreur inconnue' });
-        }
-        showErrorToast('Erreur lors de la suppression des tickets');
+        const serverMsg = payload?.error || payload?.message || payload?.raw || `HTTP ${response.status} ${response.statusText}`;
+        const details = typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg);
+        setApiError({ type: 'server', message: 'Erreur lors de la suppression des tickets', details });
+        showErrorToast(`Erreur lors de la suppression des tickets: ${details}`);
+        console.error('deleteTickets failed', { status: response.status, statusText: response.statusText, body: payload });
       }
     } catch (error) {
       console.error('Erreur suppression tickets', error);
@@ -804,9 +810,21 @@ const SotralTicketManagementPage: React.FC = () => {
           {/* Liste des tickets */}
           <div className="glass-container rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Tickets ({filteredTickets.length})
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Tickets ({filteredTickets.length})
+                </h2>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => deleteTickets(selectedTicketIds)}
+                    disabled={selectedTicketIds.length === 0}
+                    className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={selectedTicketIds.length === 0 ? "Aucune sélection" : `Supprimer ${selectedTicketIds.length} ticket(s)`}
+                  >
+                    Supprimer sélection
+                  </button>
+                </div>
+              </div>
             </div>
             
             <div className="overflow-x-auto">

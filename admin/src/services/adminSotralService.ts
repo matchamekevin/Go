@@ -1,98 +1,225 @@
 import { apiClient } from './apiClient';
-import { 
-  SotralLine, 
-  SotralTicketType, 
-  SotralTicketWithDetails, 
-  TicketFilters,
-  TicketGenerationRequest,
-  BulkTicketGenerationRequest,
+import {
+  SotralLine,
+  SotralTicket,
+  SotralTicketType,
   AnalyticsData,
   PaginatedResponse,
-  ApiResponse
+  ApiResponse,
+  TicketFilters,
+  TicketGenerationRequest,
+  BulkTicketGenerationRequest
 } from '../types/sotral';
 
+interface AdminSotralServiceConfig {
+  baseUrl: string;
+  cacheTimeout: number;
+  retryAttempts: number;
+}
+
+interface ApiErrorResponse extends ApiResponse<any> {
+  errorType?: string;
+}
+
 class AdminSotralService {
-  private readonly baseUrl = '/admin/sotral';
+  private readonly config: AdminSotralServiceConfig = {
+    baseUrl: '/admin/sotral',
+    cacheTimeout: 5 * 60 * 1000, // 5 minutes
+    retryAttempts: 3
+  };
+
+  private cache = new Map<string, { data: any; timestamp: number }>();
+
+  // ==========================================
+  // MÉTHODES UTILITAIRES
+  // ==========================================
+
+  private getCachedData<T>(key: string): T | null {
+    const cached = this.cache.get(key);
+    if (cached && Date.now() - cached.timestamp < this.config.cacheTimeout) {
+      return cached.data;
+    }
+    this.cache.delete(key);
+    return null;
+  }
+
+  private setCachedData(key: string, data: any): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+  }
+
+  private clearCache(pattern?: string): void {
+    if (pattern) {
+      for (const key of this.cache.keys()) {
+        if (key.includes(pattern)) {
+          this.cache.delete(key);
+        }
+      }
+    } else {
+      this.cache.clear();
+    }
+  }
+
+  private async handleApiCall<T>(
+    operation: () => Promise<any>,
+    cacheKey?: string,
+    skipCache = false
+  ): Promise<ApiResponse<T>> {
+    try {
+      // Vérifier le cache si activé
+      if (cacheKey && !skipCache) {
+        const cached = this.getCachedData<T>(cacheKey);
+        if (cached) {
+          return { success: true, data: cached };
+        }
+      }
+
+      const response = await operation();
+
+      // Mettre en cache si demandé
+      if (cacheKey && response?.data) {
+        this.setCachedData(cacheKey, response.data);
+      }
+
+      return {
+        success: true,
+        data: response?.data ?? response
+      };
+    } catch (error: any) {
+      console.error('API Error:', error);
+
+      let errorMessage = 'Une erreur inattendue s\'est produite';
+      let errorType = 'unknown';
+
+      if (error?.response) {
+        const { status, data } = error.response;
+
+        switch (status) {
+          case 400:
+            errorType = 'validation';
+            errorMessage = data?.message || 'Données invalides';
+            break;
+          case 401:
+            errorType = 'auth';
+            errorMessage = 'Authentification requise';
+            break;
+          case 403:
+            errorType = 'forbidden';
+            errorMessage = 'Accès refusé';
+            break;
+          case 404:
+            errorType = 'not_found';
+            errorMessage = data?.message || 'Ressource non trouvée';
+            break;
+          case 409:
+            errorType = 'conflict';
+            errorMessage = data?.message || 'Conflit de données';
+            break;
+          case 422:
+            errorType = 'validation';
+            errorMessage = data?.message || 'Erreur de validation';
+            break;
+          case 500:
+            errorType = 'server';
+            errorMessage = 'Erreur serveur interne';
+            break;
+          default:
+            errorType = 'server';
+            errorMessage = data?.message || `Erreur ${status}`;
+        }
+      } else if (error?.request) {
+        errorType = 'network';
+        errorMessage = 'Erreur de connexion réseau';
+      }
+
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: errorMessage,
+        errorType
+      };
+
+      return errorResponse;
+    }
+  }
 
   // ==========================================
   // GESTION DES LIGNES
   // ==========================================
 
   async getLines(): Promise<ApiResponse<SotralLine[]>> {
-    try {
-      // Désactivation du cache : on récupère toujours les données fraîches
-      const payload = await apiClient.get<any>(`${this.baseUrl}/lines`);
-      const data = payload?.data ?? payload ?? [];
-      return { success: true, data };
-    } catch (error) {
-      return this.handleError('Erreur lors de la récupération des lignes', error);
-    }
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/lines`),
+      'lines',
+      true // Skip cache pour avoir les données fraîches
+    ) as Promise<ApiResponse<SotralLine[]>>;
   }
 
   async getLineById(id: number): Promise<ApiResponse<SotralLine>> {
-    try {
-      const payload = await apiClient.get<any>(`${this.baseUrl}/lines/${id}`);
-      return {
-        success: true,
-        data: payload?.data ?? payload
-      };
-    } catch (error) {
-      return this.handleError(`Erreur lors de la récupération de la ligne ${id}`, error);
-    }
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/lines/${id}`),
+      `line:${id}`
+    ) as Promise<ApiResponse<SotralLine>>;
   }
 
   async createLine(lineData: Partial<SotralLine>): Promise<ApiResponse<SotralLine>> {
-    try {
-      const payload = await apiClient.post<any>(`${this.baseUrl}/lines`, lineData);
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: 'Ligne créée avec succès'
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la création de la ligne', error);
+    const result = await this.handleApiCall(
+      () => apiClient.post(`${this.config.baseUrl}/lines`, lineData),
+      undefined,
+      true
+    );
+
+    if (result.success) {
+      this.clearCache('lines'); // Invalider le cache des lignes
     }
+
+    return result as ApiResponse<SotralLine>;
   }
 
   async updateLine(id: number, lineData: Partial<SotralLine>): Promise<ApiResponse<SotralLine>> {
-    try {
-      const payload = await apiClient.put<any>(`${this.baseUrl}/lines/${id}`, lineData);
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: 'Ligne mise à jour avec succès'
-      };
-    } catch (error) {
-      return this.handleError(`Erreur lors de la mise à jour de la ligne ${id}`, error);
+    const result = await this.handleApiCall(
+      () => apiClient.put(`${this.config.baseUrl}/lines/${id}`, lineData),
+      undefined,
+      true
+    );
+
+    if (result.success) {
+      this.clearCache('lines'); // Invalider le cache
+      this.clearCache(`line:${id}`);
     }
+
+    return result as ApiResponse<SotralLine>;
   }
 
   async deleteLine(id: number): Promise<ApiResponse<void>> {
-    try {
-      await apiClient.delete(`${this.baseUrl}/lines/${id}`);
-      return {
-        success: true,
-        message: 'Ligne supprimée avec succès'
-      };
-    } catch (error) {
-      return this.handleError(`Erreur lors de la suppression de la ligne ${id}`, error);
+    const result = await this.handleApiCall(
+      () => apiClient.delete(`${this.config.baseUrl}/lines/${id}`),
+      undefined,
+      true
+    );
+
+    if (result.success) {
+      this.clearCache('lines');
+      this.clearCache(`line:${id}`);
     }
+
+    return result as ApiResponse<void>;
   }
 
   async toggleLineStatus(id: number): Promise<ApiResponse<SotralLine>> {
-    try {
-      // Invalider le cache avant de faire la requête
-      this.clearCache();
+    const result = await this.handleApiCall(
+      () => apiClient.post(`${this.config.baseUrl}/lines/${id}/toggle-status`),
+      undefined,
+      true
+    );
 
-      const payload = await apiClient.post<any>(`${this.baseUrl}/lines/${id}/toggle-status`);
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: payload?.message || 'Statut de la ligne mis à jour avec succès'
-      };
-    } catch (error) {
-      return this.handleError(`Erreur lors du changement de statut de la ligne ${id}`, error);
+    if (result.success) {
+      this.clearCache('lines');
+      this.clearCache(`line:${id}`);
     }
+
+    return result as ApiResponse<SotralLine>;
   }
 
   // ==========================================
@@ -100,140 +227,106 @@ class AdminSotralService {
   // ==========================================
 
   async getTicketTypes(): Promise<ApiResponse<SotralTicketType[]>> {
-    try {
-      const cacheKey = 'sotral:ticket-types';
-      const cached = this.getCachedData<SotralTicketType[]>(cacheKey);
-      if (cached) {
-        return { success: true, data: cached };
-      }
-
-      const payload = await apiClient.get<any>(`${this.baseUrl}/ticket-types`);
-      const data = payload?.data ?? payload ?? [];
-      this.setCachedData(cacheKey, data, 10);
-      return { success: true, data };
-    } catch (error) {
-      return this.handleError('Erreur lors de la récupération des types de tickets', error);
-    }
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/ticket-types`),
+      'ticket-types'
+    ) as Promise<ApiResponse<SotralTicketType[]>>;
   }
 
   async createTicketType(typeData: Partial<SotralTicketType>): Promise<ApiResponse<SotralTicketType>> {
-    try {
-      const payload = await apiClient.post<any>(`${this.baseUrl}/ticket-types`, typeData);
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: 'Type de ticket créé avec succès'
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la création du type de ticket', error);
+    const result = await this.handleApiCall(
+      () => apiClient.post(`${this.config.baseUrl}/ticket-types`, typeData),
+      undefined,
+      true
+    );
+
+    if (result.success) {
+      this.clearCache('ticket-types');
     }
+
+    return result as ApiResponse<SotralTicketType>;
   }
 
   // ==========================================
   // GÉNÉRATION DE TICKETS
   // ==========================================
 
-  async generateTickets(
-    lineId: number,
-    ticketTypeCode: string,
-    quantity: number,
-    validityHours?: number
-  ): Promise<ApiResponse<any>> {
-    try {
-      const requestData: TicketGenerationRequest = {
-        lineId,
-        ticketTypeCode,
-        quantity,
-        validityHours
-      };
-
-      const payload = await apiClient.post<any>(`${this.baseUrl}/generate-tickets`, requestData);
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: `${quantity} tickets générés avec succès`
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la génération de tickets', error);
-    }
+  async generateTickets(request: TicketGenerationRequest): Promise<ApiResponse<any>> {
+    return this.handleApiCall(
+      () => apiClient.post(`${this.config.baseUrl}/generate-tickets`, request),
+      undefined,
+      true
+    );
   }
 
-  async generateBulkTickets(requests: TicketGenerationRequest[]): Promise<ApiResponse<any>> {
-    try {
-      const requestData: BulkTicketGenerationRequest = { requests };
-
-      const payload = await apiClient.post<any>(`${this.baseUrl}/bulk-generate-tickets`, requestData);
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: 'Génération en lot réussie'
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la génération en lot', error);
-    }
+  async generateBulkTickets(request: BulkTicketGenerationRequest): Promise<ApiResponse<any>> {
+    return this.handleApiCall(
+      () => apiClient.post(`${this.config.baseUrl}/bulk-generate-tickets`, request),
+      undefined,
+      true
+    );
   }
 
   // ==========================================
   // GESTION DES TICKETS
   // ==========================================
 
-  async getTickets(filters?: TicketFilters): Promise<ApiResponse<PaginatedResponse<SotralTicketWithDetails>>> {
-    try {
-      const params = new URLSearchParams();
-      
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== '') {
-            params.append(key, value.toString());
-          }
-        });
-      }
+  async getTickets(filters?: TicketFilters): Promise<ApiResponse<PaginatedResponse<SotralTicket>>> {
+    const params = new URLSearchParams();
 
-      const payload = await apiClient.get<any>(`${this.baseUrl}/tickets?${params.toString()}`);
-      return {
-        success: true,
-        data: payload?.data ?? payload
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la récupération des tickets', error);
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, value.toString());
+        }
+      });
     }
+
+    const queryString = params.toString();
+    const cacheKey = queryString ? `tickets:${queryString}` : 'tickets';
+
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/tickets?${queryString}`),
+      cacheKey,
+      true // Skip cache pour les données paginées
+    ) as Promise<ApiResponse<PaginatedResponse<SotralTicket>>>;
   }
 
-  async getTicketById(id: number): Promise<ApiResponse<SotralTicketWithDetails>> {
-    try {
-      const payload = await apiClient.get<any>(`${this.baseUrl}/tickets/${id}`);
-      return {
-        success: true,
-        data: payload?.data ?? payload
-      };
-    } catch (error) {
-      return this.handleError(`Erreur lors de la récupération du ticket ${id}`, error);
-    }
+  async getTicketById(id: number): Promise<ApiResponse<SotralTicket>> {
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/tickets/${id}`),
+      `ticket:${id}`
+    ) as Promise<ApiResponse<SotralTicket>>;
   }
 
-  async updateTicketStatus(id: number, status: string): Promise<ApiResponse<SotralTicketWithDetails>> {
-    try {
-      const payload = await apiClient.patch<any>(`${this.baseUrl}/tickets/${id}/status`, { status });
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: 'Statut du ticket mis à jour'
-      };
-    } catch (error) {
-      return this.handleError(`Erreur lors de la mise à jour du statut du ticket ${id}`, error);
+  async updateTicketStatus(id: number, status: string): Promise<ApiResponse<SotralTicket>> {
+    const result = await this.handleApiCall(
+      () => apiClient.patch(`${this.config.baseUrl}/tickets/${id}/status`, { status }),
+      undefined,
+      true
+    );
+
+    if (result.success) {
+      this.clearCache('tickets');
+      this.clearCache(`ticket:${id}`);
     }
+
+    return result as ApiResponse<SotralTicket>;
   }
 
   async deleteTicket(id: number): Promise<ApiResponse<void>> {
-    try {
-      await apiClient.delete(`${this.baseUrl}/tickets/${id}`);
-      return {
-        success: true,
-        message: 'Ticket supprimé avec succès'
-      };
-    } catch (error) {
-      return this.handleError(`Erreur lors de la suppression du ticket ${id}`, error);
+    const result = await this.handleApiCall(
+      () => apiClient.delete(`${this.config.baseUrl}/tickets/${id}`),
+      undefined,
+      true
+    );
+
+    if (result.success) {
+      this.clearCache('tickets');
+      this.clearCache(`ticket:${id}`);
     }
+
+    return result as ApiResponse<void>;
   }
 
   // ==========================================
@@ -241,141 +334,46 @@ class AdminSotralService {
   // ==========================================
 
   async getAnalytics(dateFrom?: string, dateTo?: string): Promise<ApiResponse<AnalyticsData>> {
-    try {
-      const params = new URLSearchParams();
-      if (dateFrom) params.append('dateFrom', dateFrom);
-      if (dateTo) params.append('dateTo', dateTo);
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
 
-      const payload = await apiClient.get<any>(`${this.baseUrl}/analytics?${params.toString()}`);
-      return {
-        success: true,
-        data: payload?.data ?? payload
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la récupération des analytics', error);
-    }
+    const queryString = params.toString();
+    const cacheKey = queryString ? `analytics:${queryString}` : 'analytics';
+
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/analytics?${queryString}`),
+      cacheKey
+    ) as Promise<ApiResponse<AnalyticsData>>;
   }
 
   async getRevenueSummary(period: 'day' | 'week' | 'month' | 'year' = 'month'): Promise<ApiResponse<any>> {
-    try {
-      const payload = await apiClient.get<any>(`${this.baseUrl}/analytics/revenue?period=${period}`);
-      return {
-        success: true,
-        data: payload?.data ?? payload
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la récupération du résumé des revenus', error);
-    }
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/analytics/revenue?period=${period}`),
+      `revenue:${period}`
+    );
   }
 
   async getPopularLines(limit: number = 10): Promise<ApiResponse<any>> {
-    try {
-      const payload = await apiClient.get<any>(`${this.baseUrl}/analytics/popular-lines?limit=${limit}`);
-      return {
-        success: true,
-        data: payload?.data ?? payload
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la récupération des lignes populaires', error);
-    }
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/analytics/popular-lines?limit=${limit}`),
+      `popular-lines:${limit}`
+    );
   }
 
   // ==========================================
-  // UTILITAIRES
+  // MÉTHODES UTILITAIRES PUBLIQUES
   // ==========================================
 
-  async downloadTicketQR(ticketId: number): Promise<Blob> {
-    try {
-      const payload = await apiClient.get<Blob>(`${this.baseUrl}/tickets/${ticketId}/qr`, {
-        responseType: 'blob' as any
-      } as any);
-      return payload;
-    } catch (error) {
-      throw new Error('Erreur lors du téléchargement du QR code');
-    }
-  }
-
-  async exportTickets(filters?: TicketFilters, format: 'csv' | 'xlsx' = 'csv'): Promise<Blob> {
-    try {
-      const params = new URLSearchParams();
-      params.append('format', format);
-      
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== '') {
-            params.append(key, value.toString());
-          }
-        });
-      }
-
-      const payload = await apiClient.get<Blob>(`${this.baseUrl}/tickets/export?${params.toString()}`, {
-        responseType: 'blob' as any
-      } as any);
-      return payload;
-    } catch (error) {
-      throw new Error('Erreur lors de l\'exportation des tickets');
-    }
-  }
-
-  async validateTicket(ticketCode: string): Promise<ApiResponse<any>> {
-    try {
-      const payload = await apiClient.post<any>(`${this.baseUrl}/tickets/validate`, { ticketCode });
-      return {
-        success: true,
-        data: payload?.data ?? payload,
-        message: 'Ticket validé avec succès'
-      };
-    } catch (error) {
-      return this.handleError('Erreur lors de la validation du ticket', error);
-    }
-  }
-
-  // ==========================================
-  // GESTION D'ERREURS
-  // ==========================================
-
-  private handleError(message: string, error: any): ApiResponse<any> {
-    console.error(message, error);
-    
-    let errorMessage = message;
-    
-    if (error?.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    } else if (error?.message) {
-      errorMessage = error.message;
-    }
-
-    return {
-      success: false,
-      error: errorMessage
-    };
-  }
-
-  // ==========================================
-  // CACHE ET OPTIMISATIONS
-  // ==========================================
-
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-
-  private getCachedData<T>(key: string): T | null {
-    const cached = this.cache.get(key);
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data;
-    }
-    this.cache.delete(key);
-    return null;
-  }
-
-  private setCachedData(key: string, data: any, ttlMinutes: number = 5): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl: ttlMinutes * 60 * 1000
-    });
-  }
-
-  clearCache(): void {
+  clearAllCache(): void {
     this.cache.clear();
+  }
+
+  getCacheStats(): { size: number; keys: string[] } {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys())
+    };
   }
 }
 

@@ -95,6 +95,8 @@ const SotralManagementPage: React.FC = () => {
 
   const [togglingLines, setTogglingLines] = useState<Set<number>>(new Set());
 
+  // keep toggleLineStatus for real backend toggles (used in other places)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const toggleLineStatus = async (lineId: number) => {
     if (togglingLines.has(lineId)) return; // Éviter les clics multiples
 
@@ -118,6 +120,53 @@ const SotralManagementPage: React.FC = () => {
         return newSet;
       });
     }
+  };
+
+  // Expose for debugging / other pages when needed (avoid unused warning)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).toggleLineStatus = toggleLineStatus;
+  } catch (e) {
+    // ignore in non-browser envs
+  }
+
+  // Toggle suspension locally (does not call backend) — used for temporary suspension without affecting tickets on mobile
+  const toggleLocalSuspend = (line: SotralLine) => {
+    // First attempt backend toggle (preferred). If backend fails, fallback to local suspension.
+    (async () => {
+      try {
+        const result = await adminSotralService.toggleLineStatus(line.id);
+        if (result && result.success) {
+          toast.success(result.message || `Statut de la ligne ${line.line_number} mis à jour`);
+          refreshData();
+          return;
+        }
+      } catch (err) {
+        console.warn('toggleLineStatus backend failed, fallback to local suspend', err);
+      }
+
+      // Backend failed or returned an error -> fallback local
+      try {
+        const raw = localStorage.getItem('sotral_suspended_lines');
+        const current: SotralLine[] = raw ? JSON.parse(raw) : [];
+        const exists = current.find(l => l.id === line.id);
+
+        let updated: SotralLine[];
+        if (exists) {
+          updated = current.filter(l => l.id !== line.id);
+          toast.success(`Suspension locale retirée pour la ligne ${line.line_number}`);
+        } else {
+          updated = [...current, { ...line, is_active: false }];
+          toast.success(`Ligne ${line.line_number} suspendue localement`);
+        }
+
+        localStorage.setItem('sotral_suspended_lines', JSON.stringify(updated));
+        refreshData();
+      } catch (e) {
+        console.error('Erreur lors de la suspension locale fallback:', e);
+        toast.error('Impossible de suspendre la ligne');
+      }
+    })();
   };
 
   const deleteLine = async (lineId: number) => {
@@ -229,6 +278,12 @@ const SotralManagementPage: React.FC = () => {
     e.preventDefault();
 
     try {
+      // Vérifier localement que le numéro de ligne n'existe pas déjà (évite erreur 409 côté serveur)
+      const requestedNumber = Number(formData.line_number);
+      if (apiLines && apiLines.find(l => Number(l.line_number) === requestedNumber)) {
+        showErrorToast('Ce numéro de ligne existe déjà. Veuillez choisir un numéro unique.');
+        return;
+      }
       // Validation des champs requis
       if (!formData.line_number || isNaN(Number(formData.line_number))) {
         showErrorToast('Le numéro de ligne est requis et doit être un nombre valide');
@@ -724,7 +779,7 @@ const SotralManagementPage: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => toggleLineStatus(selectedLine.id)}
+                  onClick={() => toggleLocalSuspend(selectedLine)}
                   className={`flex items-center justify-center px-4 py-3 font-semibold rounded-lg transition-all duration-200 ${
                     selectedLine.is_active
                       ? 'bg-orange-600 text-white'

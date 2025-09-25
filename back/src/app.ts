@@ -150,13 +150,20 @@ app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/tickets', ticketsRoutesSimple);
 app.use('/sotral', sotralRoutes);
+
+// Mount specific admin feature routes first to avoid being shadowed by the generic /admin router
+// (e.g. DELETE /admin/tickets must be handled by adminTicketsRoutes, not by adminRoutes which only
+// registers GET/PATCH for /tickets and would otherwise return the Express HTML 404 "Cannot DELETE /admin/tickets").
+app.use('/admin/tickets', adminTicketsRoutes);
+app.use('/admin/sotral', adminSotralRoutes);
+
+// Mount the generic admin router after specific admin sub-routers
 app.use('/admin', adminRoutes);
-// Route de test publique pour valider le déploiement (doit être placée avant le montage des routes admin/tickets)
+
+// Route de test publique pour valider le déploiement (placed after mounts for clarity)
 app.get('/admin/tickets/test', (req: Request, res: Response) => {
   res.json({ success: true, message: 'admin tickets test route active' });
 });
-app.use('/admin/tickets', adminTicketsRoutes);
-app.use('/admin/sotral', adminSotralRoutes);
 app.use('/support', supportRoutes);
 
 // Route de test pour vérifier que les routes admin tickets sont bien exposées sur le serveur déployé

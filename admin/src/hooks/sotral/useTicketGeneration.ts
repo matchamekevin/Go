@@ -20,12 +20,8 @@ export const useTicketGeneration = () => {
     setGenerationState({ isLoading: true, error: null });
     
     try {
-      const response = await adminSotralService.generateTickets(
-        request.lineId,
-        request.ticketTypeCode,
-        request.quantity,
-        request.validityHours
-      );
+      // adminSotralService.generateTickets expects a single request object
+      const response = await adminSotralService.generateTickets(request);
 
       setGenerationState({ isLoading: false, error: null });
       
@@ -48,7 +44,7 @@ export const useTicketGeneration = () => {
     setGenerationState({ isLoading: true, error: null });
     
     try {
-      const response = await adminSotralService.generateBulkTickets(request.requests);
+  const response = await adminSotralService.generateBulkTickets(request);
 
       setGenerationState({ isLoading: false, error: null });
       

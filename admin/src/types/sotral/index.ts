@@ -3,6 +3,9 @@ export interface SotralLine {
   id: number;
   line_name: string;
   line_number: string;
+  name?: string; // Alternative name field for compatibility
+  route_from?: string;
+  route_to?: string;
   distance_km: string;
   stops_count: number;
   price_range: string;

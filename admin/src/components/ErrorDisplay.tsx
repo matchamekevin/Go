@@ -2,7 +2,7 @@ import React from 'react';
 import { XCircle, AlertTriangle, Info } from 'lucide-react';
 
 interface ApiError {
-  type: 'auth' | 'server' | 'network' | 'empty' | 'validation' | 'not_found';
+  type: 'auth' | 'server' | 'network' | 'empty' | 'validation' | 'not_found' | 'unknown';
   message: string;
   details?: string;
   suggestion?: string;

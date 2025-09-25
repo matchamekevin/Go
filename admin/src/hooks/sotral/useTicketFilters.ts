@@ -31,7 +31,10 @@ export const useTicketFilters = () => {
       const response = await adminSotralService.getTickets(currentFilters);
       
       if (response.data) {
-        setTickets(response.data.data || []);
+        // The API may return SotralTicket[] but we expect SotralTicketWithDetails[] in UI.
+        // Cast carefully: UI can handle missing optional fields.
+        const data = (response.data.data || []) as unknown as SotralTicketWithDetails[];
+        setTickets(data);
         setPagination(response.data.pagination || pagination);
       }
       
