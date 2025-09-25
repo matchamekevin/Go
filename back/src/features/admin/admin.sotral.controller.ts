@@ -529,6 +529,8 @@ export class AdminSotralController {
    * Supprimer un ticket individuel
    */
   async deleteTicket(req: Request, res: Response): Promise<void> {
+    const client = await pool.connect();
+
     try {
       const { id } = req.params;
       const ticketId = parseInt(id);
@@ -541,9 +543,15 @@ export class AdminSotralController {
         return;
       }
 
+      // Démarrer la transaction
+      await client.query('BEGIN');
+
       // Vérifier que le ticket existe
-      const ticket = await sotralRepository.getTicketById(ticketId);
-      if (!ticket) {
+      const ticketQuery = 'SELECT id FROM sotral_tickets WHERE id = $1';
+      const ticketResult = await client.query(ticketQuery, [ticketId]);
+
+      if (ticketResult.rows.length === 0) {
+        await client.query('ROLLBACK');
         res.status(404).json({
           success: false,
           error: 'Ticket non trouvé'
@@ -553,9 +561,10 @@ export class AdminSotralController {
 
       // Supprimer le ticket
       const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = $1';
-      const deleteResult = await pool.query(deleteQuery, [ticketId]);
+      const deleteResult = await client.query(deleteQuery, [ticketId]);
 
       if (deleteResult.rowCount === 0) {
+        await client.query('ROLLBACK');
         res.status(404).json({
           success: false,
           error: 'Ticket non trouvé'
@@ -563,16 +572,22 @@ export class AdminSotralController {
         return;
       }
 
+      // Valider la transaction
+      await client.query('COMMIT');
+
       res.json({
         success: true,
         message: 'Ticket supprimé avec succès'
       });
     } catch (error) {
+      await client.query('ROLLBACK');
       console.error('Erreur deleteTicket:', error);
       res.status(500).json({
         success: false,
         error: 'Erreur lors de la suppression du ticket'
       });
+    } finally {
+      client.release();
     }
   }
 }
