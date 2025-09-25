@@ -28,7 +28,7 @@ import { adminSotralService } from '../services/adminSotralService';
 const SotralManagementPage: React.FC = () => {
   // Use custom hooks for API calls
   const { lines: apiLines, loading: linesLoading, error: linesError, loadLines, isUsingCache } = useSotralLines();
-  const { stops, loading: stopsLoading, error: stopsError, loadStops } = useSotralStops();
+  const { loading: stopsLoading, error: stopsError, loadStops } = useSotralStops();
   const { stats, loading: statsLoading, error: statsError, loadStats } = useSotralStats();
 
   // Les lignes viennent directement de l'API (toutes, actives et inactives)

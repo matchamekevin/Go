@@ -3,6 +3,7 @@
 Système de billetterie électronique pour les transports en commun SOTRAL.
 
 ## 📁 **Structure Organisée du Projet**
+
 ```
 ├── 📖 docs/                    # Documentation centralisée
 │   ├── guides/                # Guides utilisateur & technique
@@ -10,7 +11,7 @@ Système de billetterie électronique pour les transports en commun SOTRAL.
 │   ├── api/                   # Documentation API
 │   └── deployment-solutions.md
 ├── 🔧 scripts/                 # Scripts automatisation & tests
-├── ⚙️  admin/                  # Interface administration Web
+├── ⚙️ admin/                   # Interface administration Web
 ├── 🚀 back/                    # Backend Node.js/Express API
 ├── 📱 front/                   # App mobile utilisateur (React Native)
 ├── 📱 scan/                    # App mobile scanner QR
@@ -37,11 +38,12 @@ cd /home/connect/kev/Go/front && npm run android
 ```
 
 ### ✅ Vérification rapide
+
 ```bash
 # Backend OK ?
 curl -i http://localhost:7000/health
 
-# App mobile OK ? 
+# App mobile OK ?
 # → Dev Menu automatique > Test Connectivité Réseau
 ```
 
@@ -117,38 +119,47 @@ Après déploiement :
 ## 📁 **Structure & Commandes**
 
 ### `/back` - API Backend ⭐
+
 ```bash
 cd /home/connect/kev/Go/back
 docker compose up -d --build    # Démarrer
 docker compose logs -f api      # Voir les logs
 curl http://localhost:7000/health # Tester
 ```
+
 **Tech**: Node.js + TypeScript + Express + PostgreSQL
 
-### `/front` - App Mobile Utilisateur ⭐  
+### `/front` - App Mobile Utilisateur ⭐
+
 ```bash
 cd /home/connect/kev/Go/front
 npm install && npm run android   # Android
 npm run ios                      # iOS
 npm run web                      # Navigateur
 ```
+
 **Tech**: React Native + Expo + TypeScript
 
 ### `/admin` - Interface Web Admin
+
 ```bash
 cd /home/connect/kev/Go/admin
 npm install && npm run dev       # Port 3000
 ```
+
 **Tech**: React + TypeScript + Vite + Tailwind
 
 ### `/scan` - App Mobile Scanner
+
 ```bash
 cd /home/connect/kev/Go/scan
 npm install && npm start
 ```
+
 **Tech**: React Native + Expo (contrôleurs bus)
 
 ### `/GoSOTRAL_front` - Version Alternative User
+
 **Tech**: React Native + Expo (version alternative de `/front`)
 
 ---
@@ -156,16 +167,18 @@ npm install && npm start
 ## 🔗 **URLs et Endpoints**
 
 ### Backend API (Port 7000)
+
 - `GET /health` - Santé du système
-- `POST /auth/register` - Inscription 
+- `POST /auth/register` - Inscription
 - `POST /auth/login` - Connexion
 - `GET /tickets/products` - Produits tickets
 - `POST /tickets/purchase` - Achat ticket
 - `POST /tickets/validate` - Validation (scan)
 
 ### Configuration Réseau Automatique
+
 - **Simulateur iOS**: `http://localhost:7000`
-- **Android Emulator**: `http://10.0.2.2:7000`  
+- **Android Emulator**: `http://10.0.2.2:7000`
 - **Appareil physique**: `http://192.168.1.184:7000`
 - **Déploiement cloud**: URL automatiquement détectée
 
@@ -174,10 +187,12 @@ npm install && npm start
 ## 👥 **Comptes de Test**
 
 ### Utilisateur Mobile
+
 - Email: `test@example.com`
 - Password: `test123`
 
-### Admin Web  
+### Admin Web
+
 - Email: `admin@gosotral.com`
 - Password: `admin123`
 

@@ -17,23 +17,7 @@ const UserActionsModal: React.FC<Props> = ({ user, isOpen, onClose, onActionComp
 
   if (!user) return null;
 
-  const handleToggle = async () => {
-    try {
-      setLoading(true);
-      const res = await UserService.toggleUserStatus(user.id);
-      if (res.success) {
-        toast.success('Statut modifié');
-        onActionComplete && onActionComplete();
-        onClose();
-      } else {
-        toast.error('Impossible de modifier le statut');
-      }
-    } catch (err: any) {
-      toast.error(err?.message || 'Erreur');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleToggleAdminRole = async () => {
     if (confirmAction !== 'admin') {
