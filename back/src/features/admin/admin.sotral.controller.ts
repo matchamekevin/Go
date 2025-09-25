@@ -16,7 +16,7 @@ export class AdminSotralController {
   async getAllLines(req: Request, res: Response): Promise<void> {
     try {
       const lines = await sotralRepository.getAllLinesForAdmin();
-      
+
       res.json({
         success: true,
         data: lines,
@@ -49,7 +49,7 @@ export class AdminSotralController {
 
       const lineData = validationResult.data;
       const newLine = await sotralRepository.createLine(lineData);
-      
+
       res.status(201).json({
         success: true,
         data: newLine,
@@ -72,7 +72,7 @@ export class AdminSotralController {
     try {
       const { id } = req.params;
       const validationResult = SotralLineSchema.partial().safeParse(req.body);
-      
+
       if (!validationResult.success) {
         res.status(400).json({
           success: false,
@@ -84,7 +84,7 @@ export class AdminSotralController {
 
       const lineData = validationResult.data;
       const updatedLine = await sotralRepository.updateLine(parseInt(id), lineData);
-      
+
       if (!updatedLine) {
         res.status(404).json({
           success: false,
@@ -115,7 +115,7 @@ export class AdminSotralController {
     try {
       const { id } = req.params;
       const deleted = await sotralRepository.deleteLine(parseInt(id));
-      
+
       if (!deleted) {
         res.status(404).json({
           success: false,
@@ -188,7 +188,7 @@ export class AdminSotralController {
   async getAllStops(req: Request, res: Response): Promise<void> {
     try {
       const stops = await sotralRepository.getAllStops();
-      
+
       res.json({
         success: true,
         data: stops,
@@ -221,7 +221,7 @@ export class AdminSotralController {
 
       const stopData = validationResult.data;
       const newStop = await sotralRepository.createStop(stopData);
-      
+
       res.status(201).json({
         success: true,
         data: newStop,
@@ -247,7 +247,7 @@ export class AdminSotralController {
   async getTicketTypes(req: Request, res: Response): Promise<void> {
     try {
       const ticketTypes = await sotralRepository.getAllTicketTypes();
-      
+
       res.json({
         success: true,
         data: ticketTypes,
@@ -280,7 +280,7 @@ export class AdminSotralController {
 
       const ticketTypeData = validationResult.data;
       const newTicketType = await sotralRepository.createTicketType(ticketTypeData);
-      
+
       res.status(201).json({
         success: true,
         data: newTicketType,
@@ -305,11 +305,11 @@ export class AdminSotralController {
    */
   async generateTicketsForLine(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        lineId, 
-        ticketTypeCode, 
-        quantity = 100, 
-        validityHours = 24 
+      const {
+        lineId,
+        ticketTypeCode,
+        quantity = 100,
+        validityHours = 24
       } = req.body;
 
       if (!lineId || !ticketTypeCode) {
@@ -362,10 +362,10 @@ export class AdminSotralController {
    */
   async bulkGenerateTickets(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        ticketTypeCode = 'SIMPLE', 
-        quantityPerLine = 50, 
-        validityHours = 24 
+      const {
+        ticketTypeCode = 'SIMPLE',
+        quantityPerLine = 50,
+        validityHours = 24
       } = req.body;
 
       // Récupérer toutes les lignes actives
@@ -433,12 +433,12 @@ export class AdminSotralController {
   async getDashboardStats(req: Request, res: Response): Promise<void> {
     try {
       const { dateFrom, dateTo } = req.query;
-      
+
       const dateFromObj = dateFrom ? new Date(dateFrom as string) : undefined;
       const dateToObj = dateTo ? new Date(dateTo as string) : undefined;
-      
+
       const stats = await sotralRepository.getAdminStats(dateFromObj, dateToObj);
-      
+
       // Ajouter des statistiques supplémentaires
       const lines = await sotralRepository.getAllLines();
       const ticketTypes = await sotralRepository.getAllTicketTypes();
@@ -454,7 +454,7 @@ export class AdminSotralController {
           ticket_types: ticketTypes.length
         }
       };
-      
+
       res.json({
         success: true,
         data: enhancedStats
@@ -551,22 +551,32 @@ export class AdminSotralController {
         return;
       }
 
-      // Supprimer le ticket
-      const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = $1';
-      const deleteResult = await pool.query(deleteQuery, [ticketId]);
+      // Supprimer le ticket avec transaction
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
 
-      if (deleteResult.rowCount === 0) {
-        res.status(404).json({
-          success: false,
-          error: 'Ticket non trouvé'
+        const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = $1';
+        const deleteResult = await client.query(deleteQuery, [ticketId]);
+
+        if (deleteResult.rowCount === 0) {
+          await client.query('ROLLBACK');
+          res.status(404).json({
+            success: false,
+            error: 'Ticket non trouvé'
+          });
+          return;
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Ticket supprimé avec succès'
         });
-        return;
+      } finally {
+        client.release();
       }
-
-      res.json({
-        success: true,
-        message: 'Ticket supprimé avec succès'
-      });
     } catch (error) {
       console.error('Erreur deleteTicket:', error);
       res.status(500).json({
