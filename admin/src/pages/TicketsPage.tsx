@@ -432,34 +432,55 @@ const SotralTicketManagementPage: React.FC = () => {
     if (ids.length === 0) return;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/tickets`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ids })
-      });
-      // read text first (some responses may be empty or not valid JSON)
-      const text = await response.text().catch(() => '');
-      let payload: any = {};
-      if (text) {
-        try {
-          payload = JSON.parse(text);
-        } catch (e) {
-          payload = { raw: text };
+      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000';
+
+      const doDelete = async (url: string) => {
+        const resp = await fetch(url, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ids })
+        });
+        const text = await resp.text().catch(() => '');
+        let payload: any = {};
+        if (text) {
+          try { payload = JSON.parse(text); } catch (e) { payload = { raw: text }; }
         }
+        return { resp, payload, text };
+      };
+
+      // Try the primary endpoint first
+      let result = await doDelete(`${base}/admin/tickets`);
+
+      // If the server returned an HTML 404 like "Cannot DELETE /admin/tickets", try the alias endpoint
+      const isHtml = typeof result.text === 'string' && result.text.trim().startsWith('<!DOCTYPE html>');
+      const htmlContainsCannotDelete = isHtml && /Cannot\s+DELETE\s+\/admin\/tickets/i.test(result.text);
+      if ((result.resp.status === 404 && isHtml) || htmlContainsCannotDelete) {
+        console.warn('Primary delete returned HTML 404; retrying alias /admin/tickets/tickets');
+        result = await doDelete(`${base}/admin/tickets/tickets`);
       }
+
+      const response = result.resp;
+      const payload = result.payload;
 
       if (response.ok) {
         const successMessage = payload?.message || `${ids.length} ticket(s) supprimé(s)`;
         toast.success(successMessage);
-        // Retirer des états locaux
         setTickets(prev => prev.filter(t => !ids.includes(t.id)));
         setSelectedTicketIds(prev => prev.filter(id => !ids.includes(id)));
         setApiError(null);
       } else {
-        const serverMsg = payload?.error || payload?.message || payload?.raw || `HTTP ${response.status} ${response.statusText}`;
+        // If server returned HTML, try to extract the <pre> content or fallback to status
+        let serverMsg: string;
+        if (payload?.raw && typeof payload.raw === 'string' && payload.raw.trim().startsWith('<')) {
+          const m = payload.raw.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+          serverMsg = m ? m[1].trim() : `Erreur serveur (HTML ${response.status})`;
+        } else {
+          serverMsg = payload?.error || payload?.message || payload?.raw || `HTTP ${response.status} ${response.statusText}`;
+        }
+
         const details = typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg);
         setApiError({ type: 'server', message: 'Erreur lors de la suppression des tickets', details });
         showErrorToast(`Erreur lors de la suppression des tickets: ${details}`);
