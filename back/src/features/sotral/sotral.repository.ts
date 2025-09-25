@@ -24,9 +24,10 @@ export class SotralRepository {
   // GESTION DES LIGNES
   // ==========================================
 
-  async getAllLines(): Promise<SotralLineWithDetails[]> {
+  async getAllLines(includeInactive: boolean = false): Promise<SotralLineWithDetails[]> {
     const client = await pool.connect();
     try {
+      // When includeInactive is true, do not filter by is_active
       const query = `
         SELECT 
           l.*,
@@ -34,7 +35,7 @@ export class SotralRepository {
           c.description as category_description
         FROM sotral_lines l
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
-        WHERE l.is_active = true
+        ${includeInactive ? '' : 'WHERE l.is_active = true'}
         ORDER BY l.line_number ASC
       `;
       

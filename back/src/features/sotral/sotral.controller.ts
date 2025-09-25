@@ -20,7 +20,8 @@ export class SotralController {
    */
   async getAllLines(req: Request, res: Response): Promise<void> {
     try {
-      const lines = await sotralRepository.getAllLines();
+      const includeInactive = req.query.includeInactive === 'true' || req.query.includeInactive === '1';
+      const lines = await sotralRepository.getAllLines(includeInactive as boolean);
       res.json({
         success: true,
         data: lines,

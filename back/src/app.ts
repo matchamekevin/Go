@@ -174,4 +174,13 @@ app.get('/admin/tickets/test', (req: Request, res: Response) => {
   res.json({ success: true, message: 'admin tickets test route active' });
 });
 
+// --- Admin JSON fallback --------------------------------------------------
+// If a request targets /admin/* but no specific route handled it (e.g. method
+// not allowed or missing in the deployed build), Express returns an HTML 404
+// page. That breaks API clients expecting JSON. Provide a JSON fallback for
+// all /admin paths so the frontend receives a predictable JSON error shape.
+app.use('/admin', (req: Request, res: Response) => {
+  res.status(404).json({ success: false, error: `Cannot ${req.method} ${req.originalUrl}` });
+});
+
 export default app;
