@@ -28,46 +28,11 @@ export default function SearchTab() {
   const requestIdRef = useRef(0);
   const MIN_QUERY_LENGTH = 1; // déclencher dès 1 caractère
 
-  const popularLocations = React.useMemo(() => [
-    'Centre-ville', 'Aéroport', 'Université', 'Marché central', 
-    'Gare routière', 'Plateau', 'Zone industrielle', 'Hôpital'
-  ], []);
-
-  const searchResults = [
-    {
-      id: 1,
-      type: 'Bus rapide',
-      company: 'SOTRAL Express',
-      departure: '08:30',
-      arrival: '09:15',
-      duration: '45 min',
-      price: '2500 FCFA',
-      seats: 12,
-      rating: 4.8,
-    },
-    {
-      id: 2,
-      type: 'Bus urbain',
-      company: 'Transport City',
-      departure: '09:00',
-      arrival: '09:30',
-      duration: '30 min',
-      price: '1500 FCFA',
-      seats: 8,
-      rating: 4.5,
-    },
-    {
-      id: 3,
-      type: 'Métro',
-      company: 'Metro Line 1',
-      departure: '09:15',
-      arrival: '09:35',
-      duration: '20 min',
-      price: '1000 FCFA',
-      seats: 25,
-      rating: 4.9,
-    },
-  ];
+  const popularLocations = React.useMemo(() => {
+    // Les emplacements populaires viennent maintenant de l'admin via l'API
+    // Cette liste sera remplacée par des données dynamiques de l'admin
+    return [];
+  }, []);
 
   const swapLocations = () => {
     const temp = fromLocation;
@@ -111,22 +76,8 @@ export default function SearchTab() {
 
       // If no API results, try local popularLocations that start with the query
       if (finalResults.length === 0) {
-        const local = popularLocations.filter((loc) => loc.toLowerCase().startsWith(qStart));
-        if (local.length > 0) {
-          finalResults = local.map((loc, idx) => ({
-            id: `suggest-${idx}`,
-            type: 'Suggestion',
-            company: '',
-            departure: '',
-            arrival: '',
-            duration: '',
-            price: '',
-            seats: 0,
-            rating: 0,
-            from: loc,
-            to: '',
-          }));
-        }
+        // Plus de données locales hardcodées - utiliser uniquement l'API admin
+        finalResults = [];
       }
 
       if (myRequestId === requestIdRef.current) {
