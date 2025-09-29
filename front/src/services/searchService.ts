@@ -25,6 +25,16 @@ export class SearchService {
     try {
       console.log('[SearchService] Début de la recherche pour:', query);
 
+      // Test simple de l'endpoint generated-tickets
+      console.log('[SearchService] Test de l\'endpoint generated-tickets...');
+      try {
+        const testResponse = await apiClient.get('/sotral/generated-tickets');
+        console.log('[SearchService] Test réussi:', testResponse);
+      } catch (testError) {
+        console.error('[SearchService] Test échoué:', testError);
+        return this.getFallbackResults(query);
+      }
+
       // Récupérer les lignes SOTRAL
       const linesResponse = await apiClient.get<ApiResponse<SotralLine[]>>('/sotral/lines');
       console.log('[SearchService] Réponse lignes:', {
@@ -50,10 +60,25 @@ export class SearchService {
       
       // Récupérer les tickets générés pour voir les prix réels
       const generatedTicketsResponse = await apiClient.get<ApiResponse<SotralTicket[]>>('/sotral/generated-tickets');
-      console.log('[SearchService] Réponse tickets générés:', {
+      console.log('[SearchService] Réponse tickets générés complète:', {
         success: generatedTicketsResponse.success,
-        count: generatedTicketsResponse.data?.length || 0
+        count: generatedTicketsResponse.count,
+        dataLength: generatedTicketsResponse.data?.length || 0,
+        pagination: generatedTicketsResponse.pagination,
+        error: generatedTicketsResponse.error,
+        fullResponse: generatedTicketsResponse
       });
+
+      // Validation manuelle de la réponse
+      if (!generatedTicketsResponse.success) {
+        console.error('[SearchService] Réponse tickets générés invalide:', generatedTicketsResponse);
+        return this.getFallbackResults(query);
+      }
+
+      if (!generatedTicketsResponse.data || !Array.isArray(generatedTicketsResponse.data)) {
+        console.error('[SearchService] Données tickets générés invalides:', generatedTicketsResponse.data);
+        return this.getFallbackResults(query);
+      }
 
       const generatedTickets = generatedTicketsResponse.success ? generatedTicketsResponse.data || [] : [];
 

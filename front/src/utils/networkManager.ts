@@ -136,6 +136,13 @@ class NetworkManager {
   }
 
   async getCurrentEndpoint(): Promise<string | null> {
+    // En développement, forcer localhost pour les tests
+    if (__DEV__) {
+      console.log('[NetworkManager] Mode développement: forçage localhost');
+      this.config.current = 'http://localhost:7000';
+      return 'http://localhost:7000';
+    }
+    
     if (!this.config.current) {
       await this.findBestEndpoint();
     }

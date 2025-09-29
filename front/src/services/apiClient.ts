@@ -126,6 +126,10 @@ class ApiClient {
             status: response.status,
             url: response.config.url,
             baseURL: response.config.baseURL,
+            dataKeys: response.data ? Object.keys(response.data) : 'no-data',
+            dataSuccess: response.data?.success,
+            dataCount: response.data?.count,
+            dataLength: response.data?.data?.length || 'no-data-array'
           });
         }
         return response;
