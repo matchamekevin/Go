@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { ApiResponse, Route, SotralLine } from '../types/api';
+import type { ApiResponse, Route, SotralLine, SotralTicketType, SotralTicket } from '../types/api';
 import { DEV_CONFIG, devLog, devError } from '../config/devConfig';
 
 export interface SearchResult {
@@ -23,15 +23,40 @@ export class SearchService {
     }
 
     try {
-      // Utiliser les lignes SOTRAL au lieu des routes
-      const response = await apiClient.get<ApiResponse<SotralLine[]>>('/sotral/lines');
-      if (!response.success) {
-        devError('SearchService', new Error(response.error || 'API error'), 'searchRoutes');
+      console.log('[SearchService] Début de la recherche pour:', query);
+
+      // Récupérer les lignes SOTRAL
+      const linesResponse = await apiClient.get<ApiResponse<SotralLine[]>>('/sotral/lines');
+      console.log('[SearchService] Réponse lignes:', {
+        success: linesResponse.success,
+        count: linesResponse.data?.length || 0
+      });
+
+      if (!linesResponse.success) {
+        devError('SearchService', new Error(linesResponse.error || 'API error'), 'searchRoutes');
         return this.getFallbackResults(query);
       }
 
-      const lines = response.data || [];
+      const lines = linesResponse.data || [];
       
+      // Récupérer les types de tickets pour avoir les prix
+      const ticketTypesResponse = await apiClient.get<ApiResponse<SotralTicketType[]>>('/sotral/ticket-types');
+      console.log('[SearchService] Réponse types de tickets:', {
+        success: ticketTypesResponse.success,
+        count: ticketTypesResponse.data?.length || 0
+      });
+
+      const ticketTypes = ticketTypesResponse.success ? ticketTypesResponse.data || [] : [];
+      
+      // Récupérer les tickets générés pour voir les prix réels
+      const generatedTicketsResponse = await apiClient.get<ApiResponse<SotralTicket[]>>('/sotral/generated-tickets');
+      console.log('[SearchService] Réponse tickets générés:', {
+        success: generatedTicketsResponse.success,
+        count: generatedTicketsResponse.data?.length || 0
+      });
+
+      const generatedTickets = generatedTicketsResponse.success ? generatedTicketsResponse.data || [] : [];
+
       // Filtrer par la requête si elle existe
       let filteredLines = lines;
       if (query && query.trim()) {
@@ -44,17 +69,39 @@ export class SearchService {
         );
       }
 
-      // Transformer les lignes en résultats de recherche
-      return filteredLines.map(line => ({
-        id: line.id.toString(),
-        from: line.route_from,
-        to: line.route_to,
-        price: '-- FCFA', // Prix déterminé par l'admin lors de la génération des tickets
-        duration: '--', // Durée déterminée par l'admin
-        type: `Ligne ${line.line_number}`,
-        company: line.category?.name || 'SOTRAL'
-      }));
+      console.log('[SearchService] Lignes filtrées:', filteredLines.length);
+
+      // Transformer les lignes en résultats de recherche avec les vrais prix
+      const results = filteredLines.map(line => {
+        // Chercher un ticket généré pour cette ligne pour avoir le prix réel
+        const ticketForLine = generatedTickets.find(ticket => ticket.line_id === line.id);
+        let price = '-- FCFA';
+        
+        if (ticketForLine && ticketForLine.price_paid_fcfa) {
+          price = `${ticketForLine.price_paid_fcfa} FCFA`;
+        } else {
+          // Sinon utiliser le prix du type de ticket par défaut (SIMPLE)
+          const simpleTicketType = ticketTypes.find(type => type.code === 'SIMPLE');
+          if (simpleTicketType && simpleTicketType.price_fcfa) {
+            price = `${simpleTicketType.price_fcfa} FCFA`;
+          }
+        }
+
+        return {
+          id: line.id.toString(),
+          from: line.route_from,
+          to: line.route_to,
+          price: price,
+          duration: '--', // Durée déterminée par l'admin
+          type: `Ligne ${line.line_number}`,
+          company: line.category?.name || 'SOTRAL'
+        };
+      });
+
+      console.log('[SearchService] Résultats finaux:', results.length);
+      return results;
     } catch (error) {
+      console.error('[SearchService] Erreur complète:', error);
       devError('SearchService', error, 'searchRoutes - network');
       return this.getFallbackResults(query);
     }

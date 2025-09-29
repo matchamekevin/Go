@@ -25,7 +25,8 @@ app.use(
       // Autoriser les requêtes sans origine (comme les apps mobiles ou Postman)
       // et les origines localhost pour le développement
       const allowedOrigins = [
-        'http://localhost:3000',  // Vite dev server par défaut
+        'https://go-j2rr.onrender.com', // Production Render
+        'http://localhost:7000',  // Vite dev server par défaut
         'http://localhost:3001',  // Port alternatif
         'http://localhost:3002',  // Port alternatif
         'http://127.0.0.1:3000',

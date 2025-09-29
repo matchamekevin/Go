@@ -39,7 +39,15 @@ export default function TabsLayout() {
           ),
         }}
       />
-  {/* Onglet Billets supprimé */}
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'Historique',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Ionicons name="time" size={24} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

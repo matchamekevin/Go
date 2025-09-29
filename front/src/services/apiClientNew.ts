@@ -32,14 +32,14 @@ class ApiClient {
       const platform = require('react-native').Platform;
       
       if (platform.OS === 'android') {
-        return 'http://10.0.2.2:7000';
+        return 'https://go-j2rr.onrender.com';
       } else if (platform.OS === 'ios') {
-        return 'http://192.168.1.184:7000';
+        return 'https://go-j2rr.onrender.com';
       } else {
-        return 'http://localhost:7000';
+        return 'https://go-j2rr.onrender.com';
       }
     } catch (error) {
-      return 'http://localhost:7000';
+      return 'https://go-j2rr.onrender.com';
     }
   }
 
@@ -47,8 +47,9 @@ class ApiClient {
     if (this.detectedBaseUrl) return;
 
     const candidateUrls = [
-      'http://192.168.1.184:7000', // IP réseau local
-      'http://10.0.2.2:7000',      // Android emulator
+      'https://go-j2rr.onrender.com', // Production Render (priorité 1)
+      'http://192.168.1.184:7000', // IP réseau local (fallback)
+      'http://10.0.2.2:7000',      // Android emulator (fallback)
       'http://127.0.0.1:7000',     // iOS simulator fallback
       'http://localhost:7000',      // Web/fallback
     ];

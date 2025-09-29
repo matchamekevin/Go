@@ -86,8 +86,8 @@ export default function HomeTab() {
                     // Navigue vers l'onglet Recherche et demande focus sur la barre
                     router.push({ pathname: '/(tabs)/search', params: { focus: 'true', focusTs: String(Date.now()) } });
                   } else if (action.id === 3) {
-                    // Navigue vers l'onglet Recherche et demande d'afficher l'historique des billets
-                    router.push({ pathname: '/(tabs)/search', params: { activeTab: 'history', focusTs: String(Date.now()) } });
+                    // Navigue vers la page Historique dédiée
+                    router.push('/(tabs)/history');
                   }
                 }}
               >

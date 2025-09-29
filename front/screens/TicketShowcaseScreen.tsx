@@ -13,8 +13,27 @@ import SOTRALTicketCard from '../components/SOTRALTicketCard';
 
 const { width } = Dimensions.get('window');
 
+// Type pour les tickets
+interface Ticket {
+  id: string;
+  type: 'ordinaire' | 'etudiant';
+  name: string;
+  route: string;
+  price: number;
+  currency: string;
+  ticketType: string;
+  zone?: string;
+  via?: string;
+  destination?: string;
+  achat?: string;
+  carte?: string;
+  origine?: string;
+  code?: string;
+  showQR?: boolean;
+}
+
 // Données des tickets - maintenant gérées par l'admin via l'API backend
-const ticketData = [
+const ticketData: Ticket[] = [
   // Plus de données hardcodées - tous les tickets viennent de l'admin via SotralMobileService.getGeneratedTickets()
 ];
 

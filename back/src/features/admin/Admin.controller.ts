@@ -37,11 +37,39 @@ export class AdminController {
       if (role && role !== 'all') {
         if (role === 'verified') where += ' AND is_verified = true';
         else if (role === 'unverified') where += ' AND is_verified = false';
-        else if (role === 'suspended') where += ' AND COALESCE(is_suspended,false) = true';
+        else if (role === 'suspended') {
+          // Vérifier si la colonne is_suspended existe
+          try {
+            await pool.query("SELECT is_suspended FROM users LIMIT 1");
+            where += ' AND COALESCE(is_suspended,false) = true';
+          } catch (colErr) {
+            // Colonne n'existe pas, ignorer le filtre suspended
+            console.warn('[getAllUsers] Colonne is_suspended inexistante, filtre ignoré');
+          }
+        }
       }
 
       const offset = (page - 1) * limit;
-      const query = `SELECT id, email, name, phone, is_verified::boolean, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) as updated_at FROM users ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
+
+      // Colonnes de base qui existent toujours
+      let selectColumns = 'id, email, name, phone, is_verified::boolean, created_at, COALESCE(updated_at, created_at) as updated_at';
+
+      // Ajouter role et is_suspended si elles existent
+      try {
+        await pool.query("SELECT role FROM users LIMIT 1");
+        selectColumns += ', role';
+      } catch (colErr) {
+        selectColumns += ', \'user\' as role';
+      }
+
+      try {
+        await pool.query("SELECT is_suspended FROM users LIMIT 1");
+        selectColumns += ', COALESCE(is_suspended,false) as is_suspended';
+      } catch (colErr) {
+        selectColumns += ', false as is_suspended';
+      }
+
+      const query = `SELECT ${selectColumns} FROM users ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
       params.push(limit, offset);
 
       const data = await pool.query(query, params);
@@ -164,58 +192,65 @@ export class AdminController {
   // ---------- DASHBOARD / REPORTS ----------
   static async getDashboardStats(_req: AuthenticatedRequest, res: Response) {
     try {
-      // Statistiques utilisateurs
-      const totalUsers = await pool.query('SELECT COUNT(*)::int as total FROM users');
-      const verifiedUsers = await pool.query('SELECT COUNT(*)::int as total FROM users WHERE is_verified = true');
-      const newUsersMonth = await pool.query("SELECT COUNT(*)::int as total FROM users WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'");
+      // Statistiques utilisateurs (toujours disponibles)
+      const totalUsers = await pool.query('SELECT COUNT(*)::int as total FROM users').catch(() => ({ rows: [{ total: 0 }] }));
+      const verifiedUsers = await pool.query('SELECT COUNT(*)::int as total FROM users WHERE is_verified = true').catch(() => ({ rows: [{ total: 0 }] }));
+      const newUsersMonth = await pool.query("SELECT COUNT(*)::int as total FROM users WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'").catch(() => ({ rows: [{ total: 0 }] }));
 
-      // Statistiques tickets SOTRAL
-      const totalTickets = await pool.query('SELECT COUNT(*)::int as total FROM sotral_tickets');
-      const usedTickets = await pool.query("SELECT COUNT(*)::int as total FROM sotral_tickets WHERE status = 'used'");
-      const ticketsMonth = await pool.query("SELECT COUNT(*)::int as total FROM sotral_tickets WHERE purchased_at >= CURRENT_DATE - INTERVAL '30 days'");
+      // Statistiques tickets SOTRAL (avec fallback si tables n'existent pas)
+      let totalTickets = { rows: [{ total: 0 }] };
+      let usedTickets = { rows: [{ total: 0 }] };
+      let ticketsMonth = { rows: [{ total: 0 }] };
+      let totalRevenue = { rows: [{ total: 0 }] };
+      let revenueMonth = { rows: [{ total: 0 }] };
+      let totalPayments = { rows: [{ total: 0 }] };
+      let paymentsMonth = { rows: [{ total: 0 }] };
+      let activeLines = { rows: [{ total: 0 }] };
+      let ticketsByStatus = { rows: [] };
+      let topLines = { rows: [] };
 
-      // Statistiques revenus
-      const totalRevenue = await pool.query('SELECT COALESCE(SUM(price_paid_fcfa), 0)::int as total FROM sotral_tickets WHERE status != \'cancelled\'');
-      const revenueMonth = await pool.query("SELECT COALESCE(SUM(price_paid_fcfa), 0)::int as total FROM sotral_tickets WHERE purchased_at >= CURRENT_DATE - INTERVAL '30 days' AND status != 'cancelled'");
+      try {
+        totalTickets = await pool.query('SELECT COUNT(*)::int as total FROM sotral_tickets');
+        usedTickets = await pool.query("SELECT COUNT(*)::int as total FROM sotral_tickets WHERE status = 'used'");
+        ticketsMonth = await pool.query("SELECT COUNT(*)::int as total FROM sotral_tickets WHERE purchased_at >= CURRENT_DATE - INTERVAL '30 days'");
+        totalRevenue = await pool.query('SELECT COALESCE(SUM(price_paid_fcfa), 0)::int as total FROM sotral_tickets WHERE status != \'cancelled\'');
+        revenueMonth = await pool.query("SELECT COALESCE(SUM(price_paid_fcfa), 0)::int as total FROM sotral_tickets WHERE purchased_at >= CURRENT_DATE - INTERVAL '30 days' AND status != 'cancelled'");
+        totalPayments = await pool.query('SELECT COUNT(*)::int as total FROM payment_receipts WHERE status = \'completed\'');
+        paymentsMonth = await pool.query("SELECT COUNT(*)::int as total FROM payment_receipts WHERE status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '30 days'");
+        activeLines = await pool.query('SELECT COUNT(*)::int as total FROM sotral_lines WHERE is_active = true');
 
-      // Statistiques paiements
-      const totalPayments = await pool.query('SELECT COUNT(*)::int as total FROM payment_receipts WHERE status = \'completed\'');
-      const paymentsMonth = await pool.query("SELECT COUNT(*)::int as total FROM payment_receipts WHERE status = 'completed' AND created_at >= CURRENT_DATE - INTERVAL '30 days'");
+        ticketsByStatus = await pool.query(`
+          SELECT
+            CASE
+              WHEN status = 'expired' THEN 'inactive'
+              WHEN status = 'cancelled' THEN 'inactive'
+              ELSE status
+            END as status,
+            COUNT(*)::int as count
+          FROM sotral_tickets
+          GROUP BY
+            CASE
+              WHEN status = 'expired' THEN 'inactive'
+              WHEN status = 'cancelled' THEN 'inactive'
+              ELSE status
+            END
+        `);
 
-      // Statistiques lignes actives
-      const activeLines = await pool.query('SELECT COUNT(*)::int as total FROM sotral_lines WHERE is_active = true');
-
-      // Tickets par statut
-      const ticketsByStatus = await pool.query(`
-        SELECT
-          CASE
-            WHEN status = 'expired' THEN 'inactive'
-            WHEN status = 'cancelled' THEN 'inactive'
-            ELSE status
-          END as status,
-          COUNT(*)::int as count
-        FROM sotral_tickets
-        GROUP BY
-          CASE
-            WHEN status = 'expired' THEN 'inactive'
-            WHEN status = 'cancelled' THEN 'inactive'
-            ELSE status
-          END
-      `);
-
-      // Top lignes par ventes
-      const topLines = await pool.query(`
-        SELECT
-          sl.line_number,
-          sl.name,
-          COUNT(st.id)::int as tickets_sold,
-          COALESCE(SUM(st.price_paid_fcfa), 0)::int as revenue
-        FROM sotral_lines sl
-        LEFT JOIN sotral_tickets st ON sl.id = st.line_id AND st.status != 'cancelled'
-        GROUP BY sl.id, sl.line_number, sl.name
-        ORDER BY tickets_sold DESC
-        LIMIT 5
-      `);
+        topLines = await pool.query(`
+          SELECT
+            sl.line_number,
+            sl.name,
+            COUNT(st.id)::int as tickets_sold,
+            COALESCE(SUM(st.price_paid_fcfa), 0)::int as revenue
+          FROM sotral_lines sl
+          LEFT JOIN sotral_tickets st ON sl.id = st.line_id AND st.status != 'cancelled'
+          GROUP BY sl.id, sl.line_number, sl.name
+          ORDER BY tickets_sold DESC
+          LIMIT 5
+        `);
+      } catch (sotralErr) {
+        console.warn('[AdminController.getDashboardStats] Tables SOTRAL non disponibles, utilisation de valeurs par défaut');
+      }
 
       return res.status(200).json({
         success: true,

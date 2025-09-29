@@ -5,17 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../../src/styles/theme';
 import HelpFAB from '../../src/components/HelpFAB';
-import { UserTicketService, type UserTicket, type UserTicketHistory } from '../../src/services/userTicketService';
+import { UserTicketService, type UserTicket } from '../../src/services/userTicketService';
 import { SearchService, type SearchResult } from '../../src/services/searchService';
 import { SotralMobileService } from '../../services/sotral-service';
 import type { SotralTicket } from '../../src/types/api';
 
 export default function SearchTab() {
   // Capturer le paramètre focus envoyé depuis Home
-  const { focus, focusTs, activeTab: paramsActiveTab } = useLocalSearchParams<{ focus?: string; focusTs?: string; activeTab?: string }>();
+  const { focus, focusTs } = useLocalSearchParams<{ focus?: string; focusTs?: string }>();
   const searchInputRef = useRef<TextInput | null>(null);
-  const scrollRef = useRef<any>(null);
-  const historySectionY = useRef<number | null>(null);
 
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
@@ -125,9 +123,6 @@ export default function SearchTab() {
   }, [searchQuery, fromLocation, toLocation, performSearch]);
 
   // TicketsTab logic intégré avec API
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
-  const [activeTickets, setActiveTickets] = useState<UserTicket[]>([]);
-  const [historyTickets, setHistoryTickets] = useState<UserTicketHistory[]>([]);
   const [availableTickets, setAvailableTickets] = useState<SotralTicket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
 
@@ -136,20 +131,31 @@ export default function SearchTab() {
     const loadTickets = async () => {
       try {
         setTicketsLoading(true);
+        console.log('[SearchTab] Chargement des tickets disponibles...');
 
-        // Charger les tickets actifs, l'historique et les tickets disponibles en parallèle
-        const [activeData, historyData, availableResult] = await Promise.all([
-          UserTicketService.getActiveTickets().catch(() => []),
-          UserTicketService.getTicketHistory().catch(() => []),
-          SotralMobileService.getGeneratedTickets().catch(() => ({ success: false, data: [] })),
+        // Charger les tickets actifs et disponibles en parallèle
+        const [activeData, availableResult] = await Promise.all([
+          UserTicketService.getActiveTickets().catch((err) => {
+            console.warn('[SearchTab] Erreur getActiveTickets:', err);
+            return [];
+          }),
+          SotralMobileService.getGeneratedTickets().catch((err) => {
+            console.error('[SearchTab] Erreur getGeneratedTickets:', err);
+            return { success: false, data: [] };
+          }),
         ]);
 
-        setActiveTickets(activeData);
-        setHistoryTickets(historyData);
+        console.log('[SearchTab] Tickets récupérés:', {
+          active: activeData?.length || 0,
+          available: availableResult.success ? availableResult.data?.length || 0 : 0,
+          availableSuccess: availableResult.success
+        });
+
+        // setActiveTickets(activeData); // Plus utilisé dans cette page
         // Cast to SotralTicket[] since we know the structure matches
         setAvailableTickets(availableResult.success ? availableResult.data as SotralTicket[] : []);
       } catch (error) {
-        console.error('Erreur lors du chargement des tickets:', error);
+        console.error('[SearchTab] Erreur générale chargement tickets:', error);
       } finally {
         setTicketsLoading(false);
       }
@@ -157,110 +163,6 @@ export default function SearchTab() {
 
     loadTickets();
   }, []);
-  const renderActiveTicket = (ticket: UserTicket) => (
-    <View key={ticket.id} style={styles.ticketCard}>
-      {/* Ticket Header */}
-      <View style={styles.ticketHeader}>
-        <View style={styles.ticketInfo}>
-          <View style={styles.transportBadge}>
-            <Text style={styles.transportBadgeText}>{ticket.type}</Text>
-          </View>
-          <Text style={styles.routeText}>{ticket.route}</Text>
-        </View>
-        <View style={styles.statusBadge}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Actif</Text>
-        </View>
-      </View>
-      {/* Ticket Body */}
-      <View style={styles.ticketBody}>
-        <View style={styles.ticketDetails}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="calendar" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Date</Text>
-              <Text style={styles.detailValue}>{ticket.date}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="time" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Heure</Text>
-              <Text style={styles.detailValue}>{ticket.time}</Text>
-            </View>
-          </View>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="cash" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Prix</Text>
-              <Text style={styles.detailValue}>{ticket.price}</Text>
-            </View>
-            {ticket.seat && ticket.seat !== '---' && (
-              <View style={styles.detailItem}>
-                <Ionicons name="car-sport" size={16} color={theme.colors.secondary[500]} />
-                <Text style={styles.detailLabel}>Siège</Text>
-                <Text style={styles.detailValue}>{ticket.seat}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-        {/* QR Code */}
-        <View style={styles.qrContainer}>
-          <QRCode
-            value={ticket.qrCode || `TICKET_${ticket.id}`}
-            size={100}
-            color={theme.colors.secondary[900]}
-            backgroundColor={theme.colors.white}
-          />
-        </View>
-      </View>
-      {/* Ticket Footer */}
-      <View style={styles.ticketFooter}>
-        <View style={styles.expiryInfo}>
-          <Ionicons name="time-outline" size={16} color={theme.colors.warning[600]} />
-          <Text style={styles.expiryText}>
-            {ticket.expiresIn ? `Expire dans ${ticket.expiresIn}` : 'Valide'}
-          </Text>
-        </View>
-        <TouchableOpacity style={styles.showButton}>
-          <Text style={styles.showButtonText}>Présenter</Text>
-          <Ionicons name="expand" size={16} color={theme.colors.primary[600]} />
-        </TouchableOpacity>
-      </View>
-      {/* Ticket perforation */}
-      <View style={styles.perforation}>
-        {Array.from({ length: 15 }).map((_, index) => (
-          <View key={index} style={styles.perforationDot} />
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderHistoryTicket = (ticket: UserTicketHistory) => (
-    <View key={ticket.id} style={styles.historyTicketCard}>
-      <View style={styles.historyHeader}>
-        <View style={styles.historyInfo}>
-          <Text style={styles.historyRoute}>{ticket.route}</Text>
-          <Text style={styles.historyType}>{ticket.type}</Text>
-        </View>
-        <View style={styles.historyStatus}>
-          <Text style={styles.historyPrice}>{ticket.price}</Text>
-          <Text style={styles.historyDate}>{ticket.date} • {ticket.time}</Text>
-        </View>
-      </View>
-      <View style={styles.usedBadge}>
-        <Ionicons
-          name={ticket.status === 'expired' ? "time-outline" : "checkmark-circle"}
-          size={14}
-          color={ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600]}
-        />
-        <Text style={[
-          styles.usedText,
-          { color: ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600] }
-        ]}>
-          {ticket.status === 'expired' ? 'Expiré' : 'Utilisé'}
-        </Text>
-      </View>
-    </View>
-  );
 
   const renderAvailableTicket = (ticket: SotralTicket) => (
     <View key={ticket.id} style={styles.ticketCard}>
@@ -340,22 +242,10 @@ export default function SearchTab() {
       </View>
     </View>
   );
-  // Si on arrive avec activeTab=history, basculer et scroller vers la section historique
-  useEffect(() => {
-    if (paramsActiveTab === 'history') {
-      setActiveTab('history');
-      // attendre que la layout soit calculée, puis scroller
-      setTimeout(() => {
-        if (historySectionY.current != null && scrollRef.current && typeof scrollRef.current.scrollTo === 'function') {
-          scrollRef.current.scrollTo({ y: historySectionY.current, animated: true });
-        }
-      }, 250);
-    }
-  }, [paramsActiveTab, focusTs]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView ref={r => { scrollRef.current = r; }} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Rechercher un trajet</Text>
@@ -432,23 +322,6 @@ export default function SearchTab() {
         {/* ...existing code... */}
         {/* Search Results */}
         {/* ...existing code... */}
-        {/* Billets actifs */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mes billets actifs</Text>
-          {ticketsLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Chargement de vos billets...</Text>
-            </View>
-          ) : activeTickets.length > 0 ? (
-            activeTickets.map(renderActiveTicket)
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="ticket-outline" size={48} color={theme.colors.secondary[300]} />
-              <Text style={styles.emptyText}>Aucun billet actif</Text>
-              <Text style={styles.emptySubtext}>Vos prochains voyages apparaîtront ici</Text>
-            </View>
-          )}
-        </View>
 
         {/* Tickets disponibles (générés par admin) */}
         <View style={styles.section}>
@@ -464,24 +337,6 @@ export default function SearchTab() {
               <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
               <Text style={styles.emptyText}>Aucun ticket disponible</Text>
               <Text style={styles.emptySubtext}>Les tickets générés par l'admin apparaîtront ici</Text>
-            </View>
-          )}
-        </View>
-        
-        {/* Historique des billets */}
-        <View style={styles.section} onLayout={e => { historySectionY.current = e.nativeEvent.layout.y; }}>
-          <Text style={styles.sectionTitle}>Historique des billets</Text>
-          {ticketsLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Chargement de l'historique...</Text>
-            </View>
-          ) : historyTickets.length > 0 ? (
-            historyTickets.map(renderHistoryTicket)
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="archive-outline" size={48} color={theme.colors.secondary[300]} />
-              <Text style={styles.emptyText}>Aucun historique</Text>
-              <Text style={styles.emptySubtext}>Vos voyages passés apparaîtront ici</Text>
             </View>
           )}
         </View>

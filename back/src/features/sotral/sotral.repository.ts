@@ -1319,8 +1319,16 @@ export class SotralRepository {
         id: row.line_id,
         name: row.line_name,
         line_number: row.line_number,
-        route_from: row.route_from,
-        route_to: row.route_to,
+        route_from: row.route_from || '',
+        route_to: row.route_to || '',
+        category_id: 0,
+        is_active: true
+      } : row.line_id ? {
+        id: row.line_id,
+        name: `Ligne ${row.line_number || row.line_id}`,
+        line_number: row.line_number || row.line_id,
+        route_from: '',
+        route_to: '',
         category_id: 0,
         is_active: true
       } : undefined,

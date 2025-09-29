@@ -1,5 +1,5 @@
 // Configuration par défaut - à adapter selon l'environnement
-const API_BASE_URL = 'http://localhost:7000';
+const API_BASE_URL = 'https://go-j2rr.onrender.com';
 
 // ==========================================
 // TYPES POUR L'APPLICATION SCANNER

@@ -8,8 +8,6 @@ import {
   Download,
   ExternalLink,
   ChevronDown,
-  ChevronRight,
-  Search,
   HelpCircle,
   Shield,
   Database,
