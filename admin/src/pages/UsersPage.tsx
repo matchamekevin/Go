@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Calendar, Shield, ShieldCheck, Users } from 'lucide-react';
+import { Mail, Phone, Calendar, Shield, ShieldCheck, Users, RefreshCw, Clock } from 'lucide-react';
 import { UserService } from '../services/userService';
 import { User } from '../types/api';
-import { toast } from 'react-hot-toast';
 import SearchBar from '../components/SearchBar';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import StatsCard from '../components/StatsCard';
 import DataTable from '../components/DataTable';
 import UserActionsModal from '../components/UserActionsModal';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 
 const UsersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,6 +21,17 @@ const UsersPage: React.FC = () => {
   const [actionsModalOpen, setActionsModalOpen] = useState(false);
   const [suspendedUsers, setSuspendedUsers] = useState<User[]>([]);
   const [suspendedLoading, setSuspendedLoading] = useState(false);
+
+  // Fonction de rafraîchissement des données
+  const refreshAllData = async () => {
+    await Promise.all([fetchUsers(), fetchSuspendedUsers()]);
+  };
+
+  // Utiliser le hook de réactualisation automatique
+  const { lastRefresh, isRefreshing, autoRefresh, setAutoRefresh, refreshData } = useAutoRefresh(refreshAllData, {
+    interval: 45000, // 45 secondes pour les utilisateurs (moins critique que le dashboard)
+    enabled: true
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -43,7 +54,7 @@ const UsersPage: React.FC = () => {
       } else {
         console.warn('Aucune donnée utilisateur reçue:', response);
         setUsers([]);
-        toast.error('Aucune donnée utilisateur disponible');
+        // Ne pas afficher de toast ici car apiClient gère déjà les erreurs globalement
       }
     } catch (error) {
       console.error('Erreur lors du chargement des utilisateurs:', error);
@@ -151,6 +162,42 @@ const UsersPage: React.FC = () => {
               Gérez les comptes utilisateurs et leurs permissions
             </p>
           </div>
+
+          {/* Contrôles de réactualisation automatique */}
+          <div className="flex items-center space-x-4">
+            {/* Indicateur de dernière mise à jour */}
+            <div className="text-xs text-gray-500 flex items-center">
+              <Clock className="h-3 w-3 mr-1" />
+              MAJ: {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+
+            {/* Toggle réactualisation automatique */}
+            <div className="flex items-center space-x-2">
+              <label className="text-xs text-gray-600">Auto-refresh</label>
+              <button
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  autoRefresh ? 'bg-[#065f46]' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    autoRefresh ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Bouton rafraîchissement manuel */}
+            <button
+              onClick={() => refreshData(true)}
+              disabled={isRefreshing}
+              className="flex items-center px-3 py-2 bg-[#065f46] text-white rounded-lg hover:bg-[#054a3a] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Actualisation...' : 'Actualiser'}
+            </button>
+          </div>
         </div>
 
         {/* Notification temporaire */}
@@ -183,26 +230,54 @@ const UsersPage: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Total"
-          value={users.length}
-          icon={Users}
-        />
-        <StatsCard
-          title="Vérifiés"
-          value={users.filter(u => u.is_verified === true).length}
-          icon={ShieldCheck}
-        />
-        <StatsCard
-          title="Non vérifiés"
-          value={users.filter(u => u.is_verified === false).length}
-          icon={Shield}
-        />
-        <StatsCard
-          title="Suspendus"
-          value={suspendedUsers.length}
-          icon={Shield}
-        />
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Total"
+            value={users.length}
+            icon={Users}
+          />
+        </div>
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Vérifiés"
+            value={users.filter(u => u.is_verified === true).length}
+            icon={ShieldCheck}
+          />
+        </div>
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Non vérifiés"
+            value={users.filter(u => u.is_verified === false).length}
+            icon={Shield}
+          />
+        </div>
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Suspendus"
+            value={suspendedUsers.length}
+            icon={Shield}
+          />
+        </div>
       </div>
 
       {/* Comptes Suspendus */}

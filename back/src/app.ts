@@ -21,16 +21,67 @@ app.use(express.json());
 // Autoriser les requêtes cross-origin depuis l'interface admin (dev)
 app.use(
   cors({
-    origin: true, // Autoriser toutes les origines en développement
+    origin: function (origin, callback) {
+      // Autoriser les requêtes sans origine (comme les apps mobiles ou Postman)
+      // et les origines localhost pour le développement
+      const allowedOrigins = [
+        'http://localhost:3000',  // Vite dev server par défaut
+        'http://localhost:3001',  // Port alternatif
+        'http://localhost:3002',  // Port alternatif
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001',
+        'http://127.0.0.1:3002',
+        'http://localhost:5173',  // Vite dev server moderne
+        'http://127.0.0.1:5173',
+        undefined  // Pour les requêtes sans origine (Postman, curl, etc.)
+      ];
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log('🚫 CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'Access-Control-Request-Method',
+      'Access-Control-Request-Headers'
+    ],
     exposedHeaders: ['Authorization'],
+    optionsSuccessStatus: 200, // Pour les navigateurs anciens qui ne supportent pas 204
   })
 );
 
+// Middleware pour gérer manuellement les requêtes preflight si nécessaire
+app.options('*', cors());
 
-// Debug: afficher toutes les routes enregistrées
+
+// Middleware de logging CORS pour déboguer
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const method = req.method;
+  const url = req.url;
+
+  // Log des requêtes CORS importantes
+  if (method === 'OPTIONS' || url.includes('/admin/')) {
+    console.log(`🌐 CORS Request: ${method} ${url} from ${origin || 'no-origin'}`);
+  }
+
+  // Ajouter des headers CORS manuellement si nécessaire
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
+
+  next();
+});
 app.get('/debug-routes', (req, res) => {
   const routes: any[] = [];
   app._router.stack.forEach((middleware: any) => {

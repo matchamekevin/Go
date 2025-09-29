@@ -2,11 +2,11 @@
 export interface SotralLine {
   id: number;
   line_name: string;
-  line_number: string;
+  line_number: number; // Changé de string à number pour correspondre au schéma Zod
   name?: string; // Alternative name field for compatibility
   route_from?: string;
   route_to?: string;
-  distance_km: string;
+  distance_km: number; // Changé de string à number pour correspondre au schéma Zod
   stops_count: number;
   price_range: string;
   is_active: boolean;

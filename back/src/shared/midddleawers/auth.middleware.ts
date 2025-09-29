@@ -19,13 +19,14 @@ export interface AuthenticatedRequest extends Request {
  */
 export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   console.log(`Auth middleware called for: ${req.method} ${req.path}`);
+  
   try {
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
       return res.status(401).json({ 
         success: false, 
-        error: 'Token d\'authentification requis' 
+        error: "Token d'authentification requis" 
       });
     }
 
@@ -49,12 +50,12 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
     }
 
     // Attacher les données utilisateur à la requête
-      req.user = {
-        id: payload.id.toString(),
-        email: payload.email,
-        name: payload.name || 'Utilisateur',
-        role: payload.role || 'user'
-      };
+    req.user = {
+      id: payload.id.toString(),
+      email: payload.email,
+      name: payload.name || 'Utilisateur',
+      role: payload.role || 'user'
+    };
 
     next();
   } catch (error) {

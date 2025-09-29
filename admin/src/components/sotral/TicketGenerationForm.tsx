@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { SotralLine, SotralTicketType, TicketGenerationRequest } from '../../types/sotral';
+import { SotralLine, TicketGenerationRequest } from '../../types/sotral';
 import { Plus, Zap, Settings } from 'lucide-react';
 
 interface TicketGenerationFormProps {
   lines: SotralLine[];
-  ticketTypes: SotralTicketType[];
   loading: boolean;
   onGenerate: (request: TicketGenerationRequest) => void;
 }
 
 export const TicketGenerationForm: React.FC<TicketGenerationFormProps> = ({
   lines,
-  ticketTypes,
   loading,
   onGenerate
 }) => {
@@ -42,9 +40,15 @@ export const TicketGenerationForm: React.FC<TicketGenerationFormProps> = ({
   };
 
   const selectedLine = lines.find(line => line.id === formData.lineId);
-  const selectedTicketType = ticketTypes.find(type => type.code === formData.ticketTypeCode);
 
-  const estimatedPrice = selectedTicketType ? selectedTicketType.price_fcfa * formData.quantity : 0;
+  // Prix fixes pour les types de lignes
+  const getEstimatedPrice = () => {
+    if (!selectedLine) return 0;
+    const basePrice = formData.ticketTypeCode === 'etudiantes' ? 100 : 200; // Prix fixe selon le type
+    return basePrice * formData.quantity;
+  };
+
+  const estimatedPrice = getEstimatedPrice();
 
   return (
     <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -99,7 +103,7 @@ export const TicketGenerationForm: React.FC<TicketGenerationFormProps> = ({
         {/* Type de ticket */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Type de Ticket *
+            Lignes ordinaires, Lignes étudiantes *
           </label>
           <select
             value={formData.ticketTypeCode}
@@ -108,17 +112,12 @@ export const TicketGenerationForm: React.FC<TicketGenerationFormProps> = ({
             required
           >
             <option value="">Sélectionner un type</option>
-            {ticketTypes.filter(type => type.is_active).map(type => (
-              <option key={type.code} value={type.code}>
-                {type.name} - {type.price_fcfa} FCFA
-                {type.is_student_discount && ' (Étudiant)'}
-              </option>
-            ))}
+            <option value="ordinaires">Lignes ordinaires</option>
+            <option value="etudiantes">Lignes étudiantes</option>
           </select>
-          {selectedTicketType && (
+          {formData.ticketTypeCode && (
             <div className="mt-2 text-sm text-gray-600 bg-green-50 p-2 rounded">
-              <div><span className="font-medium">Description:</span> {selectedTicketType.description}</div>
-              <div><span className="font-medium">Voyages max:</span> {selectedTicketType.max_trips}</div>
+              <div><span className="font-medium">Type sélectionné:</span> {formData.ticketTypeCode === 'ordinaires' ? 'Lignes ordinaires' : formData.ticketTypeCode === 'etudiantes' ? 'Lignes étudiantes' : 'Non défini'}</div>
             </div>
           )}
         </div>
@@ -167,7 +166,7 @@ export const TicketGenerationForm: React.FC<TicketGenerationFormProps> = ({
             <h4 className="font-medium text-gray-900 mb-2">Résumé de la génération</h4>
             <div className="text-sm text-gray-600 space-y-1">
               <div>Ligne: <span className="font-medium">{selectedLine?.line_name}</span></div>
-              <div>Type: <span className="font-medium">{selectedTicketType?.name}</span></div>
+              <div>Type: <span className="font-medium">{formData.ticketTypeCode === 'ordinaires' ? 'Lignes ordinaires' : formData.ticketTypeCode === 'etudiantes' ? 'Lignes étudiantes' : 'Non défini'}</span></div>
               <div>Quantité: <span className="font-medium">{formData.quantity} tickets</span></div>
               <div>Validité: <span className="font-medium">{formData.validityHours}h</span></div>
               <div className="pt-2 border-t border-gray-200">

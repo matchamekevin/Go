@@ -19,28 +19,36 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error }) => {
     <div className={`border rounded-lg p-4 mb-4 ${
       error.type === 'auth' ? 'bg-red-50 border-red-200' :
       error.type === 'server' ? 'bg-orange-50 border-orange-200' :
-      'bg-yellow-50 border-yellow-200'
+      error.type === 'network' ? 'bg-red-50 border-red-200' :
+      error.type === 'not_found' ? 'bg-orange-50 border-orange-200' :
+      'bg-blue-50 border-blue-200'
     }`}>
       <div className="flex">
         <div className="flex-shrink-0">
           {error.type === 'auth' && <XCircle className="h-5 w-5 text-red-400" />}
           {error.type === 'server' && <AlertTriangle className="h-5 w-5 text-orange-400" />}
-          {error.type === 'validation' && <Info className="h-5 w-5 text-yellow-400" />}
+          {error.type === 'validation' && <Info className="h-5 w-5 text-blue-400" />}
           {error.type === 'network' && <XCircle className="h-5 w-5 text-red-400" />}
           {error.type === 'not_found' && <AlertTriangle className="h-5 w-5 text-orange-400" />}
+          {error.type === 'empty' && <Info className="h-5 w-5 text-blue-400" />}
+          {error.type === 'unknown' && <AlertTriangle className="h-5 w-5 text-orange-400" />}
         </div>
         <div className="ml-3">
           <h3 className={`text-sm font-medium ${
             error.type === 'auth' ? 'text-red-800' :
             error.type === 'server' ? 'text-orange-800' :
-            'text-yellow-800'
+            error.type === 'network' ? 'text-red-800' :
+            error.type === 'not_found' ? 'text-orange-800' :
+            'text-blue-800'
           }`}>
             {error.message}
           </h3>
           <div className={`mt-2 text-sm ${
             error.type === 'auth' ? 'text-red-700' :
             error.type === 'server' ? 'text-orange-700' :
-            'text-yellow-700'
+            error.type === 'network' ? 'text-red-700' :
+            error.type === 'not_found' ? 'text-orange-700' :
+            'text-blue-700'
           }`}>
             {error.details && error.details.split('\n').map((line, idx) => (
               <div key={idx}>{line}</div>

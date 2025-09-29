@@ -13,6 +13,13 @@ export default defineConfig({
   server: {
     port: 3001,
     host: true,
-    open: true
+    open: true,
+    proxy: {
+      '/admin': {
+        target: 'http://localhost:7000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 })

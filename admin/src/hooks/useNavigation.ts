@@ -32,7 +32,6 @@ export const useNavigation = () => {
     {
       category: "Support",
       items: [
-        { name: 'Messages', href: '/messages', iconName: 'MessageSquare' },
         { name: 'Aide', href: '/help', iconName: 'HelpCircle' },
         { name: 'Paramètres', href: '/settings', iconName: 'Settings' },
       ]

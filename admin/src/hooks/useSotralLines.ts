@@ -261,8 +261,68 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       setLines(cached);
       setIsUsingCache(true);
     }
-    loadLines();
-  }, [loadLines, readCache]);
+
+    // Ne pas appeler loadLines ici car cela créerait une boucle infinie
+    // loadLines est déjà appelé via le useCallback au montage
+    const initialLoad = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await adminSotralService.getLines();
+        console.log('Fetched lines:', response);
+
+        if (response.success && response.data) {
+          setLines(response.data);
+          setIsUsingCache(false);
+          writeCache(response.data);
+        } else {
+          // Try to use cache as fallback
+          const fallback = readCache();
+          if (fallback && fallback.length > 0) {
+            setLines(fallback);
+            setIsUsingCache(true);
+          }
+
+          setError(handleApiError(response));
+        }
+      } catch (err) {
+        // Network error - try cache
+        const fallback = readCache();
+        if (fallback && fallback.length > 0) {
+          setLines(fallback);
+          setIsUsingCache(true);
+        }
+
+        setError({
+          type: 'network',
+          message: 'Erreur de connexion',
+          details: 'Impossible de contacter le serveur.',
+          suggestion: 'Vérifiez votre connexion internet.'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initialLoad();
+
+    // Timeout de sécurité pour éviter que loading reste true indéfiniment
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('[useSotralLines] Loading timeout reached, forcing loading to false');
+        setLoading(false);
+        setError({
+          type: 'network',
+          message: 'Timeout de chargement',
+          details: 'Le chargement des données a pris trop de temps.',
+          suggestion: 'Les données peuvent être partielles. Actualisez la page.'
+        });
+      }
+    }, 8000); // 8 secondes timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, []); // Dépendances vides pour éviter les re-renders
 
   return {
     lines,

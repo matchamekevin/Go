@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Bus, TrendingUp, X, Ticket, DollarSign, CheckCircle, Settings, QrCode, Eye, Target } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { RefreshCw, Bus, TrendingUp, X, Ticket, DollarSign, CheckCircle, QrCode, Eye, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { SotralLine } from '../services/sotralService';
+import { useSotralLinesQuery, useSotralStatsQuery, useGenerateTicketsMutation, useDeleteTicketMutation, useRefreshData } from '../hooks/useReactQuery';
 
 interface SotralStop {
   id: number;
@@ -97,10 +98,16 @@ const SotralTicketManagementPage: React.FC = () => {
     { id: 21, line_number: 21, name: 'Entreprise de l\'Union ↔ Campus', route_from: 'Entreprise de l\'Union', route_to: 'Campus', category_id: 1, distance_km: 11.0, stops_count: 45, is_active: true },
     { id: 22, line_number: 22, name: 'Djagblé ↔ Campus', route_from: 'Djagblé', route_to: 'Campus', category_id: 1, distance_km: 16.4, stops_count: 41, is_active: true }
   ];
-  const [apiLines, setApiLines] = useState<SotralLine[]>([]);
-  const [allLinesForSelection, setAllLinesForSelection] = useState<SotralLine[]>([]);
-  const [suspendedLines, setSuspendedLines] = useState<SotralLine[]>([]);
   
+  // Utiliser les hooks React Query pour les données avec revalidation intelligente
+  const { data: realtimeLines, isLoading: linesLoading } = useSotralLinesQuery();
+  const { data: realtimeStats, isLoading: statsLoading } = useSotralStatsQuery();
+
+  // Mutations pour les opérations
+  const generateTicketsMutation = useGenerateTicketsMutation();
+  const deleteTicketMutation = useDeleteTicketMutation();
+  const { refreshAll } = useRefreshData();
+
   // États pour les tickets
   const [tickets, setTickets] = useState<SotralTicket[]>([]);
   const [ticketTypes, setTicketTypes] = useState<SotralTicketType[]>([]);
@@ -109,27 +116,16 @@ const SotralTicketManagementPage: React.FC = () => {
   const [selectedTicketIds, setSelectedTicketIds] = useState<number[]>([]);
   
   // États pour l'interface
-  const [stats, setStats] = useState<LineStats | null>(null);
-  const [stops, setStops] = useState<SotralStop[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'lines' | 'tickets' | 'generation' | 'analytics'>('lines');
   
   // Modales
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isTicketGenerationModalOpen, setIsTicketGenerationModalOpen] = useState(false);
   const [isTicketDetailsModalOpen, setIsTicketDetailsModalOpen] = useState(false);
   const [isBulkGenerationModalOpen, setIsBulkGenerationModalOpen] = useState(false);
-  const [selectedLine, setSelectedLine] = useState<SotralLine | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<SotralTicket | null>(null);
   
   // Erreurs et notifications
   const [lastErrorTime, setLastErrorTime] = useState<number>(0);
-  const [apiError, setApiError] = useState<{
-    type: 'auth' | 'server' | 'network' | 'empty' | 'validation' | 'not_found';
-    message: string;
-    details?: string;
-    suggestion?: string;
-  } | null>(null);
 
   // Formulaires (formData removed; page uses dedicated ticket generation forms)
 
@@ -159,14 +155,24 @@ const SotralTicketManagementPage: React.FC = () => {
     ticketType: ''
   });
 
-  // Références no-op pour éviter les warnings "déclaré mais non utilisé" (setters sont utilisés ailleurs)
-  React.useEffect(() => {
-    void allLinesForSelection;
-    void stops;
-    void isCreateModalOpen;
-    void selectedLine;
-    void apiError;
-  }, [allLinesForSelection, stops, isCreateModalOpen, selectedLine, apiError]);
+  // Gérer l'état du body pour les modales
+  useEffect(() => {
+    const hasModalOpen = isTicketGenerationModalOpen || isBulkGenerationModalOpen || isTicketDetailsModalOpen;
+    
+    if (hasModalOpen) {
+      document.body.classList.add('modal-open');
+      document.documentElement.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+      document.documentElement.classList.remove('modal-open');
+    }
+
+    // Cleanup au démontage
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.documentElement.classList.remove('modal-open');
+    };
+  }, [isTicketGenerationModalOpen, isBulkGenerationModalOpen, isTicketDetailsModalOpen]);
 
   const showErrorToast = (message: string, type: 'error' | 'warning' | 'info' = 'error') => {
     const now = Date.now();
@@ -178,54 +184,13 @@ const SotralTicketManagementPage: React.FC = () => {
     }
   };
 
-  const setDetailedError = (response: Response, _context: string) => {
-    const status = response.status;
-    
-    if (status === 401) {
-      setApiError({
-        type: 'auth',
-        message: 'Authentification requise',
-        details: 'Votre session administrateur a expiré.',
-        suggestion: 'Reconnectez-vous à l\'interface d\'administration.'
-      });
-    } else if (status === 403) {
-      setApiError({
-        type: 'auth',
-        message: 'Permissions insuffisantes',
-        details: 'Vous n\'avez pas les droits pour effectuer cette action.',
-        suggestion: 'Contactez l\'administrateur système.'
-      });
-    } else if (status === 404) {
-      setApiError({
-        type: 'not_found',
-        message: 'Ressource non trouvée',
-        details: `La ressource demandée n'existe pas.`,
-        suggestion: 'Actualisez la page et réessayez.'
-      });
-    } else if (status >= 400) {
-      setApiError({
-        type: 'network',
-        message: `Erreur ${status}`,
-        details: `Erreur de communication avec le serveur.`,
-        suggestion: 'Vérifiez votre connexion internet et réessayez.'
-      });
-    }
-  };
-
-  // Calculer les lignes affichées
+  // Calculer les lignes affichées en utilisant les données React Query
   const lines = useMemo(() => {
-    if (apiLines.length > 0) {
-      const mergedLines = [...apiLines];
-      suspendedLines.forEach(suspendedLine => {
-        const existingIndex = mergedLines.findIndex(line => line.id === suspendedLine.id);
-        if (existingIndex >= 0) {
-          mergedLines[existingIndex] = { ...mergedLines[existingIndex], is_active: false };
-        }
-      });
-      return mergedLines;
+    if (realtimeLines && realtimeLines.length > 0) {
+      return realtimeLines;
     }
-    return [];
-  }, [apiLines, suspendedLines]);
+    return DEFAULT_LINES;
+  }, [realtimeLines]);
 
   // Filtrer les tickets selon les critères
   const filteredTickets = useMemo(() => {
@@ -240,107 +205,74 @@ const SotralTicketManagementPage: React.FC = () => {
   }, [tickets, ticketFilters]);
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    // Charger les lignes suspendues depuis localStorage
-    const savedSuspended = localStorage.getItem('sotral_suspended_lines');
-    if (savedSuspended) {
+    // Charger les tickets initialement
+    const loadInitialTickets = async () => {
       try {
-        const parsedSuspended = JSON.parse(savedSuspended);
-        setSuspendedLines(parsedSuspended);
-      } catch (error) {
-        console.error('Erreur lors du chargement des lignes suspendues:', error);
-        localStorage.removeItem('sotral_suspended_lines');
-      }
-    }
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      const token = localStorage.getItem('admin_token');
-      const baseHeaders = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-
-      // Charger toutes les données en parallèle
-      const [linesRes, stopsRes, ticketTypesRes, ticketsRes, statsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, { headers: baseHeaders }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/stops`, { headers: baseHeaders }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/ticket-types`, { headers: baseHeaders }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/tickets?limit=1000`, { headers: baseHeaders }),
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/dashboard-stats`, { headers: baseHeaders })
-      ]);
-
-      // Traiter les lignes
-      let mergedLines: SotralLine[] = [];
-      if (linesRes.ok) {
-        const linesData = await linesRes.json();
-        const apiLinesData: SotralLine[] = linesData.data || [];
-        mergedLines = apiLinesData.length > 0 ? apiLinesData : DEFAULT_LINES;
-        setApiLines(apiLinesData);
-        setApiError(null);
-      } else {
-        // API failed, fallback to DEFAULT_LINES
-        mergedLines = DEFAULT_LINES;
-        setDetailedError(linesRes, 'chargement des lignes');
-      }
-
-      // Set the master selection list and ensure any previously selected inactive lines are removed
-      setAllLinesForSelection(mergedLines);
-      setBulkGenForm(prev => ({
-        ...prev,
-        selectedLineIds: prev.selectedLineIds.filter(id => mergedLines.find(l => l.id === id && l.is_active))
-      }));
-
-      // Traiter les arrêts
-      if (stopsRes.ok) {
-        const stopsData = await stopsRes.json();
-        setStops(stopsData.data || []);
-      } else {
-        setStops([]);
-        showErrorToast('Erreur lors du chargement des arrêts');
-      }
-
-      // Traiter les types de tickets
-      if (ticketTypesRes.ok) {
-        const ticketTypesData = await ticketTypesRes.json();
-        setTicketTypes(ticketTypesData.data || []);
-      }
-
-      // Traiter les tickets
-      if (ticketsRes.ok) {
-        const ticketsData = await ticketsRes.json();
-        const ticketsArray = ticketsData.data || [];
-        setTickets(ticketsArray);
+        const token = localStorage.getItem('admin_token');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/tickets?limit=1000`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         
-        // Calculer les stats des tickets
-        const ticketStats: TicketStats = {
-          total_tickets: ticketsArray.length,
-          total_revenue: ticketsArray.reduce((sum: number, ticket: any) => sum + ticket.price_paid_fcfa, 0),
-          active_tickets: ticketsArray.filter((t: any) => t.status === 'active').length,
-          used_tickets: ticketsArray.filter((t: any) => t.status === 'used').length
-        };
-        setTicketStats(ticketStats);
+        if (response.ok) {
+          const ticketsData = await response.json();
+          const ticketsArray = ticketsData.data || [];
+          setTickets(ticketsArray);
+          
+          // Calculer les stats des tickets
+          const ticketStats: TicketStats = {
+            total_tickets: ticketsArray.length,
+            total_revenue: ticketsArray.reduce((sum: number, ticket: any) => sum + ticket.price_paid_fcfa, 0),
+            active_tickets: ticketsArray.filter((t: any) => t.status === 'active').length,
+            used_tickets: ticketsArray.filter((t: any) => t.status === 'used').length
+          };
+          setTicketStats(ticketStats);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des tickets:', error);
       }
+    };
 
-      // Traiter les statistiques générales
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData.data?.infrastructure || null);
+    // Charger les types de tickets
+    const loadTicketTypes = async () => {
+      try {
+        const token = localStorage.getItem('admin_token');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/ticket-types`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const ticketTypesData = await response.json();
+          const ticketTypesArray = ticketTypesData.data || ticketTypesData || [];
+          setTicketTypes(ticketTypesArray);
+        } else {
+          console.warn('Impossible de charger les types de tickets, utilisation des valeurs par défaut');
+          // Valeurs par défaut si l'API ne fonctionne pas
+          setTicketTypes([
+            { id: 1, name: 'Simple', code: 'SIMPLE', price_fcfa: 150, validity_duration_hours: 24, max_trips: 1, is_student_discount: false, is_active: true },
+            { id: 2, name: 'Aller-retour', code: 'ROUND_TRIP', price_fcfa: 250, validity_duration_hours: 48, max_trips: 2, is_student_discount: false, is_active: true },
+            { id: 3, name: 'Étudiant', code: 'STUDENT', price_fcfa: 100, validity_duration_hours: 24, max_trips: 1, is_student_discount: true, is_active: true }
+          ]);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des types de tickets:', error);
+        // Valeurs par défaut en cas d'erreur
+        setTicketTypes([
+          { id: 1, name: 'Simple', code: 'SIMPLE', price_fcfa: 150, validity_duration_hours: 24, max_trips: 1, is_student_discount: false, is_active: true },
+          { id: 2, name: 'Aller-retour', code: 'ROUND_TRIP', price_fcfa: 250, validity_duration_hours: 48, max_trips: 2, is_student_discount: false, is_active: true },
+          { id: 3, name: 'Étudiant', code: 'STUDENT', price_fcfa: 100, validity_duration_hours: 24, max_trips: 1, is_student_discount: true, is_active: true }
+        ]);
       }
+    };
 
-    } catch (error) {
-      console.error('Erreur lors du chargement:', error);
-      showErrorToast('Erreur lors du chargement des données');
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadInitialTickets();
+    loadTicketTypes();
+  }, []);
 
   // Génération de tickets pour une ligne
   const generateTicketsForLine = async () => {
@@ -369,7 +301,7 @@ const SotralTicketManagementPage: React.FC = () => {
         const result = await response.json();
         toast.success(result.message);
         setIsTicketGenerationModalOpen(false);
-        loadData(); // Recharger les données
+        // Plus besoin de recharger manuellement, les données sont temps réel
       } else {
         const error = await response.json();
         showErrorToast(error.error || 'Erreur lors de la génération des tickets');
@@ -412,7 +344,7 @@ const SotralTicketManagementPage: React.FC = () => {
       if (successful > 0) {
         toast.success(`${successful} générations réussies${failed > 0 ? `, ${failed} échecs` : ''}`);
         setIsBulkGenerationModalOpen(false);
-        loadData();
+        // Plus besoin de recharger manuellement, les données sont temps réel
       } else {
         showErrorToast('Toutes les générations ont échoué');
       }
@@ -422,71 +354,24 @@ const SotralTicketManagementPage: React.FC = () => {
     }
   };
 
-  const refreshData = async () => {
-    setApiError(null);
-    await loadData();
+  const refreshData = () => {
+    refreshAll();
+    toast.success('Données actualisées avec succès');
   };
 
   // Suppression de tickets (un ou plusieurs)
   const deleteTickets = async (ids: number[]) => {
+    console.log('🗑️ deleteTickets called with IDs:', ids);
     if (ids.length === 0) return;
-    
+
     try {
-      const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000';
-
-      const doDelete = async (url: string) => {
-        const resp = await fetch(url, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ ids })
-        });
-        const text = await resp.text().catch(() => '');
-        let payload: any = {};
-        if (text) {
-          try { payload = JSON.parse(text); } catch (e) { payload = { raw: text }; }
-        }
-        return { resp, payload, text };
-      };
-
-      // Try the alias endpoint which is the dedicated route for mass ticket deletion
-      let result = await doDelete(`${base}/admin/tickets/tickets`);
-
-      // If that fails, try the generic endpoint as fallback
-      if (result.resp.status === 404) {
-        console.warn('Alias delete failed; retrying generic /admin/tickets');
-        result = await doDelete(`${base}/admin/tickets`);
+      // Utiliser la mutation React Query pour supprimer
+      for (const id of ids) {
+        await deleteTicketMutation.mutateAsync(id);
       }
-
-      const response = result.resp;
-      const payload = result.payload;
-
-      if (response.ok) {
-        const successMessage = payload?.message || `${ids.length} ticket(s) supprimé(s)`;
-        toast.success(successMessage);
-        setTickets(prev => prev.filter(t => !ids.includes(t.id)));
-        setSelectedTicketIds(prev => prev.filter(id => !ids.includes(id)));
-        setApiError(null);
-      } else {
-        // If server returned HTML, try to extract the <pre> content or fallback to status
-        let serverMsg: string;
-        if (payload?.raw && typeof payload.raw === 'string' && payload.raw.trim().startsWith('<')) {
-          const m = payload.raw.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-          serverMsg = m ? m[1].trim() : `Erreur serveur (HTML ${response.status})`;
-        } else {
-          serverMsg = payload?.error || payload?.message || payload?.raw || `HTTP ${response.status} ${response.statusText}`;
-        }
-
-        const details = typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg);
-        setApiError({ type: 'server', message: 'Erreur lors de la suppression des tickets', details });
-        showErrorToast(`Erreur lors de la suppression des tickets: ${details}`);
-        console.error('deleteTickets failed', { status: response.status, statusText: response.statusText, body: payload });
-      }
+      toast.success(`${ids.length} ticket(s) supprimé(s) avec succès`);
     } catch (error) {
-      console.error('Erreur suppression tickets', error);
-      setApiError({ type: 'network', message: 'Erreur réseau', details: String(error) });
+      console.error('🗑️ Error in deleteTickets:', error);
       showErrorToast('Erreur lors de la suppression des tickets');
     }
   };
@@ -530,15 +415,13 @@ const SotralTicketManagementPage: React.FC = () => {
   };
 
   const closeAllModals = () => {
-    setIsCreateModalOpen(false);
     setIsTicketGenerationModalOpen(false);
     setIsTicketDetailsModalOpen(false);
     setIsBulkGenerationModalOpen(false);
-    setSelectedLine(null);
     setSelectedTicket(null);
   };
 
-  if (loading) {
+  if (linesLoading || statsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -562,21 +445,21 @@ const SotralTicketManagementPage: React.FC = () => {
         <div className="flex space-x-3">
           <button
             onClick={() => setIsTicketGenerationModalOpen(true)}
-            className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-full transition-all duration-200 shadow-lg"
           >
             <Ticket className="h-5 w-5 mr-2" />
             Générer Tickets
           </button>
           <button
             onClick={() => setIsBulkGenerationModalOpen(true)}
-            className="flex items-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-full hover:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="flex items-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-full transition-all duration-200 shadow-lg"
           >
             <Target className="h-5 w-5 mr-2" />
             Génération Masse
           </button>
           <button
             onClick={refreshData}
-            className="flex items-center px-6 py-3 bg-green-500 text-white font-semibold rounded-full hover:bg-green-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="flex items-center px-6 py-3 bg-green-500 text-white font-semibold rounded-full transition-all duration-200 shadow-lg"
           >
             <RefreshCw className="h-5 w-5 mr-2" />
             Actualiser
@@ -591,7 +474,7 @@ const SotralTicketManagementPage: React.FC = () => {
             <Bus className="h-8 w-8 text-blue-600" />
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Lignes Actives</p>
-              <p className="text-2xl font-bold text-gray-900">{stats?.active_lines || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{realtimeStats?.active_lines || 0}</p>
             </div>
           </div>
         </div>
@@ -633,7 +516,6 @@ const SotralTicketManagementPage: React.FC = () => {
           {[
             { id: 'lines', label: 'Lignes', icon: Bus },
             { id: 'tickets', label: 'Tickets', icon: Ticket },
-            { id: 'generation', label: 'Génération', icon: Settings },
             { id: 'analytics', label: 'Analytics', icon: TrendingUp }
           ].map(tab => (
             <button
@@ -690,12 +572,23 @@ const SotralTicketManagementPage: React.FC = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {lines.map((line) => {
-                  const isStudentLine = line.category_id === 2;
-                  const tarifs = isStudentLine ? '100' : 
-                    (line.distance_km !== undefined && line.distance_km <= 10) ? '100, 150' :
-                    (line.distance_km !== undefined && line.distance_km <= 15) ? '100, 150, 200' :
-                    (line.distance_km !== undefined && line.distance_km <= 20) ? '100, 150, 200, 250' :
-                    '100, 150, 200, 300';
+                  // Calculer les tarifs disponibles pour cette ligne
+                  const availableTarifs = (() => {
+                    // Filtrer les types de tickets actifs et non étudiants
+                    const availableTypes = ticketTypes.filter(type => 
+                      type.is_active && !type.is_student_discount
+                    );
+                    
+                    if (availableTypes.length === 0) {
+                      return 'N/A';
+                    }
+                    
+                    // Trier par prix croissant
+                    const sortedTypes = availableTypes.sort((a, b) => a.price_fcfa - b.price_fcfa);
+                    
+                    // Afficher les prix séparés par des virgules
+                    return sortedTypes.map(type => `${type.price_fcfa}`).join(', ');
+                  })();
                   
                   return (
                     <tr 
@@ -733,7 +626,7 @@ const SotralTicketManagementPage: React.FC = () => {
                         {line.stops_count}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {tarifs}
+                        {availableTarifs}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -790,7 +683,7 @@ const SotralTicketManagementPage: React.FC = () => {
                 className="input text-gray-900"
               >
                 <option value="">Toutes les lignes</option>
-                {allLinesForSelection.map(line => (
+                {lines.map(line => (
                   <option key={line.id} value={line.id} disabled={!line.is_active}>
                     Ligne {line.line_number} - {line.name}{!line.is_active ? ' (Inactive)' : ''}
                   </option>
@@ -852,9 +745,9 @@ const SotralTicketManagementPage: React.FC = () => {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <input type="checkbox" className="form-checkbox" onChange={(e) => {
-                        if (e.target.checked) setSelectedTicketIds(filteredTickets.slice(0,50).map(t => t.id));
+                        if (e.target.checked) setSelectedTicketIds(filteredTickets.slice(0,1000).map(t => t.id));
                         else setSelectedTicketIds([]);
-                      }} checked={selectedTicketIds.length > 0 && selectedTicketIds.length === Math.min(filteredTickets.length, 50)} />
+                      }} checked={selectedTicketIds.length > 0 && selectedTicketIds.length === Math.min(filteredTickets.length, 1000)} />
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Code Ticket
@@ -877,7 +770,7 @@ const SotralTicketManagementPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredTickets.slice(0, 50).map((ticket) => (
+                    {filteredTickets.slice(0, 1000).map((ticket) => (
                       <tr 
                         key={ticket.id} 
                         className="hover:bg-gray-50 transition-colors duration-200"
@@ -959,10 +852,171 @@ const SotralTicketManagementPage: React.FC = () => {
         </div>
       )}
 
+      {activeTab === 'analytics' && (
+        <div className="space-y-6">
+          {/* Graphiques et analyses */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Répartition par statut */}
+            <div className="glass-container p-6 rounded-xl">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Répartition par statut</h3>
+              <div className="space-y-3">
+                {(() => {
+                  const statusCounts = {
+                    active: tickets.filter(t => t.status === 'active').length,
+                    used: tickets.filter(t => t.status === 'used').length,
+                    expired: tickets.filter(t => t.status === 'expired').length,
+                    cancelled: tickets.filter(t => t.status === 'cancelled').length
+                  };
+
+                  const total = tickets.length;
+                  const statusLabels = {
+                    active: 'Actifs',
+                    used: 'Utilisés',
+                    expired: 'Expirés',
+                    cancelled: 'Annulés'
+                  };
+
+                  return Object.entries(statusCounts).map(([status, count]) => {
+                    const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                    return (
+                      <div key={status} className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full mr-3 ${
+                            status === 'active' ? 'bg-green-500' :
+                            status === 'used' ? 'bg-blue-500' :
+                            status === 'expired' ? 'bg-red-500' :
+                            'bg-gray-500'
+                          }`}></div>
+                          <span className="text-sm text-gray-700">{statusLabels[status as keyof typeof statusLabels]}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900">{count}</span>
+                          <span className="text-xs text-gray-500">({percentage}%)</span>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
+            {/* Top lignes */}
+            <div className="glass-container p-6 rounded-xl">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top lignes utilisées</h3>
+              <div className="space-y-3">
+                {(() => {
+                  const lineStats = tickets.reduce((acc, ticket) => {
+                    if (ticket.line) {
+                      const lineKey = `Ligne ${ticket.line.line_number}`;
+                      acc[lineKey] = (acc[lineKey] || 0) + 1;
+                    }
+                    return acc;
+                  }, {} as Record<string, number>);
+
+                  return Object.entries(lineStats)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 5)
+                    .map(([lineName, count]) => (
+                      <div key={lineName} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700 truncate">{lineName}</span>
+                        <span className="text-sm font-medium text-gray-900">{count} tickets</span>
+                      </div>
+                    ));
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Types de tickets */}
+          <div className="glass-container p-6 rounded-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Types de tickets</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {(() => {
+                const typeStats = tickets.reduce((acc, ticket) => {
+                  const typeName = ticket.ticket_type?.name || 'Non spécifié';
+                  acc[typeName] = (acc[typeName] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+
+                return Object.entries(typeStats).map(([typeName, count]) => (
+                  <div key={typeName} className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{count}</div>
+                    <div className="text-sm text-gray-600">{typeName}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+
+          {/* Évolution temporelle */}
+          <div className="glass-container p-6 rounded-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Évolution des ventes (7 derniers jours)</h3>
+            <div className="space-y-3">
+              {(() => {
+                const last7Days = Array.from({ length: 7 }, (_, i) => {
+                  const date = new Date();
+                  date.setDate(date.getDate() - (6 - i));
+                  return date.toISOString().split('T')[0];
+                });
+
+                return last7Days.map(date => {
+                  const dayTickets = tickets.filter(ticket =>
+                    new Date(ticket.created_at).toISOString().split('T')[0] === date
+                  );
+                  const revenue = dayTickets.reduce((sum, ticket) => sum + ticket.price_paid_fcfa, 0);
+
+                  return (
+                    <div key={date} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                      <span className="text-sm text-gray-700">
+                        {new Date(date).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      </span>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-900">{dayTickets.length} tickets</span>
+                        <span className="text-sm font-medium text-gray-900">{revenue.toLocaleString()} FCFA</span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de génération de tickets */}
       {isTicketGenerationModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeAllModals}>
-          <div className="glass-container p-8 rounded-2xl max-w-md w-full animate-fade-in" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-backdrop" 
+          onClick={closeAllModals}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            minHeight: '100vh',
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            margin: 0,
+            boxSizing: 'border-box'
+          }}
+        >
+          <div 
+            className="modal-content glass-container p-8 rounded-2xl max-w-md w-full animate-fade-in" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              zIndex: 10000,
+              position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center">
                 <Ticket className="h-6 w-6 mr-3 text-blue-600" />
@@ -989,7 +1043,7 @@ const SotralTicketManagementPage: React.FC = () => {
                   className="input text-gray-900"
                 >
                   <option value={0}>Sélectionnez une ligne</option>
-                  {allLinesForSelection.map(line => (
+                  {lines.map(line => (
                     <option key={line.id} value={line.id} disabled={!line.is_active}>
                       Ligne {line.line_number} - {line.name}{!line.is_active ? ' (Inactive)' : ''}
                     </option>
@@ -999,7 +1053,7 @@ const SotralTicketManagementPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-green-700 mb-2">
-                  Type de ticket *
+                  Lignes ordinaires, Lignes étudiantes *
                 </label>
                 <select
                   name="ticketTypeCode"
@@ -1008,11 +1062,9 @@ const SotralTicketManagementPage: React.FC = () => {
                   required
                   className="input text-gray-900"
                 >
-                  {ticketTypes.map(type => (
-                    <option key={type.code} value={type.code}>
-                      {type.name} - {type.price_fcfa} FCFA
-                    </option>
-                  ))}
+                  <option value="">Sélectionner un type</option>
+                  <option value="ordinaires">Lignes ordinaires</option>
+                  <option value="etudiantes">Lignes étudiantes</option>
                 </select>
               </div>
 
@@ -1083,8 +1135,38 @@ const SotralTicketManagementPage: React.FC = () => {
 
       {/* Modal de génération en masse */}
       {isBulkGenerationModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeAllModals}>
-          <div className="glass-container p-8 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-backdrop" 
+          onClick={closeAllModals}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            minHeight: '100vh',
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            margin: 0,
+            boxSizing: 'border-box'
+          }}
+        >
+          <div 
+            className="modal-content glass-container p-8 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-fade-in" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              zIndex: 10000,
+              position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center">
                 <Target className="h-6 w-6 mr-3 text-purple-600" />
@@ -1104,7 +1186,7 @@ const SotralTicketManagementPage: React.FC = () => {
                   Sélectionner les lignes
                 </label>
                 <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-3 space-y-2">
-                  {allLinesForSelection.map(line => (
+                  {lines.map(line => (
                     <label key={line.id} className="flex items-center">
                       <input
                         type="checkbox"
@@ -1115,7 +1197,7 @@ const SotralTicketManagementPage: React.FC = () => {
                         className="mr-2"
                         disabled={!line.is_active}
                       />
-                      <span className={`text-sm ${!line.is_active ? 'text-gray-400' : ''}`}>Ligne {line.line_number} - {line.name}{!line.is_active ? ' (Inactive)' : ''}</span>
+                      <span className={`text-sm ${!line.is_active ? 'text-gray-400' : 'text-gray-900'}`}>Ligne {line.line_number} - {line.name}{!line.is_active ? ' (Inactive)' : ''}</span>
                     </label>
                   ))}
                 </div>
@@ -1137,7 +1219,7 @@ const SotralTicketManagementPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-green-700 mb-2">
-                    Type de ticket
+                    Lignes ordinaires, Lignes étudiantes
                   </label>
                   <select
                     name="ticketTypeCode"
@@ -1145,11 +1227,9 @@ const SotralTicketManagementPage: React.FC = () => {
                     onChange={handleBulkGenInputChange}
                     className="input text-gray-900"
                   >
-                    {ticketTypes.map(type => (
-                      <option key={type.code} value={type.code}>
-                        {type.name}
-                      </option>
-                    ))}
+                    <option value="" className="text-gray-900">Sélectionner un type</option>
+                    <option value="ordinaires" className="text-gray-900">Lignes ordinaires</option>
+                    <option value="etudiantes" className="text-gray-900">Lignes étudiantes</option>
                   </select>
                 </div>
 
@@ -1189,7 +1269,7 @@ const SotralTicketManagementPage: React.FC = () => {
                 <p className="text-sm text-gray-600">
                   {bulkGenForm.selectedLineIds.length} ligne(s) sélectionnée(s)<br/>
                   {bulkGenForm.quantityPerLine} tickets par ligne<br/>
-                  <strong>Total: {bulkGenForm.selectedLineIds.length * bulkGenForm.quantityPerLine} tickets</strong>
+                  <strong className="text-gray-900">Total: {bulkGenForm.selectedLineIds.length * bulkGenForm.quantityPerLine} tickets</strong>
                 </p>
               </div>
 
@@ -1215,8 +1295,38 @@ const SotralTicketManagementPage: React.FC = () => {
 
       {/* Modal de détails du ticket */}
       {isTicketDetailsModalOpen && selectedTicket && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeAllModals}>
-          <div className="glass-container p-8 rounded-2xl max-w-lg w-full animate-fade-in" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-backdrop" 
+          onClick={closeAllModals}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            minHeight: '100vh',
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            margin: 0,
+            boxSizing: 'border-box'
+          }}
+        >
+          <div 
+            className="modal-content glass-container p-8 rounded-2xl max-w-lg w-full animate-fade-in" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              zIndex: 10000,
+              position: 'relative',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-900 flex items-center">
                 <Ticket className="h-6 w-6 mr-3 text-blue-600" />
@@ -1234,7 +1344,7 @@ const SotralTicketManagementPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Code Ticket</label>
-                  <p className="text-sm font-mono bg-gray-100 p-2 rounded">{selectedTicket.ticket_code}</p>
+                  <p className="text-sm font-mono bg-gray-100 p-2 rounded text-gray-900">{selectedTicket.ticket_code}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Statut</label>
@@ -1253,7 +1363,7 @@ const SotralTicketManagementPage: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-600">Ligne</label>
-                <p className="text-sm">
+                <p className="text-sm text-gray-900">
                   {selectedTicket.line ? `Ligne ${selectedTicket.line.line_number} - ${selectedTicket.line.name}` : 'Non assigné'}
                 </p>
               </div>
@@ -1261,23 +1371,23 @@ const SotralTicketManagementPage: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Prix payé</label>
-                  <p className="text-sm font-semibold">{selectedTicket.price_paid_fcfa.toLocaleString()} FCFA</p>
+                  <p className="text-sm font-semibold text-gray-900">{selectedTicket.price_paid_fcfa.toLocaleString()} FCFA</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Trajets restants</label>
-                  <p className="text-sm">{selectedTicket.trips_remaining}</p>
+                  <p className="text-sm text-gray-900">{selectedTicket.trips_remaining}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Créé le</label>
-                  <p className="text-sm">{new Date(selectedTicket.created_at).toLocaleString()}</p>
+                  <p className="text-sm text-gray-900">{new Date(selectedTicket.created_at).toLocaleString()}</p>
                 </div>
                 {selectedTicket.expires_at && (
                   <div>
                     <label className="block text-sm font-medium text-gray-600">Expire le</label>
-                    <p className="text-sm">{new Date(selectedTicket.expires_at).toLocaleString()}</p>
+                    <p className="text-sm text-gray-900">{new Date(selectedTicket.expires_at).toLocaleString()}</p>
                   </div>
                 )}
               </div>

@@ -56,13 +56,13 @@ const CreateLineModal: React.FC<CreateLineModalProps> = ({
       }
 
       const lineData = {
-        line_number: formData.line_number,
-  line_name: formData.line_name,
+        line_number: parseInt(formData.line_number), // Convertir en nombre
+        line_name: formData.line_name,
         route_from: formData.route_from,
         route_to: formData.route_to,
         category_id: parseInt(formData.category_id),
-        distance_km: formData.distance_km || '0',
-        stops_count: formData.stops_count ? parseInt(formData.stops_count) : 0,
+        distance_km: formData.distance_km ? parseFloat(formData.distance_km) : undefined, // Convertir en nombre ou undefined
+        stops_count: formData.stops_count ? parseInt(formData.stops_count) : undefined, // Convertir en nombre ou undefined
         is_active: true
       };
 

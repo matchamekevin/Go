@@ -11,20 +11,35 @@ export interface DashboardStats {
     total_tickets: number;
     used_tickets: number;
     tickets_month: number;
-  };
-  routes: {
-    total_routes: number;
-    active_routes: number;
+    tickets_by_status?: Array<{
+      status: string;
+      count: number;
+    }>;
   };
   revenue: {
     total_revenue: number;
     revenue_month: number;
   };
+  payments: {
+    total_payments: number;
+    payments_month: number;
+  };
+  lines: {
+    active_lines: number;
+    top_lines: Array<{
+      line_number: number;
+      name: string;
+      tickets_sold: number;
+      revenue: number;
+    }>;
+  };
 }
 
 export interface ChartData {
-  date: string;
+  date?: string;
   value: number;
+  label?: string;
+  name?: string;
 }
 
 export class DashboardService {
@@ -32,7 +47,7 @@ export class DashboardService {
     return apiClient.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats');
   }
 
-  static async getChartData(type: 'users' | 'tickets' | 'revenue', period: '7d' | '30d' | '90d' | '1y'): Promise<ApiResponse<ChartData[]>> {
+  static async getChartData(type: 'users' | 'tickets' | 'revenue' | 'payments' | 'tickets_by_line', period: '7d' | '30d' | '90d' | '1y'): Promise<ApiResponse<ChartData[]>> {
     return apiClient.get<ApiResponse<ChartData[]>>(`/admin/dashboard/chart-data?type=${type}&period=${period}`);
   }
 

@@ -10,7 +10,6 @@ import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/UsersPage';
 import TicketsPage from './pages/TicketsPage';
 import ReportsPage from './pages/ReportsPage';
-import MessagesPage from './pages/MessagesPage';
 import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
 import StatisticsPage from './pages/StatisticsPage';
@@ -60,7 +59,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const AppContent: React.FC = () => {
   return (
-    <Router>
+    <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <Routes>
         {/* Routes publiques */}
         <Route 
@@ -86,7 +85,6 @@ const AppContent: React.FC = () => {
           <Route path="users" element={<UsersPage />} />
           <Route path="tickets" element={<TicketsPage />} />
           <Route path="reports" element={<ReportsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="statistics" element={<StatisticsPage />} />

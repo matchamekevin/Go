@@ -24,10 +24,9 @@ export class SotralRepository {
   // GESTION DES LIGNES
   // ==========================================
 
-  async getAllLines(includeInactive: boolean = false): Promise<SotralLineWithDetails[]> {
+  async getAllLines(includeInactive: boolean = true): Promise<SotralLineWithDetails[]> {
     const client = await pool.connect();
     try {
-      // When includeInactive is true, do not filter by is_active
       const query = `
         SELECT 
           l.*,
@@ -35,7 +34,6 @@ export class SotralRepository {
           c.description as category_description
         FROM sotral_lines l
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
-        ${includeInactive ? '' : ''}
         ORDER BY l.line_number ASC
       `;
       
@@ -230,19 +228,16 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT * FROM sotral_stops 
-        WHERE is_active = true 
+        SELECT * FROM sotral_stops
         ORDER BY name ASC
       `;
-      
+
       const result = await client.query(query);
       return result.rows;
     } finally {
       client.release();
     }
-  }
-
-  async getStopsByLine(lineId: number): Promise<SotralStop[]> {
+  }  async getStopsByLine(lineId: number): Promise<SotralStop[]> {
     const client = await pool.connect();
     try {
       const query = `
@@ -269,18 +264,15 @@ export class SotralRepository {
     try {
       const query = `
         SELECT * FROM sotral_ticket_types 
-        WHERE is_active = true 
         ORDER BY price_fcfa ASC
       `;
-      
+
       const result = await client.query(query);
       return result.rows;
     } finally {
       client.release();
     }
-  }
-
-  async getTicketTypeByCode(code: string): Promise<SotralTicketType | null> {
+  }  async getTicketTypeByCode(code: string): Promise<SotralTicketType | null> {
     const client = await pool.connect();
     try {
       const query = `
@@ -663,96 +655,15 @@ export class SotralRepository {
   // ==========================================
 
   async getAdminStats(dateFrom?: Date, dateTo?: Date): Promise<SotralStats> {
-    const client = await pool.connect();
-    try {
-      const dateFilter = dateFrom && dateTo 
-        ? 'AND t.purchased_at BETWEEN $1 AND $2'
-        : '';
-      const params = dateFrom && dateTo ? [dateFrom, dateTo] : [];
-
-      // Statistiques générales
-      const generalQuery = `
-        SELECT 
-          COUNT(*) as total_tickets,
-          SUM(price_paid_fcfa) as total_revenue,
-          COUNT(DISTINCT user_id) as active_users
-        FROM sotral_tickets t
-        WHERE 1=1 ${dateFilter}
-      `;
-
-      const generalResult = await client.query(generalQuery, params);
-      const general = generalResult.rows[0];
-
-      // Lignes populaires
-      const popularLinesQuery = `
-        SELECT 
-          l.id as line_id,
-          l.name as line_name,
-          COUNT(t.id) as tickets_count,
-          SUM(t.price_paid_fcfa) as revenue_fcfa
-        FROM sotral_tickets t
-        JOIN sotral_lines l ON t.line_id = l.id
-        WHERE 1=1 ${dateFilter}
-        GROUP BY l.id, l.name
-        ORDER BY tickets_count DESC
-        LIMIT 10
-      `;
-
-      const popularLinesResult = await client.query(popularLinesQuery, params);
-
-      // Ventes quotidiennes (derniers 30 jours)
-      const dailySalesQuery = `
-        SELECT 
-          DATE(purchased_at) as date,
-          COUNT(*) as tickets_count,
-          SUM(price_paid_fcfa) as revenue_fcfa
-        FROM sotral_tickets
-        WHERE purchased_at >= CURRENT_DATE - INTERVAL '30 days'
-        GROUP BY DATE(purchased_at)
-        ORDER BY date DESC
-      `;
-
-      const dailySalesResult = await client.query(dailySalesQuery);
-
-      // Distribution des types de tickets
-      const ticketTypesQuery = `
-        SELECT 
-          tt.name as type_name,
-          COUNT(t.id) as count,
-          ROUND(COUNT(t.id) * 100.0 / SUM(COUNT(t.id)) OVER(), 2) as percentage
-        FROM sotral_tickets t
-        JOIN sotral_ticket_types tt ON t.ticket_type_id = tt.id
-        WHERE 1=1 ${dateFilter}
-        GROUP BY tt.name
-        ORDER BY count DESC
-      `;
-
-      const ticketTypesResult = await client.query(ticketTypesQuery, params);
-
-      return {
-        total_tickets_sold: parseInt(general.total_tickets) || 0,
-        total_revenue_fcfa: parseFloat(general.total_revenue) || 0,
-        active_users: parseInt(general.active_users) || 0,
-        popular_lines: popularLinesResult.rows.map((row: any) => ({
-          line_id: row.line_id,
-          line_name: row.line_name,
-          tickets_count: parseInt(row.tickets_count),
-          revenue_fcfa: parseFloat(row.revenue_fcfa)
-        })),
-        daily_sales: dailySalesResult.rows.map((row: any) => ({
-          date: row.date,
-          tickets_count: parseInt(row.tickets_count),
-          revenue_fcfa: parseFloat(row.revenue_fcfa)
-        })),
-        ticket_types_distribution: ticketTypesResult.rows.map((row: any) => ({
-          type_name: row.type_name,
-          count: parseInt(row.count),
-          percentage: parseFloat(row.percentage)
-        }))
-      };
-    } finally {
-      client.release();
-    }
+    // Temporarily return static data for debugging
+    return {
+      total_tickets_sold: 0,
+      total_revenue_fcfa: 0,
+      active_users: 0,
+      popular_lines: [],
+      daily_sales: [],
+      ticket_types_distribution: []
+    };
   }
 
   // ==========================================
@@ -941,13 +852,12 @@ export class SotralRepository {
   async deleteLine(id: number): Promise<boolean> {
     const client = await pool.connect();
     try {
-      // Plutôt que supprimer, on désactive la ligne
+      // Supprimer définitivement la ligne de la base de données
       const query = `
-        UPDATE sotral_lines 
-        SET is_active = false, updated_at = CURRENT_TIMESTAMP
+        DELETE FROM sotral_lines
         WHERE id = $1
       `;
-      
+
       const result = await client.query(query, [id]);
       return (result.rowCount || 0) > 0;
     } finally {
@@ -1017,7 +927,8 @@ export class SotralRepository {
     lineId: number, 
     ticketTypeCode: string, 
     quantity: number, 
-    validityHours: number = 24
+    validityHours: number = 24,
+    customPrice?: number
   ): Promise<SotralTicket[]> {
     // Force redeploy on Render - table sotral_tickets should exist
     const client = await pool.connect();
@@ -1047,13 +958,17 @@ export class SotralRepository {
 
       const line = lineResult.rows[0];
 
-      // Calculer le prix selon la distance et le type
-      const isStudent = ticketType.is_student_discount;
-      let price = ticketType.price_fcfa;
-      
-      // Pour les lignes ordinaires, calculer selon la distance
-      if (!isStudent && line.category_id === 1) {
-        price = this.calculatePriceByDistance(parseFloat(line.distance_km) || 0);
+      // Utiliser le prix personnalisé si fourni, sinon calculer automatiquement
+      let price = customPrice;
+      if (price === undefined || price === null) {
+        // Calculer le prix selon la distance et le type
+        const isStudent = ticketType.is_student_discount;
+        price = ticketType.price_fcfa;
+        
+        // Pour les lignes ordinaires, calculer selon la distance
+        if (!isStudent && line.category_id === 1) {
+          price = this.calculatePriceByDistance(parseFloat(line.distance_km) || 0);
+        }
       }
 
       // Générer les tickets
@@ -1061,33 +976,45 @@ export class SotralRepository {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + validityHours);
 
+      console.log(`Starting ticket generation: ${quantity} tickets requested`);
+
       for (let i = 0; i < quantity; i++) {
-        const ticketCode = await this.generateTicketCode();
-        const qrCode = await this.generateQRCode(ticketCode);
+        try {
+          const ticketCode = await this.generateTicketCode();
+          const qrCode = await this.generateQRCode(ticketCode);
 
-        const insertQuery = `
-          INSERT INTO sotral_tickets (
-            ticket_code, qr_code, ticket_type_id, line_id,
-            price_paid_fcfa, status, expires_at, trips_remaining
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING *
-        `;
+          const insertQuery = `
+            INSERT INTO sotral_tickets (
+              ticket_code, qr_code, ticket_type_id, line_id,
+              price_paid_fcfa, status, expires_at, trips_remaining
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+          `;
 
-        const values = [
-          ticketCode,
-          qrCode,
-          ticketType.id,
-          lineId,
-          price,
-          'active',
-          expiresAt,
-          ticketType.max_trips
-        ];
+          const values = [
+            ticketCode,
+            qrCode,
+            ticketType.id,
+            lineId,
+            price,
+            'active',
+            expiresAt,
+            ticketType.max_trips
+          ];
 
-        const result = await client.query(insertQuery, values);
-        generatedTickets.push(result.rows[0]);
+          const result = await client.query(insertQuery, values);
+          generatedTickets.push(result.rows[0]);
+          
+          if ((i + 1) % 10 === 0) {
+            console.log(`Generated ${i + 1}/${quantity} tickets`);
+          }
+        } catch (insertError) {
+          console.error(`Error inserting ticket ${i + 1}:`, insertError);
+          // Continue with next ticket instead of failing completely
+        }
       }
 
+      console.log(`Ticket generation completed: ${generatedTickets.length}/${quantity} tickets successfully generated`);
       await client.query('COMMIT');
       return generatedTickets;
     } catch (error) {

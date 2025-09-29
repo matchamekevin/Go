@@ -18,7 +18,6 @@ const SotralManagementPage: React.FC = () => {
     lines,
     loading: linesLoading,
     error: linesError,
-    isUsingCache,
     createLine,
     updateLine,
     deleteLine,
@@ -120,26 +119,9 @@ const SotralManagementPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             Gestion SOTRAL
-            {isUsingCache && (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
-                Données en cache
-              </span>
-            )}
           </h1>
           <p className="text-gray-600 mt-1">
             Gérez les lignes de transport et les trajets
-            {isUsingCache && (
-              <span className="block text-sm text-yellow-600 mt-1">
-                Les données affichées proviennent du cache local en raison d'une erreur de connexion.
-                <button
-                  onClick={refreshData}
-                  className="ml-2 text-yellow-700 underline hover:text-yellow-800 font-medium"
-                >
-                  Actualiser maintenant
-                </button>
-              </span>
-            )}
           </p>
         </div>
         <div className="flex space-x-3">
