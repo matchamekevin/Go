@@ -201,7 +201,7 @@ app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/tickets', ticketsRoutesSimple);
-app.use('/sotral', sotralRoutes);
+app.use('/sotral', sotralRoutes); // SOTRAL routes for mobile app - updated 2025-09-29
 
 // Mount specific admin feature routes first to avoid being shadowed by the generic /admin router
 // (e.g. DELETE /admin/tickets must be handled by adminTicketsRoutes, not by adminRoutes which only
