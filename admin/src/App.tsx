@@ -12,7 +12,6 @@ import TicketsPage from './pages/TicketsPage';
 import ReportsPage from './pages/ReportsPage';
 import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
-import StatisticsPage from './pages/StatisticsPage';
 import SotralManagementPage from './pages/SotralManagementPage';
 import './index.css';
 
@@ -87,11 +86,9 @@ const AppContent: React.FC = () => {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="statistics" element={<StatisticsPage />} />
           <Route path="sotral" element={<SotralManagementPage />} />
           <Route path="routes" element={<Navigate to="/dashboard" replace />} />
           <Route path="transactions" element={<Navigate to="/dashboard" replace />} />
-          <Route path="stats" element={<Navigate to="/statistics" replace />} />
         </Route>
 
         {/* Route 404 */}

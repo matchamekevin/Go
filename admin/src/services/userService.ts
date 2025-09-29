@@ -27,10 +27,6 @@ export class UserService {
     return apiClient.put<ApiResponse<User>>(`/admin/users/${id}`, data);
   }
 
-  static async deleteUser(id: number): Promise<ApiResponse<void>> {
-    return apiClient.delete<ApiResponse<void>>(`/admin/users/${id}`);
-  }
-
   static async toggleUserStatus(id: number): Promise<ApiResponse<User>> {
     return apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-status`);
   }

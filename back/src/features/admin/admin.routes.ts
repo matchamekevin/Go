@@ -23,7 +23,6 @@ router.get('/users', AdminController.getAllUsers as any);
 router.get('/users/suspended', AdminController.getSuspendedUsers as any);
 router.get('/users/:id', AdminController.getUserById as any);
 router.put('/users/:id', AdminController.updateUser as any);
-router.delete('/users/:id', AdminController.deleteUser as any);
 router.patch('/users/:id/toggle-status', AdminController.toggleUserStatus as any);
 router.patch('/users/:id/toggle-suspension', AdminController.toggleUserSuspension as any);
 

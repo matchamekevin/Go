@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Calendar, Shield, ShieldCheck, Users, RefreshCw, Clock } from 'lucide-react';
+import { Mail, Phone, Calendar, Shield, ShieldCheck, Users } from 'lucide-react';
 import { UserService } from '../services/userService';
 import { User } from '../types/api';
 import SearchBar from '../components/SearchBar';
@@ -19,23 +19,20 @@ const UsersPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [actionsModalOpen, setActionsModalOpen] = useState(false);
-  const [suspendedUsers, setSuspendedUsers] = useState<User[]>([]);
-  const [suspendedLoading, setSuspendedLoading] = useState(false);
 
   // Fonction de rafraîchissement des données
   const refreshAllData = async () => {
-    await Promise.all([fetchUsers(), fetchSuspendedUsers()]);
+    await fetchUsers();
   };
 
   // Utiliser le hook de réactualisation automatique
-  const { lastRefresh, isRefreshing, autoRefresh, setAutoRefresh, refreshData } = useAutoRefresh(refreshAllData, {
-    interval: 45000, // 45 secondes pour les utilisateurs (moins critique que le dashboard)
+  const { isRefreshing } = useAutoRefresh(refreshAllData, {
+    interval: 30000, // 30 secondes
     enabled: true
   });
 
   useEffect(() => {
     fetchUsers();
-    fetchSuspendedUsers();
   }, [currentPage, searchQuery, filterStatus]);
 
   const fetchUsers = async () => {
@@ -65,20 +62,6 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const fetchSuspendedUsers = async () => {
-    try {
-      setSuspendedLoading(true);
-      const response = await UserService.getSuspendedUsers();
-      if (response.success && response.data) {
-        setSuspendedUsers(response.data);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des utilisateurs suspendus:', error);
-    } finally {
-      setSuspendedLoading(false);
-    }
-  };
-
   const openActionsForUser = (user: User) => {
     setSelectedUser(user);
     setActionsModalOpen(true);
@@ -86,7 +69,6 @@ const UsersPage: React.FC = () => {
 
   const onActionComplete = () => {
     fetchUsers();
-    fetchSuspendedUsers();
   };
 
   const userColumns = [
@@ -162,74 +144,35 @@ const UsersPage: React.FC = () => {
               Gérez les comptes utilisateurs et leurs permissions
             </p>
           </div>
-
-          {/* Contrôles de réactualisation automatique */}
-          <div className="flex items-center space-x-4">
-            {/* Indicateur de dernière mise à jour */}
-            <div className="text-xs text-gray-500 flex items-center">
-              <Clock className="h-3 w-3 mr-1" />
-              MAJ: {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-
-            {/* Toggle réactualisation automatique */}
-            <div className="flex items-center space-x-2">
-              <label className="text-xs text-gray-600">Auto-refresh</label>
-              <button
-                onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  autoRefresh ? 'bg-[#065f46]' : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    autoRefresh ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Bouton rafraîchissement manuel */}
-            <button
-              onClick={() => refreshData(true)}
-              disabled={isRefreshing}
-              className="flex items-center px-3 py-2 bg-[#065f46] text-white rounded-lg hover:bg-[#054a3a] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Actualisation...' : 'Actualiser'}
-            </button>
-          </div>
         </div>
 
-        {/* Notification temporaire */}
-              {/* Filters, Search & Add User Button */}
-      </div>
-
-      {/* Filters, Search & Add User Button */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <SearchBar
-            placeholder="Rechercher par nom, email ou téléphone..."
-            value={searchQuery}
-            onChange={(v) => { setSearchQuery(v); setCurrentPage(1); }}
-            className="flex-1"
-          />
-          <div className="flex gap-2 items-center">
-            <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#065f46] text-black bg-white"
-              value={filterStatus}
-              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="verified">Vérifiés</option>
-              <option value="unverified">Non vérifiés</option>
-              <option value="suspended">Suspendus</option>
-            </select>
+        {/* Filters, Search & Add User Button */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <SearchBar
+              placeholder="Rechercher par nom, email ou téléphone..."
+              value={searchQuery}
+              onChange={(v) => { setSearchQuery(v); setCurrentPage(1); }}
+              className="flex-1"
+            />
+            <div className="flex gap-2 items-center">
+              <select
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#065f46] text-black bg-white"
+                value={filterStatus}
+                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="verified">Vérifiés</option>
+                <option value="unverified">Non vérifiés</option>
+                <option value="suspended">Suspendus</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="relative">
           {isRefreshing && (
             <div className="absolute top-2 right-2 z-10">
@@ -266,68 +209,7 @@ const UsersPage: React.FC = () => {
             icon={Shield}
           />
         </div>
-        <div className="relative">
-          {isRefreshing && (
-            <div className="absolute top-2 right-2 z-10">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            </div>
-          )}
-          <StatsCard
-            title="Suspendus"
-            value={suspendedUsers.length}
-            icon={Shield}
-          />
-        </div>
       </div>
-
-      {/* Comptes Suspendus */}
-      {suspendedUsers.length > 0 && (
-        <div className="mb-8">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-red-900 flex items-center">
-                <Shield className="h-5 w-5 mr-2" />
-                Comptes Suspendus ({suspendedUsers.length})
-              </h3>
-              <button
-                onClick={fetchSuspendedUsers}
-                disabled={suspendedLoading}
-                className="text-red-600 hover:text-red-800 disabled:opacity-50"
-              >
-                {suspendedLoading ? 'Chargement...' : 'Actualiser'}
-              </button>
-            </div>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {suspendedUsers.slice(0, 5).map((user) => (
-                <div key={user.id} className="flex items-center justify-between bg-white p-3 rounded border">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-xs font-medium text-red-700">
-                        {user.name.split(' ').map(n => n[0]).join('')}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => openActionsForUser(user)}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    Gérer
-                  </button>
-                </div>
-              ))}
-              {suspendedUsers.length > 5 && (
-                <div className="text-center text-sm text-gray-500 pt-2">
-                  Et {suspendedUsers.length - 5} autres...
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Users Table */}
       <div className="bg-white shadow-sm rounded-lg border border-gray-200">

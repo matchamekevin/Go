@@ -81,18 +81,6 @@ export class AdminController {
     }
   }
 
-  static async deleteUser(req: AuthenticatedRequest, res: Response) {
-    try {
-      const { id } = req.params;
-      const r = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
-      if (r.rows.length === 0) return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
-      return res.status(200).json({ success: true, message: 'Utilisateur supprimé' });
-    } catch (err: any) {
-      console.error('[AdminController.deleteUser]', err);
-      return res.status(500).json({ success: false, error: 'Erreur lors de la suppression de l\'utilisateur' });
-    }
-  }
-
   static async toggleUserStatus(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
@@ -452,13 +440,219 @@ export class AdminController {
 
   static async getPeriodReport(req: AuthenticatedRequest, res: Response) {
     try {
-      // Example: return sales / activity for a period. For now return a simple aggregate from DB.
-      const { period = '30d' } = req.query as any;
-      const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
-      const users = await pool.query(`SELECT DATE(created_at) as date, COUNT(*) as count FROM users WHERE created_at >= NOW() - INTERVAL '${days} days' GROUP BY DATE(created_at) ORDER BY date`);
-      const tickets = await pool.query(`SELECT DATE(purchased_at) as date, COUNT(*) as count FROM tickets WHERE purchased_at >= NOW() - INTERVAL '${days} days' GROUP BY DATE(purchased_at) ORDER BY date`);
-      return res.status(200).json({ success: true, data: { users: users.rows, tickets: tickets.rows } });
-    } catch (err:any) { console.error('[AdminController.getPeriodReport]',err); return res.status(500).json({ success:false, error:'Erreur génération rapport' }); }
+      const { period = '30d', type = 'financial' } = req.query as any;
+      const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+
+      // Calculer les statistiques globales pour la période
+      const periodStart = `CURRENT_DATE - INTERVAL '${days} days'`;
+
+      if (type === 'financial') {
+        // Statistiques financières
+        const totalRevenue = await pool.query(`
+          SELECT COALESCE(SUM(price_paid_fcfa), 0)::int as total
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart} AND status != 'cancelled'
+        `);
+
+        const totalTickets = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart} AND status != 'cancelled'
+        `);
+
+        const totalUsers = await pool.query(`
+          SELECT COUNT(DISTINCT user_id)::int as total
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart} AND status != 'cancelled'
+        `);
+
+        const averageTicketPrice = totalTickets.rows[0].total > 0
+          ? Math.round(totalRevenue.rows[0].total / totalTickets.rows[0].total)
+          : 0;
+
+        // Données par période (quotidienne) - TOUTES LES VALEURS VIENNENT DIRECTEMENT DE LA BASE DE DONNÉES
+        const periodRevenue = await pool.query(`
+          SELECT
+            DATE(purchased_at) as period,
+            COALESCE(SUM(price_paid_fcfa), 0)::int as revenue,
+            COUNT(*)::int as tickets_sold,
+            COUNT(DISTINCT user_id)::int as active_users,
+            CASE
+              WHEN COUNT(*) > 0 THEN ROUND(COALESCE(SUM(price_paid_fcfa), 0) / COUNT(*))
+              ELSE 0
+            END::int as average_price
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart} AND status != 'cancelled'
+          GROUP BY DATE(purchased_at)
+          ORDER BY period DESC
+        `);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            total_revenue: totalRevenue.rows[0].total,
+            total_tickets: totalTickets.rows[0].total,
+            total_users: totalUsers.rows[0].total,
+            average_ticket_price: averageTicketPrice,
+            period_revenue: periodRevenue.rows
+          }
+        });
+      }
+
+      if (type === 'users') {
+        // Statistiques utilisateurs
+        const totalUsers = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM users
+          WHERE created_at >= ${periodStart}
+        `);
+
+        const verifiedUsers = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM users
+          WHERE created_at >= ${periodStart} AND is_verified = true
+        `);
+
+        const activeUsers = await pool.query(`
+          SELECT COUNT(DISTINCT st.user_id)::int as total
+          FROM sotral_tickets st
+          WHERE st.purchased_at >= ${periodStart} AND st.status != 'cancelled'
+        `);
+
+        // Données par période
+        const periodUsers = await pool.query(`
+          SELECT
+            DATE(created_at) as period,
+            COUNT(*)::int as new_users,
+            COUNT(*) FILTER (WHERE is_verified = true)::int as verified_users,
+            0::int as active_users
+          FROM users
+          WHERE created_at >= ${periodStart}
+          GROUP BY DATE(created_at)
+          ORDER BY period DESC
+        `);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            total_users: totalUsers.rows[0].total,
+            verified_users: verifiedUsers.rows[0].total,
+            active_users: activeUsers.rows[0].total,
+            average_ticket_price: 0, // Non applicable pour les utilisateurs
+            period_revenue: periodUsers.rows.map(row => ({
+              period: row.period,
+              revenue: 0,
+              tickets_sold: row.new_users,
+              active_users: row.verified_users
+            }))
+          }
+        });
+      }
+
+      if (type === 'tickets') {
+        // Statistiques tickets
+        const totalTickets = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart}
+        `);
+
+        const usedTickets = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart} AND status = 'used'
+        `);
+
+        const activeTickets = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart} AND status = 'active'
+        `);
+
+        // Données par période
+        const periodTickets = await pool.query(`
+          SELECT
+            DATE(purchased_at) as period,
+            COUNT(*)::int as total_tickets,
+            COUNT(*) FILTER (WHERE status = 'used')::int as used_tickets,
+            COUNT(*) FILTER (WHERE status = 'active')::int as active_tickets,
+            COALESCE(SUM(price_paid_fcfa), 0)::int as revenue
+          FROM sotral_tickets
+          WHERE purchased_at >= ${periodStart}
+          GROUP BY DATE(purchased_at)
+          ORDER BY period DESC
+        `);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            total_tickets: totalTickets.rows[0].total,
+            used_tickets: usedTickets.rows[0].total,
+            active_tickets: activeTickets.rows[0].total,
+            average_ticket_price: 0,
+            period_revenue: periodTickets.rows.map(row => ({
+              period: row.period,
+              revenue: row.revenue,
+              tickets_sold: row.total_tickets,
+              active_users: row.active_tickets
+            }))
+          }
+        });
+      }
+
+      if (type === 'routes') {
+        // Statistiques par routes/lignes
+        const totalRoutes = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM sotral_lines
+          WHERE is_active = true
+        `);
+
+        const ticketsByRoute = await pool.query(`
+          SELECT COUNT(*)::int as total
+          FROM sotral_tickets st
+          JOIN sotral_lines sl ON st.line_id = sl.id
+          WHERE st.purchased_at >= ${periodStart} AND st.status != 'cancelled'
+        `);
+
+        // Top routes par ventes
+        const topRoutes = await pool.query(`
+          SELECT
+            sl.line_number,
+            sl.name,
+            COUNT(st.id)::int as tickets_sold,
+            COALESCE(SUM(st.price_paid_fcfa), 0)::int as revenue
+          FROM sotral_lines sl
+          LEFT JOIN sotral_tickets st ON sl.id = st.line_id
+            AND st.purchased_at >= ${periodStart}
+            AND st.status != 'cancelled'
+          GROUP BY sl.id, sl.line_number, sl.name
+          ORDER BY tickets_sold DESC
+          LIMIT 10
+        `);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            total_routes: totalRoutes.rows[0].total,
+            total_tickets: ticketsByRoute.rows[0].total,
+            top_routes: topRoutes.rows.length,
+            average_ticket_price: 0,
+            period_revenue: topRoutes.rows.map((row, index) => ({
+              period: `Route ${row.line_number}`,
+              revenue: row.revenue,
+              tickets_sold: row.tickets_sold,
+              active_users: index + 1 // Classement
+            }))
+          }
+        });
+      }
+
+      return res.status(400).json({ success: false, error: 'Type de rapport non supporté' });
+    } catch (err: any) {
+      console.error('[AdminController.getPeriodReport]', err);
+      return res.status(500).json({ success: false, error: 'Erreur génération rapport' });
+    }
   }
 }
 

@@ -38,7 +38,7 @@ export const useUser = (id: number) => {
 export const useUserStats = () => {
   return useQuery({
     queryKey: userKeys.stats(),
-    queryFn: () => UserService.getUserStats(),
+    queryFn: () => UserService.getUsers(),
   });
 };
 
@@ -57,22 +57,6 @@ export const useUpdateUser = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Erreur lors de la mise à jour');
-    },
-  });
-};
-
-export const useDeleteUser = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: number) => UserService.deleteUser(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all });
-      queryClient.removeQueries({ queryKey: userKeys.detail(id) });
-      toast.success('Utilisateur supprimé avec succès');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Erreur lors de la suppression');
     },
   });
 };

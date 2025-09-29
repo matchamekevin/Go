@@ -24,16 +24,9 @@ export const useNavigation = () => {
       ]
     },
     {
-      category: "Finance",
-      items: [
-        { name: 'Statistiques', href: '/statistics', iconName: 'PieChart' },
-      ]
-    },
-    {
       category: "Support",
       items: [
         { name: 'Aide', href: '/help', iconName: 'HelpCircle' },
-        { name: 'Paramètres', href: '/settings', iconName: 'Settings' },
       ]
     }
   ];
