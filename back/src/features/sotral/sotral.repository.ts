@@ -1019,6 +1019,7 @@ export class SotralRepository {
     quantity: number, 
     validityHours: number = 24
   ): Promise<SotralTicket[]> {
+    // Force redeploy on Render - table sotral_tickets should exist
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
