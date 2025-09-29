@@ -32,7 +32,6 @@ import {
   MapPin,
   ChevronUp,
   Info,
-  XCircle,
   UserCheck,
   Share2,
   Search as SearchIcon
@@ -60,14 +59,6 @@ interface GuideSection {
     warnings?: string[];
   };
   relatedLinks: string[];
-}
-
-interface TroubleshootingItem {
-  id: string;
-  problem: string;
-  symptoms: string[];
-  solutions: string[];
-  severity: 'critical' | 'high' | 'medium' | 'low';
 }
 
 interface PrivacySection {
@@ -301,56 +292,6 @@ const HelpPage: React.FC = () => {
     }
   ];
 
-  const troubleshooting: TroubleshootingItem[] = [
-    {
-      id: 'login-failure',
-      problem: 'Impossible de se connecter au panneau admin',
-      symptoms: [
-        'Message d\'erreur "Identifiants incorrects"',
-        'Page de connexion qui ne charge pas',
-        'Erreur 500 lors de la soumission'
-      ],
-      solutions: [
-        'Vérifiez que vos identifiants sont corrects',
-        'Videz le cache du navigateur',
-        'Contactez l\'administrateur système si le problème persiste'
-      ],
-      severity: 'high'
-    },
-    {
-      id: 'slow-loading',
-      problem: 'Le système est lent à charger',
-      symptoms: [
-        'Pages qui mettent du temps à s\'afficher',
-        'Requêtes qui expirent',
-        'Interface qui freeze'
-      ],
-      solutions: [
-        'Vérifiez la connexion réseau',
-        'Redémarrez le navigateur',
-        'Videz le cache et les cookies',
-        'Contactez le support technique si le problème persiste'
-      ],
-      severity: 'medium'
-    },
-    {
-      id: 'data-not-updating',
-      problem: 'Les données ne se mettent pas à jour',
-      symptoms: [
-        'Informations obsolètes affichées',
-        'Modifications non sauvegardées',
-        'Rapports avec des données anciennes'
-      ],
-      solutions: [
-        'Actualisez la page (F5)',
-        'Vérifiez la connexion à la base de données',
-        'Redémarrez la session',
-        'Contactez l\'équipe technique'
-      ],
-      severity: 'medium'
-    }
-  ];
-
   const privacySections: PrivacySection[] = [
     {
       id: 'responsible',
@@ -503,16 +444,6 @@ const HelpPage: React.FC = () => {
     // TODO: Implémenter le téléchargement du guide PDF
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
       case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
@@ -523,7 +454,7 @@ const HelpPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
       {/* Header avec recherche */}
       <div className="mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -559,7 +490,6 @@ const HelpPage: React.FC = () => {
             { id: 'faq', label: 'FAQ', icon: <HelpCircle className="h-5 w-5" /> },
             { id: 'guides', label: 'Guides', icon: <Book className="h-5 w-5" /> },
             { id: 'privacy', label: 'Données personnelles', icon: <Shield className="h-5 w-5" /> },
-            { id: 'troubleshooting', label: 'Dépannage', icon: <AlertTriangle className="h-5 w-5" /> },
             { id: 'contact', label: 'Contact', icon: <Phone className="h-5 w-5" /> }
           ].map((tab) => (
             <button
@@ -911,70 +841,6 @@ const HelpPage: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Dépannage */}
-      {activeTab === 'troubleshooting' && (
-        <div className="space-y-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <AlertTriangle className="h-6 w-6 text-yellow-600 mt-0.5 mr-3" />
-              <div>
-                <h3 className="text-lg font-medium text-yellow-800">Guide de dépannage</h3>
-                <p className="text-yellow-700 mt-1">
-                  Suivez ces étapes pour résoudre les problèmes courants. Si le problème persiste, contactez le support technique.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {troubleshooting.map((item) => (
-            <div key={item.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900">{item.problem}</h3>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getSeverityColor(item.severity)}`}>
-                    {item.severity === 'critical' ? 'Critique' :
-                     item.severity === 'high' ? 'Élevé' :
-                     item.severity === 'medium' ? 'Moyen' : 'Faible'}
-                  </span>
-                </div>
-              </div>
-              <div className="px-6 py-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                      <XCircle className="h-5 w-5 text-red-500 mr-2" />
-                      Symptômes
-                    </h4>
-                    <ul className="space-y-2">
-                      {item.symptoms.map((symptom, index) => (
-                        <li key={index} className="flex items-start text-gray-700">
-                          <span className="text-red-500 mr-2">•</span>
-                          {symptom}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                      Solutions
-                    </h4>
-                    <ol className="space-y-2">
-                      {item.solutions.map((solution, index) => (
-                        <li key={index} className="flex items-start text-gray-700">
-                          <span className="text-green-500 mr-2 font-medium">{index + 1}.</span>
-                          {solution}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 

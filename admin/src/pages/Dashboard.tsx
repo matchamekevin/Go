@@ -234,8 +234,8 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5] py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen  bg-gradient-to-br from-[#f5f5f5] to-[#e5e5e5] py-6 px-4 sm:px-6 lg:px-8">
+      <div className="w-full mx-auto space-y-6">
         {/* Header */}
         <div className="text-center relative">
 
