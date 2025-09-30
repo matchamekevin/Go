@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../../src/styles/theme';
 import HelpFAB from '../../src/components/HelpFAB';
+import MobilePaymentModal from '../../src/components/MobilePaymentModal';
 import { sotralUnifiedService, UnifiedSotralLine, UnifiedSotralTicket, UnifiedSearchData } from '../../src/services/sotralUnifiedService';
 
 export default function SearchTab() {
@@ -128,32 +129,29 @@ export default function SearchTab() {
   const [lineTicketsLoading, setLineTicketsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'search' | 'line-tickets'>('search');
 
+  // État pour le modal de paiement
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [selectedTicketForPayment, setSelectedTicketForPayment] = useState<UnifiedSotralTicket | null>(null);
+
   // Gérer l'achat d'un ticket
   const handlePurchaseTicket = (ticket: UnifiedSotralTicket) => {
-    // TODO: Implémenter l'intégration avec Mixx by YAS et Flooz
+    setSelectedTicketForPayment(ticket);
+    setPaymentModalVisible(true);
+  };
+
+  // Gérer le succès du paiement
+  const handlePaymentSuccess = (purchasedTicket: UnifiedSotralTicket) => {
+    console.log('[SearchTab] Paiement réussi pour ticket:', purchasedTicket.ticket_code);
+
+    // Mettre à jour la liste des tickets disponibles (retirer le ticket acheté)
+    setAvailableTickets(prev => prev.filter(t => t.id !== purchasedTicket.id));
+    setLineTickets(prev => prev.filter(t => t.id !== purchasedTicket.id));
+
+    // Afficher un message de succès
     Alert.alert(
-      'Paiement',
-      `Achat du ticket ${ticket.ticket_code} pour ${ticket.price_paid_fcfa} FCFA`,
-      [
-        {
-          text: 'Mixx by YAS',
-          onPress: () => {
-            // Implémenter paiement Mixx by YAS
-            console.log('Paiement via Mixx by YAS');
-          }
-        },
-        {
-          text: 'Flooz',
-          onPress: () => {
-            // Implémenter paiement Flooz
-            console.log('Paiement via Flooz');
-          }
-        },
-        {
-          text: 'Annuler',
-          style: 'cancel'
-        }
-      ]
+      'Achat réussi !',
+      `Votre ticket ${purchasedTicket.ticket_code} a été acheté avec succès.`,
+      [{ text: 'OK' }]
     );
   };
 
@@ -430,6 +428,15 @@ export default function SearchTab() {
         )}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {/* Modal de paiement mobile */}
+      <MobilePaymentModal
+        visible={paymentModalVisible}
+        ticket={selectedTicketForPayment}
+        onClose={() => setPaymentModalVisible(false)}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+
       <HelpFAB />
     </SafeAreaView>
   );

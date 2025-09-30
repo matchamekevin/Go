@@ -353,7 +353,11 @@ export class AdminSotralController {
         price_fcfa // Prix personnalisé saisi par l'utilisateur
       } = req.body;
 
+      console.log('🎫 generateTicketsForLine - Received:', { lineId, ticketTypeCode, quantity, validityHours, price_fcfa });
+      console.log('🎫 generateTicketsForLine - ticketTypeCode type:', typeof ticketTypeCode, 'value:', JSON.stringify(ticketTypeCode));
+
       if (!lineId || !ticketTypeCode) {
+        console.log('🎫 generateTicketsForLine - Missing required fields');
         res.status(400).json({
           success: false,
           error: 'lineId et ticketTypeCode sont requis'
@@ -365,9 +369,15 @@ export class AdminSotralController {
       let actualTicketTypeCode = ticketTypeCode;
       if (ticketTypeCode === 'ordinaires') {
         actualTicketTypeCode = 'SIMPLE';
+        console.log('🎫 generateTicketsForLine - Mapped "ordinaires" to "SIMPLE"');
       } else if (ticketTypeCode === 'etudiantes') {
         actualTicketTypeCode = 'STUDENT';
+        console.log('🎫 generateTicketsForLine - Mapped "etudiantes" to "STUDENT"');
+      } else {
+        console.log('🎫 generateTicketsForLine - No mapping applied, using:', actualTicketTypeCode);
       }
+
+      console.log('🎫 generateTicketsForLine - Final mapping:', { original: ticketTypeCode, mapped: actualTicketTypeCode });
 
       // Vérifier que la ligne existe
       const line = await sotralRepository.getLineByIdForAdmin(lineId);
@@ -419,6 +429,8 @@ export class AdminSotralController {
         price_fcfa // Prix personnalisé saisi par l'utilisateur
       } = req.body;
 
+      console.log('🎫 bulkGenerateTickets - Received:', { ticketTypeCode, quantityPerLine, validityHours, price_fcfa });
+
       // Mapper les nouveaux codes vers les vrais codes de types de tickets
       let actualTicketTypeCode = ticketTypeCode;
       if (ticketTypeCode === 'ordinaires') {
@@ -426,6 +438,8 @@ export class AdminSotralController {
       } else if (ticketTypeCode === 'etudiantes') {
         actualTicketTypeCode = 'STUDENT';
       }
+
+      console.log('🎫 bulkGenerateTickets - Mapped:', { original: ticketTypeCode, mapped: actualTicketTypeCode });
 
       // Récupérer toutes les lignes actives
       const lines = await sotralRepository.getAllLines();
@@ -435,6 +449,7 @@ export class AdminSotralController {
 
       for (const line of activeLines) {
         try {
+          console.log(`🎫 Generating tickets for line ${line.id} (${line.name}) with type ${actualTicketTypeCode}`);
           const generatedTickets = await sotralRepository.generateTicketsForLine(
             line.id!,
             actualTicketTypeCode,
@@ -450,6 +465,7 @@ export class AdminSotralController {
             success: true
           });
         } catch (error) {
+          console.error(`🎫 Error generating tickets for line ${line.id}:`, error);
           results.push({
             line_id: line.id,
             line_name: line.name,
@@ -731,5 +747,4 @@ export class AdminSotralController {
     }
   }
 }
-
 export const adminSotralController = new AdminSotralController();

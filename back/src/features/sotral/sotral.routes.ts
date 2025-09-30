@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { sotralController } from './sotral.controller';
+import { PaymentController } from '../payments/payment.controller';
 import { authMiddleware } from '../../shared/midddleawers/auth.middleware';
 
 const router = Router();
@@ -34,11 +35,10 @@ router.delete('/tickets/:id', sotralController.deleteTicketAdmin.bind(sotralCont
 router.get('/health', sotralController.healthCheck.bind(sotralController));
 
 // ==========================================
-// ROUTES POUR L'APPLICATION SCANNER
+// PAIEMENTS MOBILES (MIXX BY YAS / FLOOZ)
 // ==========================================
 
-// Validation de tickets (pas d'auth pour permettre scan offline)
-router.post('/validate-ticket', sotralController.validateTicket.bind(sotralController));
-router.get('/ticket/:code', sotralController.getTicketByCode.bind(sotralController));
+router.post('/payments/initiate', new PaymentController().initiatePayment.bind(new PaymentController()));
+router.get('/payments/status/:paymentRef', new PaymentController().checkPaymentStatus.bind(new PaymentController()));
 
 export { router as sotralRoutes };

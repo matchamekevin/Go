@@ -179,3 +179,47 @@ export interface SotralTicket {
   created_at: string;
   updated_at: string;
 }
+
+// ==========================================
+// TYPES DE PAIEMENT MOBILE
+// ==========================================
+
+export interface MobilePaymentRequest {
+  ticket_id: number;
+  payment_method: 'mixx' | 'flooz';
+  phone_number: string;
+  amount: number;
+}
+
+export interface MobilePaymentResponse {
+  payment_ref: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  payment_url?: string;
+  expires_at?: string;
+}
+
+export interface PaymentStatusResponse {
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  ticket?: SotralTicket;
+  transaction_details?: {
+    payment_ref: string;
+    amount: number;
+    phone_number: string;
+    payment_method: 'mixx' | 'flooz';
+    processed_at?: string;
+  };
+}
+
+export interface PaymentInitiationData {
+  ticketId: number;
+  paymentMethod: 'mixx' | 'flooz';
+  phoneNumber: string;
+  amount: number;
+}
+
+export interface PaymentStatus {
+  success: boolean;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  ticket?: SotralTicket;
+  error?: string;
+}

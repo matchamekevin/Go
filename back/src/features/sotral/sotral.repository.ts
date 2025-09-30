@@ -930,6 +930,8 @@ export class SotralRepository {
     validityHours: number = 24,
     customPrice?: number
   ): Promise<SotralTicket[]> {
+    console.log('🎫 Repository generateTicketsForLine - Received:', { lineId, ticketTypeCode, quantity, validityHours, customPrice });
+    
     // Force redeploy on Render - table sotral_tickets should exist
     const client = await pool.connect();
     try {
@@ -943,6 +945,7 @@ export class SotralRepository {
       const ticketTypeResult = await client.query(ticketTypeQuery, [ticketTypeCode]);
       
       if (ticketTypeResult.rows.length === 0) {
+        console.error('🎫 Repository - Ticket type not found:', ticketTypeCode);
         throw new Error(`Type de ticket '${ticketTypeCode}' non trouvé`);
       }
       

@@ -290,6 +290,95 @@ class SotralUnifiedService {
     };
     return labels[status] || status;
   }
+
+  // ==========================================
+  // PAIEMENTS MOBILES (MIXX BY YAS / FLOOZ)
+  // ==========================================
+
+  /**
+   * Initier un paiement mobile
+   */
+  async initiateMobilePayment(paymentData: {
+    ticketId: number;
+    paymentMethod: 'mixx' | 'flooz';
+    phoneNumber: string;
+    amount: number;
+  }): Promise<{ success: boolean; paymentRef?: string; error?: string }> {
+    try {
+      console.log(`[SotralUnifiedService] Initiation paiement ${paymentData.paymentMethod} pour ticket ${paymentData.ticketId}`);
+
+      const response: ApiResponse<{
+        payment_ref: string;
+        status: string;
+        payment_url?: string;
+      }> = await this.apiClient.post('/sotral/payments/initiate', {
+        ticket_id: paymentData.ticketId,
+        payment_method: paymentData.paymentMethod,
+        phone_number: paymentData.phoneNumber,
+        amount: paymentData.amount
+      });
+
+      if (!response.success || !response.data) {
+        console.error('[SotralUnifiedService] Erreur initiation paiement:', response);
+        return {
+          success: false,
+          error: response.error || 'Erreur lors de l\'initiation du paiement'
+        };
+      }
+
+      return {
+        success: true,
+        paymentRef: response.data.payment_ref
+      };
+    } catch (error: any) {
+      console.error('[SotralUnifiedService] Erreur réseau paiement:', error);
+      return {
+        success: false,
+        error: error?.message || 'Erreur réseau lors du paiement'
+      };
+    }
+  }
+
+  /**
+   * Vérifier le statut d'un paiement
+   */
+  async checkPaymentStatus(paymentRef: string): Promise<{
+    success: boolean;
+    status: 'pending' | 'completed' | 'failed' | 'cancelled';
+    ticket?: UnifiedSotralTicket;
+    error?: string;
+  }> {
+    try {
+      console.log(`[SotralUnifiedService] Vérification statut paiement ${paymentRef}`);
+
+      const response: ApiResponse<{
+        status: 'pending' | 'completed' | 'failed' | 'cancelled';
+        ticket?: UnifiedSotralTicket;
+      }> = await this.apiClient.get(`/sotral/payments/status/${paymentRef}`);
+
+      if (!response.success || !response.data) {
+        console.error('[SotralUnifiedService] Erreur vérification paiement:', response);
+        return {
+          success: false,
+          status: 'failed',
+          error: response.error || 'Erreur lors de la vérification du paiement'
+        };
+      }
+
+      return {
+        success: true,
+        status: response.data.status,
+        ticket: response.data.ticket
+      };
+    } catch (error: any) {
+      console.error('[SotralUnifiedService] Erreur réseau vérification:', error);
+      return {
+        success: false,
+        status: 'failed',
+        error: error?.message || 'Erreur réseau lors de la vérification'
+      };
+    }
+  }
 }
 
 export const sotralUnifiedService = new SotralUnifiedService();
