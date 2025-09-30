@@ -618,7 +618,10 @@ export class AdminSotralController {
       const { id } = req.params;
       const ticketId = parseInt(id);
 
+      console.log(`[deleteTicket] Starting deletion of ticket ${ticketId}`);
+
       if (isNaN(ticketId)) {
+        console.log(`[deleteTicket] Invalid ticket ID: ${id}`);
         res.status(400).json({
           success: false,
           error: 'ID de ticket invalide'
@@ -628,13 +631,17 @@ export class AdminSotralController {
 
       // Démarrer la transaction
       await client.query('BEGIN');
+      console.log(`[deleteTicket] Transaction started for ticket ${ticketId}`);
 
       // Vérifier que le ticket existe
       const ticketQuery = 'SELECT id FROM sotral_tickets WHERE id = $1';
+      console.log(`[deleteTicket] Checking if ticket ${ticketId} exists`);
       const ticketResult = await client.query(ticketQuery, [ticketId]);
+      console.log(`[deleteTicket] Ticket query result: ${ticketResult.rows.length} rows found`);
 
       if (ticketResult.rows.length === 0) {
         await client.query('ROLLBACK');
+        console.log(`[deleteTicket] Ticket ${ticketId} not found, returning 404`);
         res.status(404).json({
           success: false,
           error: 'Ticket non trouvé'
@@ -644,10 +651,13 @@ export class AdminSotralController {
 
       // Supprimer le ticket
       const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = $1';
+      console.log(`[deleteTicket] Deleting ticket ${ticketId}`);
       const deleteResult = await client.query(deleteQuery, [ticketId]);
+      console.log(`[deleteTicket] Delete result: ${deleteResult.rowCount} rows affected`);
 
       if (deleteResult.rowCount === 0) {
         await client.query('ROLLBACK');
+        console.log(`[deleteTicket] Delete affected 0 rows, returning 404`);
         res.status(404).json({
           success: false,
           error: 'Ticket non trouvé'
@@ -657,6 +667,7 @@ export class AdminSotralController {
 
       // Valider la transaction
       await client.query('COMMIT');
+      console.log(`[deleteTicket] Transaction committed successfully for ticket ${ticketId}`);
 
       // Émettre un événement temps réel - Désactivé (WebSocket supprimé)
       // await realtimeService.broadcastDataChange({
