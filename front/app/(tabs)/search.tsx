@@ -5,10 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../../src/styles/theme';
 import HelpFAB from '../../src/components/HelpFAB';
-import { UserTicketService, type UserTicket } from '../../src/services/userTicketService';
-import { SearchService, type SearchResult } from '../../src/services/searchService';
-import { SotralMobileService } from '../../services/sotral-service';
-import type { SotralTicket } from '../../src/types/api';
+import { sotralUnifiedService, UnifiedSotralLine, UnifiedSotralTicket, UnifiedSearchData } from '../../src/services/sotralUnifiedService';
 
 export default function SearchTab() {
   // Capturer le paramètre focus envoyé depuis Home
@@ -20,7 +17,7 @@ export default function SearchTab() {
   const [selectedDate, setSelectedDate] = useState('Aujourd\'hui');
   const [passengerCount, setPassengerCount] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResultsState, setSearchResultsState] = useState<SearchResult[]>([]);
+  const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
@@ -52,10 +49,10 @@ export default function SearchTab() {
       setSearchLoading(true);
       // don't clear results immediately to avoid flicker
 
-      const resultsRaw = await SearchService.searchRoutes(q);
+      const searchData: UnifiedSearchData = await sotralUnifiedService.search(q);
       // ignore if a newer request started
       if (myRequestId !== requestIdRef.current) return;
-      const results = Array.isArray(resultsRaw) ? resultsRaw : [];
+      const results = searchData.searchResults;
 
       // Prioritize items whose 'from', 'to' or 'company' start with the query (prefix-match)
       const qStart = q.split(/→|-/)[0].trim().toLowerCase();
@@ -79,7 +76,7 @@ export default function SearchTab() {
       }
 
       if (myRequestId === requestIdRef.current) {
-        setSearchResultsState(finalResults as SearchResult[]);
+        setSearchResultsState(finalResults);
       }
     } catch (e: any) {
       // if stale request, ignore
@@ -123,7 +120,7 @@ export default function SearchTab() {
   }, [searchQuery, fromLocation, toLocation, performSearch]);
 
   // TicketsTab logic intégré avec API
-  const [availableTickets, setAvailableTickets] = useState<SotralTicket[]>([]);
+  const [availableTickets, setAvailableTickets] = useState<UnifiedSotralTicket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
 
   // Charger les tickets depuis l'API
@@ -133,27 +130,11 @@ export default function SearchTab() {
         setTicketsLoading(true);
         console.log('[SearchTab] Chargement des tickets disponibles...');
 
-        // Charger les tickets actifs et disponibles en parallèle
-        const [activeData, availableResult] = await Promise.all([
-          UserTicketService.getActiveTickets().catch((err) => {
-            console.warn('[SearchTab] Erreur getActiveTickets:', err);
-            return [];
-          }),
-          SotralMobileService.getGeneratedTickets().catch((err) => {
-            console.error('[SearchTab] Erreur getGeneratedTickets:', err);
-            return { success: false, data: [] };
-          }),
-        ]);
+        // Charger les tickets générés par l'admin
+        const tickets = await sotralUnifiedService.getGeneratedTickets();
+        console.log('[SearchTab] Tickets récupérés:', tickets.length);
 
-        console.log('[SearchTab] Tickets récupérés:', {
-          active: activeData?.length || 0,
-          available: availableResult.success ? availableResult.data?.length || 0 : 0,
-          availableSuccess: availableResult.success
-        });
-
-        // setActiveTickets(activeData); // Plus utilisé dans cette page
-        // Cast to SotralTicket[] since we know the structure matches
-        setAvailableTickets(availableResult.success ? availableResult.data as SotralTicket[] : []);
+        setAvailableTickets(tickets);
       } catch (error) {
         console.error('[SearchTab] Erreur générale chargement tickets:', error);
       } finally {
@@ -164,7 +145,7 @@ export default function SearchTab() {
     loadTickets();
   }, []);
 
-  const renderAvailableTicket = (ticket: SotralTicket) => (
+  const renderAvailableTicket = (ticket: UnifiedSotralTicket) => (
     <View key={ticket.id} style={styles.ticketCard}>
       {/* Ticket Header */}
       <View style={styles.ticketHeader}>

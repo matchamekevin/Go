@@ -90,8 +90,9 @@ class NetworkManager {
           const startTime = Date.now();
           
           // Créer un controller pour annuler la requête après timeout
+          const timeout = endpoint.startsWith('https://') ? 10000 : 5000; // 10s pour HTTPS, 5s pour HTTP
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
           
           const response = await fetch(`${endpoint}/health`, {
             method: 'GET',
@@ -136,13 +137,6 @@ class NetworkManager {
   }
 
   async getCurrentEndpoint(): Promise<string | null> {
-    // En développement, forcer localhost pour les tests
-    if (__DEV__) {
-      console.log('[NetworkManager] Mode développement: forçage localhost');
-      this.config.current = 'http://localhost:7000';
-      return 'http://localhost:7000';
-    }
-    
     if (!this.config.current) {
       await this.findBestEndpoint();
     }
@@ -190,8 +184,9 @@ class NetworkManager {
 
   async testEndpoint(endpoint: string): Promise<boolean> {
     try {
+      const timeout = endpoint.startsWith('https://') ? 10000 : 5000;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
       
       const response = await fetch(`${endpoint}/health`, {
         method: 'GET',
