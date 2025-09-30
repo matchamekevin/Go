@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -120,9 +120,61 @@ export default function SearchTab() {
     return () => clearTimeout(handle);
   }, [searchQuery, fromLocation, toLocation, performSearch]);
 
-  // TicketsTab logic intégré avec API
   const [availableTickets, setAvailableTickets] = useState<UnifiedSotralTicket[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+
+  const [selectedLine, setSelectedLine] = useState<UnifiedSotralLine | null>(null);
+  const [lineTickets, setLineTickets] = useState<UnifiedSotralTicket[]>([]);
+  const [lineTicketsLoading, setLineTicketsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'search' | 'line-tickets'>('search');
+
+  // Gérer l'achat d'un ticket
+  const handlePurchaseTicket = (ticket: UnifiedSotralTicket) => {
+    // TODO: Implémenter l'intégration avec Mixx by YAS et Flooz
+    Alert.alert(
+      'Paiement',
+      `Achat du ticket ${ticket.ticket_code} pour ${ticket.price_paid_fcfa} FCFA`,
+      [
+        {
+          text: 'Mixx by YAS',
+          onPress: () => {
+            // Implémenter paiement Mixx by YAS
+            console.log('Paiement via Mixx by YAS');
+          }
+        },
+        {
+          text: 'Flooz',
+          onPress: () => {
+            // Implémenter paiement Flooz
+            console.log('Paiement via Flooz');
+          }
+        },
+        {
+          text: 'Annuler',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  // Charger les tickets pour une ligne spécifique
+  const loadLineTickets = async (lineId: number) => {
+    try {
+      setLineTicketsLoading(true);
+      console.log(`[SearchTab] Chargement des tickets pour la ligne ${lineId}...`);
+
+      // Filtrer les tickets disponibles pour cette ligne
+      const lineSpecificTickets = availableTickets.filter(ticket => ticket.line_id === lineId);
+      setLineTickets(lineSpecificTickets);
+
+      console.log(`[SearchTab] ${lineSpecificTickets.length} tickets trouvés pour la ligne ${lineId}`);
+    } catch (error) {
+      console.error('[SearchTab] Erreur chargement tickets ligne:', error);
+      setLineTickets([]);
+    } finally {
+      setLineTicketsLoading(false);
+    }
+  };
 
   // Charger les tickets depuis l'API
   useEffect(() => {
@@ -213,7 +265,7 @@ export default function SearchTab() {
           <Ionicons name="time-outline" size={16} color={theme.colors.warning[600]} />
           <Text style={styles.expiryText}>Généré par l'admin</Text>
         </View>
-        <TouchableOpacity style={styles.showButton}>
+        <TouchableOpacity style={styles.showButton} onPress={() => handlePurchaseTicket(ticket)}>
           <Text style={styles.showButtonText}>Acheter</Text>
           <Ionicons name="card" size={16} color={theme.colors.primary[600]} />
         </TouchableOpacity>
@@ -271,9 +323,26 @@ export default function SearchTab() {
             ) : (
               searchResultsState.map((r) => (
                 <TouchableOpacity key={r.id} style={styles.resultCard} onPress={() => {
-                  // Préremplir les champs from/to et naviguer vers les résultats détaillés si nécessaire
-                  setFromLocation(r.from);
-                  setToLocation(r.to);
+                  // Utiliser la ligne complète si disponible, sinon créer un objet basique
+                  if (r.line) {
+                    setSelectedLine(r.line);
+                    setViewMode('line-tickets');
+                    loadLineTickets(r.line.id);
+                  } else {
+                    // Créer une ligne basique si pas disponible
+                    const basicLine: UnifiedSotralLine = {
+                      id: parseInt(r.id),
+                      line_number: parseInt(r.id),
+                      name: r.from + ' - ' + r.to,
+                      route_from: r.from,
+                      route_to: r.to,
+                      category_id: 1,
+                      is_active: true
+                    };
+                    setSelectedLine(basicLine);
+                    setViewMode('line-tickets');
+                    loadLineTickets(parseInt(r.id));
+                  }
                 }}>
                   <View style={styles.resultHeader}>
                     <View style={styles.transportInfo}>
@@ -302,28 +371,63 @@ export default function SearchTab() {
             )}
           </View>
         </View>
-        {/* Popular Locations */}
-        {/* ...existing code... */}
         {/* Search Results */}
-        {/* ...existing code... */}
+        {viewMode === 'search' && (
+          <>
+            {/* Popular Locations */}
+            {/* ...existing code... */}
+            {/* Search Results */}
+            {/* ...existing code... */}
 
-        {/* Tickets disponibles (générés par admin) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Billets disponibles SOTRAL</Text>
-          {ticketsLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Chargement des tickets disponibles...</Text>
+            {/* Tickets disponibles (générés par admin) */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Billets disponibles SOTRAL</Text>
+              {ticketsLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>Chargement des tickets disponibles...</Text>
+                </View>
+              ) : availableTickets.length > 0 ? (
+                availableTickets.map(renderAvailableTicket)
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
+                  <Text style={styles.emptyText}>Aucun ticket disponible</Text>
+                  <Text style={styles.emptySubtext}>Les tickets générés par l'admin apparaîtront ici</Text>
+                </View>
+              )}
             </View>
-          ) : availableTickets.length > 0 ? (
-            availableTickets.map(renderAvailableTicket)
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
-              <Text style={styles.emptyText}>Aucun ticket disponible</Text>
-              <Text style={styles.emptySubtext}>Les tickets générés par l'admin apparaîtront ici</Text>
+          </>
+        )}
+
+        {/* Line Tickets View */}
+        {viewMode === 'line-tickets' && selectedLine && (
+          <View style={styles.section}>
+            <View style={styles.lineHeader}>
+              <TouchableOpacity onPress={() => setViewMode('search')} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={20} color={theme.colors.primary[600]} />
+                <Text style={styles.backButtonText}>Retour</Text>
+              </TouchableOpacity>
+              <View style={styles.lineInfo}>
+                <Text style={styles.lineTitle}>{selectedLine.name}</Text>
+                <Text style={styles.lineSubtitle}>Ligne {selectedLine.line_number}</Text>
+              </View>
             </View>
-          )}
-        </View>
+
+            {lineTicketsLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Chargement des tickets...</Text>
+              </View>
+            ) : lineTickets.length > 0 ? (
+              lineTickets.map(renderAvailableTicket)
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="ticket" size={48} color={theme.colors.secondary[300]} />
+                <Text style={styles.emptyText}>Aucun ticket disponible</Text>
+                <Text style={styles.emptySubtext}>pour cette ligne actuellement</Text>
+              </View>
+            )}
+          </View>
+        )}
         <View style={styles.bottomSpacing} />
       </ScrollView>
       <HelpFAB />
@@ -842,5 +946,41 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     paddingHorizontal: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
+  },
+  lineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.secondary[200],
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.primary[50],
+    borderRadius: theme.borderRadius.lg,
+    marginRight: theme.spacing.md,
+  },
+  backButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.semibold,
+    marginLeft: theme.spacing.xs,
+  },
+  lineInfo: {
+    flex: 1,
+  },
+  lineTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    color: theme.colors.secondary[900],
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  lineSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.secondary[500],
+    marginTop: theme.spacing.xs,
   },
 });
