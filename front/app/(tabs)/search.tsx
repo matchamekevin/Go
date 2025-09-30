@@ -137,6 +137,8 @@ export default function SearchTab() {
         setAvailableTickets(tickets);
       } catch (error) {
         console.error('[SearchTab] Erreur générale chargement tickets:', error);
+        // Ne pas afficher d'erreur à l'utilisateur, juste logger
+        setAvailableTickets([]);
       } finally {
         setTicketsLoading(false);
       }
