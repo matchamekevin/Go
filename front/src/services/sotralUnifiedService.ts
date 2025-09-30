@@ -114,7 +114,13 @@ class SotralUnifiedService {
       console.log(`[SotralUnifiedService] ${tickets.length} tickets récupérés`);
 
       return tickets;
-    } catch (error) {
+    } catch (error: any) {
+      // Vérifier si c'est une erreur 404 (endpoint non déployé)
+      if (error.status === 404) {
+        console.warn('[SotralUnifiedService] Endpoint /sotral/generated-tickets non disponible sur ce serveur (404). Retour de tableau vide.');
+        return [];
+      }
+      
       console.error('[SotralUnifiedService] Erreur réseau tickets:', error);
       return [];
     }

@@ -49,6 +49,27 @@ export function normalizeErrorMessage(raw: any): string {
 
   // Cas fréquents de statut Axios
   if (/request failed with status code/i.test(msg)) {
+    // Vérifier le code de statut pour un message plus spécifique
+    const statusMatch = msg.match(/status code (\d+)/i);
+    if (statusMatch) {
+      const statusCode = parseInt(statusMatch[1]);
+      switch (statusCode) {
+        case 404:
+          return 'Service non trouvé. L\'endpoint demandé n\'existe pas sur le serveur.';
+        case 403:
+          return 'Accès refusé. Vous n\'avez pas les permissions nécessaires.';
+        case 401:
+          return 'Authentification requise. Veuillez vous reconnecter.';
+        case 500:
+          return 'Erreur serveur. Le service est temporairement indisponible.';
+        case 502:
+        case 503:
+        case 504:
+          return 'Service indisponible. Réessayez dans quelques instants.';
+        default:
+          return 'Requête invalide. Vérifiez vos informations et réessayez.';
+      }
+    }
     // si on a déjà parsé JSON et qu'il y a un message d'erreur spécifique, l'avoir pris en compte
     // sinon renvoyer un message plus utile
     return 'Requête invalide. Vérifiez vos informations et réessayez.';

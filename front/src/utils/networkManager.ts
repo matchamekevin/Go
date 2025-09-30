@@ -90,7 +90,7 @@ class NetworkManager {
           const startTime = Date.now();
           
           // Créer un controller pour annuler la requête après timeout
-          const timeout = endpoint.startsWith('https://') ? 10000 : 5000; // 10s pour HTTPS, 5s pour HTTP
+          const timeout = endpoint.startsWith('https://') ? 15000 : 5000; // 15s pour HTTPS, 5s pour HTTP
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), timeout);
           
