@@ -70,6 +70,13 @@ router.post('/bulk-generate-tickets', (req: Request, res: Response) => {
   adminSotralController.bulkGenerateTickets(req, res);
 });
 
+// Supprimer un ticket individuel (temporairement sans auth pour debug)
+router.delete('/tickets/:id', (req: Request, res: Response) => {
+  // Temporarily bypass auth for testing
+  (req as any).user = { id: 1, role: 'admin' };
+  adminSotralController.deleteTicket(req, res);
+});
+
 // Middleware d'authentification admin pour toutes les autres routes
 router.use((req: Request, res: Response, next: NextFunction) => {
   authMiddleware(req as AuthenticatedRequest, res, next);
@@ -78,13 +85,6 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 // TODO: Implémenter la méthode getAllTickets dans AdminSotralController
 // Récupérer tous les tickets avec filtres
 router.get('/tickets', adminSotralController.getAllTickets);
-
-// Supprimer un ticket individuel (temporairement sans auth pour debug)
-router.delete('/tickets/:id', (req: Request, res: Response) => {
-  // Temporarily bypass auth for testing
-  (req as any).user = { id: 1, role: 'admin' };
-  adminSotralController.deleteTicket(req, res);
-});
 
 // Supprimer plusieurs tickets
 router.delete('/tickets', adminSotralController.deleteTickets);
