@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { sotralRepository } from '../sotral/sotral.repository';
 import { SotralLineSchema, SotralStopSchema, SotralTicketTypeSchema } from '../sotral/sotral.types';
 import pool from '../../shared/database/client';
+import { realtimeService } from '../../services/realtime.service';
 
 export class AdminSotralController {
 
@@ -15,7 +16,7 @@ export class AdminSotralController {
    */
   async getAllLines(req: Request, res: Response): Promise<void> {
     try {
-      const lines = await sotralRepository.getAllLinesForAdmin();
+      const lines = await sotralRepository.getAllLines();
       
       res.json({
         success: true,
@@ -50,13 +51,11 @@ export class AdminSotralController {
       const lineData = validationResult.data;
       const newLine = await sotralRepository.createLine(lineData);
 
-      // Émettre un événement temps réel - Désactivé (WebSocket supprimé)
-      // await realtimeService.broadcastDataChange({
-      //   type: 'line_created',
-      //   data: newLine,
-      //   timestamp: new Date(),
-      //   userId: (req as any).user?.id
-      // });
+      // Émettre un événement temps réel
+      realtimeService.broadcast('line_created', {
+        line: newLine,
+        userId: (req as any).user?.id
+      });
       
       res.status(201).json({
         success: true,
@@ -101,13 +100,11 @@ export class AdminSotralController {
         return;
       }
 
-      // Émettre un événement temps réel - Désactivé (WebSocket supprimé)
-      // await realtimeService.broadcastDataChange({
-      //   type: 'line_updated',
-      //   data: updatedLine,
-      //   timestamp: new Date(),
-      //   userId: (req as any).user?.id
-      // });
+      // Émettre un événement temps réel
+      realtimeService.broadcast('line_updated', {
+        line: updatedLine,
+        userId: (req as any).user?.id
+      });
 
       res.json({
         success: true,
@@ -140,13 +137,11 @@ export class AdminSotralController {
         return;
       }
 
-      // Émettre un événement temps réel - Désactivé (WebSocket supprimé)
-      // await realtimeService.broadcastDataChange({
-      //   type: 'line_deleted',
-      //   data: { id: parseInt(id) },
-      //   timestamp: new Date(),
-      //   userId: (req as any).user?.id
-      // });
+      // Émettre un événement temps réel
+      realtimeService.broadcast('line_deleted', {
+        lineId: parseInt(id),
+        userId: (req as any).user?.id
+      });
 
       res.json({
         success: true,
@@ -187,13 +182,11 @@ export class AdminSotralController {
       });
       console.log('Line updated:', updatedLine);
 
-      // Émettre un événement temps réel - Désactivé (WebSocket supprimé)
-      // await realtimeService.broadcastDataChange({
-      //   type: 'line_updated',
-      //   data: updatedLine,
-      //   timestamp: new Date(),
-      //   userId: (req as any).user?.id
-      // });
+      // Émettre un événement temps réel
+      realtimeService.broadcast('line_updated', {
+        line: updatedLine,
+        userId: (req as any).user?.id
+      });
 
       res.json({
         success: true,
@@ -313,13 +306,11 @@ export class AdminSotralController {
       const ticketTypeData = validationResult.data;
       const newTicketType = await sotralRepository.createTicketType(ticketTypeData);
 
-      // Émettre un événement temps réel - Désactivé (WebSocket supprimé)
-      // await realtimeService.broadcastDataChange({
-      //   type: 'ticket_type_created',
-      //   data: newTicketType,
-      //   timestamp: new Date(),
-      //   userId: (req as any).user?.id
-      // });
+      // Émettre un événement temps réel
+      realtimeService.broadcast('ticket_type_created', {
+        ticketType: newTicketType,
+        userId: (req as any).user?.id
+      });
       
       res.status(201).json({
         success: true,
@@ -669,13 +660,11 @@ export class AdminSotralController {
       await client.query('COMMIT');
       console.log(`[deleteTicket] Transaction committed successfully for ticket ${ticketId}`);
 
-      // Émettre un événement temps réel - Désactivé (WebSocket supprimé)
-      // await realtimeService.broadcastDataChange({
-      //   type: 'ticket_deleted',
-      //   data: { id: ticketId },
-      //   timestamp: new Date(),
-      //   userId: (req as any).user?.id
-      // });
+      // Émettre un événement temps réel
+      realtimeService.broadcast('ticket_deleted', {
+        ticketId: ticketId,
+        userId: (req as any).user?.id
+      });
 
       res.json({
         success: true,
@@ -732,15 +721,13 @@ export class AdminSotralController {
       // Valider la transaction
       await client.query('COMMIT');
 
-      // Émettre des événements temps réel pour chaque ticket supprimé - Désactivé (WebSocket supprimé)
-      // for (const id of validIds) {
-      //   await realtimeService.broadcastDataChange({
-      //     type: 'ticket_deleted',
-      //     data: { id },
-      //     timestamp: new Date(),
-      //     userId: (req as any).user?.id
-      //   });
-      // }
+      // Émettre des événements temps réel pour chaque ticket supprimé
+      for (const id of validIds) {
+        realtimeService.broadcast('ticket_deleted', {
+          ticketId: id,
+          userId: (req as any).user?.id
+        });
+      }
 
       res.json({
         success: true,

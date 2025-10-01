@@ -14,6 +14,7 @@ import { EmailOTPRepository } from './features/auth/EmailOTP.repository';
 import { PasswordResetOTPRepository } from './features/auth/PasswordResetOTP.repository';
 import authRoutes from './features/auth/auth.routes';
 import { AuthController } from './features/auth/Auth.controller';
+import realtimeRoutes from './routes/realtime.routes';
 
 const app = express();
 app.use(express.json());
@@ -202,6 +203,7 @@ app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/tickets', ticketsRoutesSimple);
 app.use('/sotral', sotralRoutes); // SOTRAL routes for mobile app - updated 2025-09-29
+app.use('/realtime', realtimeRoutes); // Real-time events routes
 
 // Mount specific admin feature routes first to avoid being shadowed by the generic /admin router
 // (e.g. DELETE /admin/tickets must be handled by adminTicketsRoutes, not by adminRoutes which only
