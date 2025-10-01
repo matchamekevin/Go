@@ -38,9 +38,17 @@ Le système de synchronisation automatique entre l'application mobile et l'inter
 
 ### Application Mobile (React Native)
 - **Service temps réel** : `front/src/services/realtime.service.ts`
-  - Client SSE pour React Native
+  - Client SSE adapté pour React Native
   - Gestion des callbacks d'événements
   - Reconexion automatique
+
+- **Hooks React Native** : `front/src/hooks/`
+  - `useRealtime.ts` : Hook de base pour la connexion SSE
+  - `useSotralRealtime.ts` : Hook spécialisé pour les événements SOTRAL
+
+- **Écrans intégrés** :
+  - `MyTicketsScreen.tsx` : Synchronisation des tickets supprimés
+  - `ProductsScreen.tsx` : Synchronisation des lignes/routes modifiées
 
 ## 🚀 Comment Tester
 
@@ -50,13 +58,19 @@ cd back
 npm run dev
 ```
 
-### 2. Tester les Routes Temps Réel
+### 2. Configurer l'App Mobile
 ```bash
-# Exécuter le script de test
-./test-realtime-sync.sh
+# Configurer l'adresse IP réseau pour la synchronisation
+./configure-mobile-realtime.sh
 ```
 
-### 3. Intégrer dans l'Interface Admin
+### 3. Tester les Routes Temps Réel
+```bash
+./test-realtime-sync.sh      # Test général
+./test-mobile-realtime.sh    # Test mobile spécifique
+```
+
+### 4. Intégrer dans l'Interface Admin
 Ajouter le composant `RealtimeStatus` dans `SotralManagementPage.tsx` :
 
 ```tsx
@@ -66,11 +80,12 @@ import { RealtimeStatus } from '../components/RealtimeStatus';
 <RealtimeStatus baseUrl="" />  // Utilise l'URL relative
 ```
 
-### 4. Tester la Synchronisation
+### 5. Tester la Synchronisation Complète
 1. Ouvrir l'interface admin dans un navigateur
-2. Ouvrir un autre navigateur ou onglet
-3. Modifier une ligne SOTRAL dans un onglet
-4. Vérifier que l'autre onglet reçoit la mise à jour automatiquement
+2. Lancer l'app mobile sur votre téléphone
+3. Vérifier les indicateurs "Synchronisation active" (point vert)
+4. Modifier une ligne SOTRAL dans l'admin
+5. Constater la mise à jour automatique dans l'app mobile
 
 ## 📡 Événements Temps Réel
 
