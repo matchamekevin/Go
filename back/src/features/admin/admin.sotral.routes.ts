@@ -86,13 +86,6 @@ router.delete('/tickets/:id', (req: Request, res: Response) => {
   adminSotralController.deleteTicket(req, res);
 });
 
-// Route de test pour vérifier l'accès aux tickets
-router.get('/tickets/:id/test', (req: Request, res: Response) => {
-  // Temporarily bypass auth for testing
-  (req as any).user = { id: 1, role: 'admin' };
-  adminSotralController.testTicketAccess(req, res);
-});
-
 // Supprimer plusieurs tickets
 router.delete('/tickets', adminSotralController.deleteTickets);
 

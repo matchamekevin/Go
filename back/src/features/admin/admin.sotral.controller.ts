@@ -608,52 +608,6 @@ export class AdminSotralController {
   }
 
       /**
-   * GET /admin/sotral/tickets/:id/test
-   * Tester l'accès à un ticket spécifique
-   */
-  async testTicketAccess(req: Request, res: Response): Promise<void> {
-    try {
-      const { id } = req.params;
-      const ticketId = parseInt(id);
-
-      console.log(`[testTicketAccess] Testing access to ticket ${ticketId}`);
-
-      if (isNaN(ticketId)) {
-        res.status(400).json({
-          success: false,
-          error: 'ID de ticket invalide'
-        });
-        return;
-      }
-
-      const client = await pool.connect();
-      try {
-        const ticketQuery = 'SELECT id, ticket_code, status FROM sotral_tickets WHERE id = $1';
-        const ticketResult = await client.query(ticketQuery, [ticketId]);
-
-        console.log(`[testTicketAccess] Query result for ticket ${ticketId}:`, ticketResult.rows);
-
-        res.json({
-          success: true,
-          data: {
-            ticketId,
-            found: ticketResult.rows.length > 0,
-            ticket: ticketResult.rows[0] || null
-          }
-        });
-      } finally {
-        client.release();
-      }
-    } catch (error) {
-      console.error('[testTicketAccess] Error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Erreur lors du test d\'accès'
-      });
-    }
-  }
-
-  /**
    * DELETE /admin/sotral/tickets/:id
    * Supprimer un ticket individuel
    */
