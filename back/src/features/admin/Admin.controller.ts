@@ -87,7 +87,30 @@ export class AdminController {
   static async getUserById(req: AuthenticatedRequest, res: Response) {
     try {
       const { id } = req.params;
-      const r = await pool.query('SELECT id, email, name, phone, is_verified, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at FROM users WHERE id = $1', [id]);
+
+      // Check if role column exists
+      let hasRoleColumn = false;
+      try {
+        await pool.query("SELECT role FROM users LIMIT 1");
+        hasRoleColumn = true;
+      } catch (colErr) {
+        hasRoleColumn = false;
+      }
+
+      // Build SELECT clause dynamically
+      const selectColumns = [
+        'id', 'email', 'name', 'phone', 'is_verified',
+        'COALESCE(is_suspended,false) as is_suspended',
+        'created_at', 'COALESCE(updated_at, created_at) AS updated_at'
+      ];
+
+      if (hasRoleColumn) {
+        selectColumns.splice(5, 0, 'role'); // Insert role after is_verified
+      }
+
+      const selectClause = selectColumns.join(', ');
+
+      const r = await pool.query(`SELECT ${selectClause} FROM users WHERE id = $1`, [id]);
       if (r.rows.length === 0) return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
       return res.status(200).json({ success: true, data: r.rows[0] });
     } catch (err: any) {
@@ -124,7 +147,29 @@ export class AdminController {
   // toggle admin role -- previously toggle suspension
   static async getSuspendedUsers(_req: AuthenticatedRequest, res: Response) {
     try {
-      const query = `SELECT id, email, name, phone, is_verified::boolean, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) as updated_at FROM users WHERE COALESCE(is_suspended,false) = true ORDER BY created_at DESC`;
+      // Check if role column exists
+      let hasRoleColumn = false;
+      try {
+        await pool.query("SELECT role FROM users LIMIT 1");
+        hasRoleColumn = true;
+      } catch (colErr) {
+        hasRoleColumn = false;
+      }
+
+      // Build SELECT clause dynamically
+      const selectColumns = [
+        'id', 'email', 'name', 'phone', 'is_verified::boolean',
+        'COALESCE(is_suspended,false) as is_suspended',
+        'created_at', 'COALESCE(updated_at, created_at) as updated_at'
+      ];
+
+      if (hasRoleColumn) {
+        selectColumns.splice(5, 0, 'role'); // Insert role after is_verified
+      }
+
+      const selectClause = selectColumns.join(', ');
+
+      const query = `SELECT ${selectClause} FROM users WHERE COALESCE(is_suspended,false) = true ORDER BY created_at DESC`;
       const data = await pool.query(query);
       return res.status(200).json({ success: true, data: data.rows, count: data.rows.length });
     } catch (err: any) {
