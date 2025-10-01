@@ -22,7 +22,7 @@ export default function MyTicketsScreen() {
 
   // Hook pour la synchronisation temps réel
   const { isConnected } = useSotralRealtime({
-    baseUrl: 'http://192.168.1.100:3000', // À adapter selon votre configuration réseau
+    baseUrl: 'http://192.168.1.78:7000', // À adapter selon votre configuration réseau
     clientId: 'mobile_tickets_screen',
     onTicketDeleted: (data) => {
       console.log('🎫 Ticket deleted in realtime:', data);

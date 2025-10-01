@@ -6,19 +6,19 @@ echo "=============================================="
 
 # Vérifier que le backend fonctionne
 echo "🔍 Vérification du backend..."
-if curl -s http://localhost:3000/health > /dev/null; then
+if curl -s http://localhost:7000/health > /dev/null; then
     echo "✅ Backend opérationnel"
 else
-    echo "❌ Backend non accessible. Démarrez-le avec: cd back && npm run dev"
+    echo "❌ Backend non accessible. Démarrez-le avec: cd back && node dist/server.js"
     exit 1
 fi
 
 # Tester la connexion SSE
 echo ""
 echo "🔌 Test de la connexion Server-Sent Events..."
-sse_test=$(timeout 3 curl -s -H "Accept: text/event-stream" "http://localhost:3000/realtime/events?clientId=mobile_test" 2>/dev/null || echo "timeout")
+sse_test=$(timeout 3 curl -s -H "Accept: text/event-stream" "http://localhost:7000/realtime/events?clientId=mobile_test" 2>/dev/null || echo "timeout")
 
-if echo "$sse_test" | grep -q "data:"; then
+if echo "$sse_test" | grep -q "Nouveau client SSE connecté"; then
     echo "✅ SSE opérationnel côté backend"
 else
     echo "❌ SSE non fonctionnel"
@@ -29,8 +29,8 @@ echo ""
 echo "📱 Vérification de la configuration mobile..."
 
 # Extraire l'IP des fichiers
-tickets_ip=$(grep -o "http://[^']*:3000" /home/connect/kev/Go/front/src/screens/MyTicketsScreen.tsx | head -1)
-products_ip=$(grep -o "http://[^']*:3000" /home/connect/kev/Go/front/src/screens/ProductsScreen.tsx | head -1)
+tickets_ip=$(grep -o "http://[^']*:7000" /home/connect/kev/Go/front/src/screens/MyTicketsScreen.tsx | head -1)
+products_ip=$(grep -o "http://[^']*:7000" /home/connect/kev/Go/front/src/screens/ProductsScreen.tsx | head -1)
 
 echo "MyTicketsScreen: $tickets_ip"
 echo "ProductsScreen: $products_ip"
@@ -42,7 +42,7 @@ else
 fi
 
 # Tester la connectivité réseau
-ip_address=$(echo $tickets_ip | sed 's|http://||' | sed 's|:3000||')
+ip_address=$(echo $tickets_ip | sed 's|http://||' | sed 's|:7000||')
 echo ""
 echo "🌐 Test de connectivité réseau vers $ip_address..."
 
@@ -68,14 +68,15 @@ fi
 
 echo ""
 echo "🎯 Instructions de test:"
-echo "1. Assurez-vous que l'app mobile est lancée sur votre téléphone"
-echo "2. Ouvrez l'interface admin: http://localhost:7000"
-echo "3. Modifiez une ligne SOTRAL dans l'admin"
-echo "4. Vérifiez que l'app mobile affiche 'Synchronisation active' (point vert)"
-echo "5. Les données devraient se mettre à jour automatiquement dans l'app"
+echo "========================"
 echo ""
-
+echo "1️⃣ Lancez l'app mobile sur votre téléphone"
+echo "2️⃣ Ouvrez l'interface admin: http://localhost:7000"
+echo "3️⃣ Vérifiez les indicateurs 'Synchronisation active' (point vert)"
+echo "4️⃣ Modifiez une ligne SOTRAL dans l'admin"
+echo "5️⃣ Les données devraient se mettre à jour automatiquement dans l'app"
+echo ""
 echo "🔧 Si ça ne marche pas:"
+echo "- Vérifiez les logs React Native pour les erreurs de connexion"
 echo "- Relancez: ./configure-mobile-realtime.sh"
-echo "- Vérifiez les logs de l'app mobile (console React Native)"
-echo "- Vérifiez les logs du backend pour les événements broadcast"
+echo "- Vérifiez que téléphone et PC sont sur le même réseau WiFi"

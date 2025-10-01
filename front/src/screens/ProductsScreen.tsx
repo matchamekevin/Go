@@ -25,7 +25,7 @@ export default function ProductsScreen() {
 
   // Hook pour la synchronisation temps réel
   const { isConnected } = useSotralRealtime({
-    baseUrl: 'http://192.168.1.100:3000', // À adapter selon votre configuration réseau
+    baseUrl: 'http://192.168.1.78:7000', // À adapter selon votre configuration réseau
     clientId: 'mobile_products_screen',
     onLineCreated: (data) => {
       console.log('🚌 Line created in realtime:', data);
