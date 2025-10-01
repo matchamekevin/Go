@@ -70,9 +70,6 @@ router.post('/bulk-generate-tickets', (req: Request, res: Response) => {
   adminSotralController.bulkGenerateTickets(req, res);
 });
 
-// Route temporaire pour tester la suppression sans auth du tout
-router.delete('/test-delete-ticket/:id', adminSotralController.deleteTicket);
-
 // Supprimer un ticket individuel (temporairement sans auth pour debug)
 router.delete('/tickets/:id', (req: Request, res: Response) => {
   // Temporarily bypass auth for testing
