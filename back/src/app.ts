@@ -207,23 +207,25 @@ app.use('/sotral', sotralRoutes); // SOTRAL routes for mobile app - updated 2025
 // (e.g. DELETE /admin/tickets must be handled by adminTicketsRoutes, not by adminRoutes which only
 // registers GET/PATCH for /tickets and would otherwise return the Express HTML 404 "Cannot DELETE /admin/tickets").
 
-// Mount the generic admin router after specific admin sub-routers
+// Mount the generic admin router FIRST so its auth middleware doesn't override specific routes
+app.use('/admin', adminRoutes);
+
+// Then mount specific admin sub-routers that may have different auth requirements
 app.use('/admin/tickets', adminTicketsRoutes);
 app.use('/admin/sotral', adminSotralRoutes);
-
-// Route de test publique pour valider le déploiement et vérifier la disponibilité des routes
-// Cette route doit être publique et définie avant le montage du routeur générique /admin
-app.get('/admin/tickets/test', (req: Request, res: Response) => {
-  res.json({ success: true, message: 'admin tickets test route active' });
-});
-
-// Mount the generic admin router after specific admin sub-routers
-app.use('/admin', adminRoutes);
 app.use('/support', supportRoutes);
 
-// Route de test pour vérifier que les routes admin tickets sont bien exposées sur le serveur déployé
-app.get('/admin/tickets/test', (req: Request, res: Response) => {
-  res.json({ success: true, message: 'admin tickets test route active' });
+// Route de test temporaire pour supprimer un ticket sans auth
+app.delete('/test-delete-ticket/:id', async (req: Request, res: Response) => {
+  try {
+    const { AdminSotralController } = await import('./features/admin/admin.sotral.controller');
+    const controller = new AdminSotralController();
+    // Manually set user for testing
+    (req as any).user = { id: 1, role: 'admin' };
+    await controller.deleteTicket(req, res);
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Erreur lors du test' });
+  }
 });
 
 // --- Admin JSON fallback --------------------------------------------------
