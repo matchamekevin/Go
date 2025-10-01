@@ -29,6 +29,36 @@ export default function MyTicketsScreen() {
       // Recharger les tickets quand un ticket est supprimé
       loadTickets();
     },
+    onTicketPurchased: (data) => {
+      console.log('🎫 Ticket purchased in realtime:', data);
+      // Recharger les tickets quand un ticket est acheté
+      loadTickets();
+    },
+    onTicketValidated: (data) => {
+      console.log('🎫 Ticket validated in realtime:', data);
+      // Recharger les tickets quand un ticket est validé
+      loadTickets();
+    },
+    onSotralTicketPurchased: (data) => {
+      console.log('🎫 SOTRAL ticket purchased in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est acheté
+      loadTickets();
+    },
+    onSotralTicketValidated: (data) => {
+      console.log('🎫 SOTRAL ticket validated in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est validé
+      loadTickets();
+    },
+    onSotralTicketCancelled: (data) => {
+      console.log('🎫 SOTRAL ticket cancelled in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est annulé
+      loadTickets();
+    },
+    onSotralTicketDeleted: (data) => {
+      console.log('🎫 SOTRAL ticket deleted in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est supprimé
+      loadTickets();
+    },
     onAnyEvent: (event) => {
       console.log('📱 Realtime event in tickets screen:', event);
     }

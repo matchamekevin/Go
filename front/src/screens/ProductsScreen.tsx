@@ -42,6 +42,15 @@ export default function ProductsScreen() {
       // Recharger les données quand une ligne est supprimée
       loadData();
     },
+    onTicketTypeCreated: (data) => {
+      console.log('🎫 Ticket type created in realtime:', data);
+      // Recharger les données quand un type de ticket est créé
+      loadData();
+    },
+    onTicketPurchased: (data) => {
+      console.log('🎫 Ticket purchased in realtime:', data);
+      // Optionnel: mettre à jour les statistiques ou l'état des produits
+    },
     onAnyEvent: (event) => {
       console.log('📱 Realtime event in products screen:', event);
     }

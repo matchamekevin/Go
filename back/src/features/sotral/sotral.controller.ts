@@ -7,6 +7,7 @@ import {
   SotralTicketPurchase,
   QRCodeValidation
 } from './sotral.types';
+import { realtimeService } from '../../services/realtime.service';
 
 export class SotralController {
 
@@ -204,6 +205,14 @@ export class SotralController {
 
       const ticket = await sotralRepository.purchaseTicket(userId, purchaseData);
       
+      // Diffuser l'événement temps réel pour l'achat de ticket
+      realtimeService.broadcast('sotral_ticket_purchased', {
+        user_id: userId,
+        ticket_id: ticket.id,
+        line_id: purchaseData.line_id,
+        ticket_type_code: purchaseData.ticket_type_code
+      });
+      
       res.status(201).json({
         success: true,
         data: ticket,
@@ -325,6 +334,14 @@ export class SotralController {
 
         await client.query('COMMIT');
 
+        // Diffuser l'événement temps réel pour l'annulation du ticket
+        realtimeService.broadcast('sotral_ticket_cancelled', {
+          ticket_id: ticketId,
+          user_id: userId,
+          previous_status: ticket.status,
+          new_status: 'cancelled'
+        });
+
         res.json({
           success: true,
           message: 'Ticket annulé avec succès'
@@ -364,6 +381,17 @@ export class SotralController {
 
       const validationData: QRCodeValidation = validationResult.data;
       const result = await sotralRepository.validateTicketByQR(validationData);
+      
+      // Si la validation a réussi, diffuser l'événement temps réel
+      if (result.success && result.ticket) {
+        realtimeService.broadcast('sotral_ticket_validated', {
+          ticket_code: validationData.ticket_code,
+          validator_device_id: validationData.validator_device_id,
+          ticket_id: result.ticket.id,
+          previous_status: result.ticket.status,
+          new_status: 'used'
+        });
+      }
       
       const statusCode = result.success ? 200 : 400;
       res.status(statusCode).json(result);
@@ -582,6 +610,12 @@ export class SotralController {
         }
 
         await client.query('COMMIT');
+
+        // Diffuser l'événement temps réel pour la suppression du ticket
+        realtimeService.broadcast('sotral_ticket_deleted', {
+          ticket_id: ticketId,
+          admin_user_id: (req as any).user?.id
+        });
 
         res.json({
           success: true,

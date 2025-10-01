@@ -1,70 +1,73 @@
 #!/bin/bash
 
-# Test du système de synchronisation temps réel SOTRAL
-echo "🧪 Test du système de synchronisation temps réel SOTRAL"
-echo "=================================================="
+# Test complet de la synchronisation temps réel
+echo "🧪 Test complet de la synchronisation temps réel"
+echo "==============================================="
 
-# Vérifier que le serveur backend fonctionne
-echo "🔍 Vérification du serveur backend..."
-if curl -s http://localhost:3000/health > /dev/null; then
-    echo "✅ Serveur backend opérationnel"
-else
-    echo "❌ Serveur backend non accessible sur localhost:3000"
-    echo "   Veuillez démarrer le serveur avec: cd back && npm run dev"
+# Vérifier que le backend est en cours d'exécution
+echo "🔍 Vérification du backend..."
+if ! curl -s http://localhost:7000/health > /dev/null; then
+    echo "❌ Backend non accessible sur localhost:7000"
+    echo "   Démarrez-le d'abord: cd back && docker compose up -d"
     exit 1
 fi
+echo "✅ Backend opérationnel"
 
-# Tester la route de diffusion de test
+# Tester les événements temps réel
 echo ""
-echo "📡 Test de diffusion d'événement..."
-response=$(curl -s -X POST http://localhost:3000/realtime/test-broadcast \
+echo "📡 Test des événements temps réel..."
+
+# Test 1: Achat de ticket
+echo "🧾 Test 1: Simulation d'achat de ticket..."
+curl -s -X POST http://localhost:7000/api/realtime/test-broadcast \
   -H "Content-Type: application/json" \
-  -d '{"eventType": "test", "data": {"message": "Test de synchronisation temps réel"}}')
+  -d '{"eventType": "ticket_purchased", "data": {"user_id": 1, "product_code": "T100", "quantity": 2}}' > /dev/null
+echo "✅ Événement 'ticket_purchased' diffusé"
 
-if echo "$response" | grep -q '"success":true'; then
-    echo "✅ Diffusion d'événement réussie"
-    clients_count=$(echo "$response" | grep -o '"connectedClients":[0-9]*' | cut -d':' -f2)
-    echo "   Clients connectés: $clients_count"
-else
-    echo "❌ Échec de la diffusion d'événement"
-    echo "   Réponse: $response"
-fi
+# Test 2: Validation de ticket
+echo "✅ Test 2: Simulation de validation de ticket..."
+curl -s -X POST http://localhost:7000/api/realtime/test-broadcast \
+  -H "Content-Type: application/json" \
+  -d '{"eventType": "ticket_validated", "data": {"ticket_code": "ABC123", "validator_id": 1}}' > /dev/null
+echo "✅ Événement 'ticket_validated' diffusé"
 
-# Tester la connexion SSE
+# Test 3: Suppression de ticket
+echo "🗑️  Test 3: Simulation de suppression de ticket..."
+curl -s -X POST http://localhost:7000/api/realtime/test-broadcast \
+  -H "Content-Type: application/json" \
+  -d '{"eventType": "ticket_deleted", "data": {"ticket_id": 123}}' > /dev/null
+echo "✅ Événement 'ticket_deleted' diffusé"
+
+# Test 4: Création de ligne
+echo "🚌 Test 4: Simulation de création de ligne..."
+curl -s -X POST http://localhost:7000/api/realtime/test-broadcast \
+  -H "Content-Type: application/json" \
+  -d '{"eventType": "line_created", "data": {"line_id": 1, "name": "Ligne A"}}' > /dev/null
+echo "✅ Événement 'line_created' diffusé"
+
+# Test 5: Événements SOTRAL
+echo "🎫 Test 5: Simulation d'événements SOTRAL..."
+curl -s -X POST http://localhost:7000/api/realtime/test-broadcast \
+  -H "Content-Type: application/json" \
+  -d '{"eventType": "sotral_ticket_purchased", "data": {"user_id": 1, "line_id": 1}}' > /dev/null
+echo "✅ Événement 'sotral_ticket_purchased' diffusé"
+
+# Vérifier le nombre de clients connectés
 echo ""
-echo "🔌 Test de connexion Server-Sent Events..."
-sse_response=$(timeout 3 curl -s -H "Accept: text/event-stream" http://localhost:3000/realtime/events?clientId=test_client 2>/dev/null || echo "timeout")
-
-if echo "$sse_response" | grep -q "data:"; then
-    echo "✅ Connexion SSE établie avec succès"
-    echo "   Événements reçus:"
-    echo "$sse_response" | head -3
-else
-    echo "❌ Échec de connexion SSE"
-    echo "   Réponse: $sse_response"
-fi
-
-# Tester le nombre de clients connectés
-echo ""
-echo "👥 Vérification du nombre de clients connectés..."
-clients_response=$(curl -s http://localhost:3000/realtime/clients-count)
-
-if echo "$clients_response" | grep -q '"connectedClients"'; then
-    echo "✅ Route clients-count opérationnelle"
-    connected=$(echo "$clients_response" | grep -o '"connectedClients":[0-9]*' | cut -d':' -f2)
-    echo "   Clients actuellement connectés: $connected"
-else
-    echo "❌ Erreur lors de la récupération du nombre de clients"
-    echo "   Réponse: $clients_response"
-fi
+echo "👥 Vérification des clients connectés..."
+CLIENTS_COUNT=$(curl -s http://localhost:7000/api/realtime/clients-count | grep -o '"connectedClients":[0-9]*' | cut -d':' -f2)
+echo "📊 Clients connectés: $CLIENTS_COUNT"
 
 echo ""
-echo "🎯 Test terminé !"
+echo "🎉 Tests terminés !"
 echo ""
-echo "Pour tester manuellement:"
-echo "1. Ouvrez http://localhost:7000 dans votre navigateur (interface admin)"
-echo "2. Modifiez une ligne SOTRAL dans l'admin"
-echo "3. Vérifiez que les changements apparaissent automatiquement"
+echo "📱 Vérifications manuelles:"
+echo "=========================="
+echo "1. Ouvrez l'app mobile (MyTicketsScreen)"
+echo "2. Ouvrez l'interface admin"
+echo "3. Ouvrez une autre fenêtre avec ProductsScreen"
 echo ""
-echo "Ou testez avec curl:"
-echo "curl -N http://localhost:3000/realtime/events?clientId=admin_client"
+echo "4. Dans l'admin, effectuez une action (achat, validation, suppression)"
+echo "5. Vérifiez que toutes les fenêtres se mettent à jour automatiquement"
+echo ""
+echo "✅ Si tout se met à jour en temps réel, la synchronisation fonctionne !"

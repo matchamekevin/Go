@@ -69,18 +69,27 @@ cd /home/connect/kev/Go/back
 ```
 **Gratuit**: 512MB RAM, 750h/mois, SSL auto
 
-#### 🔗 ngrok (Développement)
+#### 🔗 ngrok (Développement - Accès Public Immédiat)
+
 ```bash
-# Configuration unique
+# Installation unique
+npm install -g ngrok
 ngrok config add-authtoken TON_TOKEN_GRATUIT
 
-# À chaque session
-ngrok http 7000
-# Résultat: https://abc123.ngrok.io (temporaire)
+# Configuration automatique
+./setup-ngrok.sh
+# Résultat: https://abc123.ngrok.io (public permanent)
+
+# Test de la synchronisation
+./test-ngrok-sync.sh
 ```
 
+**Avantages**: Accès public immédiat, synchronisation partout, gratuit pour développement
+
 ### 📱 Configuration App
+
 Après déploiement :
+
 1. App mobile > **Dev Menu** > **Configuration Réseau**
 2. Ajoute l'URL obtenue
 3. L'app s'adapte automatiquement à ton réseau
@@ -89,7 +98,7 @@ Après déploiement :
 
 ## 🏗️ **Architecture Complète**
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   BACKEND API   │◄──►│  FRONTEND USER  │    │   ADMIN WEB     │
 │  (Node.js/TS)   │    │ (React Native)  │    │ (React/TS/Web)  │
@@ -198,9 +207,10 @@ npm install && npm start
 
 ---
 
-## �️ **Dépannage Rapide**
+## ⚠️ **Dépannage Rapide**
 
 ### ❌ "Network Error" dans l'app
+
 ```bash
 # 1. Vérifier le backend
 curl http://localhost:7000/health
@@ -212,6 +222,7 @@ hostname -I
 ```
 
 ### ❌ Base de données vide
+
 ```bash
 cd /home/connect/kev/Go/back
 for sql_file in src/schema/*.sql; do 
@@ -220,6 +231,7 @@ done
 ```
 
 ### ❌ Cache Expo
+
 ```bash
 cd /home/connect/kev/Go/front
 npx expo start --clear
@@ -239,6 +251,49 @@ npx expo start --clear
 
 ---
 
+## ⚡ **Synchronisation Temps Réel Complète**
+
+Toutes les actions se synchronisent automatiquement entre tous les appareils !
+
+### 🎯 **Événements Synchronisés**
+
+| Action | Événement | Impact |
+|--------|-----------|---------|
+| 🧾 Achat ticket | `ticket_purchased` | Mise à jour des listes de tickets |
+| ✅ Validation ticket | `ticket_validated` | Statut mis à jour partout |
+| 🗑️ Suppression ticket | `ticket_deleted` | Ticket disparaît de toutes les vues |
+| 🚌 Création ligne | `line_created` | Nouvelles lignes disponibles |
+| ✏️ Modification ligne | `line_updated` | Informations mises à jour |
+| ❌ Suppression ligne | `line_deleted` | Ligne retirée partout |
+| 🎫 Achat SOTRAL | `sotral_ticket_*` | Synchronisation complète SOTRAL |
+
+### 🧪 **Test de la Synchronisation**
+
+```bash
+# Test automatique de tous les événements
+./test-realtime-sync.sh
+
+# Test avec ngrok (accès global)
+./setup-ngrok.sh
+./test-ngrok-sync.sh
+```
+
+### 📱 **Comment Ça Marche**
+
+1. **Backend** : Diffuse les événements via Server-Sent Events (SSE)
+2. **Mobile** : Reçoit et met à jour automatiquement les écrans
+3. **Admin** : Reçoit et met à jour les tableaux de bord
+4. **Temps réel** : Toutes les modifications sont instantanées
+
+### 🎉 **Résultat**
+
+- ✅ **Achetez un ticket** → Il apparaît immédiatement dans "Mes tickets"
+- ✅ **Validez un ticket** → Le statut change partout
+- ✅ **Modifiez une ligne** → Les produits se mettent à jour automatiquement
+- ✅ **Supprimez un ticket** → Il disparaît de toutes les vues
+
+---
+
 ## 📈 **Roadmap**
 
 - ✅ **Backend complet** (Auth, Tickets, DB)
@@ -253,4 +308,5 @@ npx expo start --clear
 
 **Status**: ✅ Architecture fonctionnelle et testée  
 **Accès Global**: ✅ Solutions gratuites implémentées  
+**Synchronisation Temps Réel**: ✅ Toutes les actions se synchronisent automatiquement  
 **Last Update**: 10 septembre 2025
