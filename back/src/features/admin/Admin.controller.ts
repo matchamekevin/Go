@@ -147,7 +147,29 @@ export class AdminController {
       const currentSuspended = currentUser.rows[0].is_suspended;
       const newSuspended = !currentSuspended;
 
-      const r = await pool.query('UPDATE users SET is_suspended = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, name, phone, is_verified, role, COALESCE(is_suspended,false) as is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at', [newSuspended, id]);
+      // Check if role column exists
+      let hasRoleColumn = false;
+      try {
+        await pool.query("SELECT role FROM users LIMIT 1");
+        hasRoleColumn = true;
+      } catch (colErr) {
+        hasRoleColumn = false;
+      }
+
+      // Build RETURNING clause dynamically
+      const returningColumns = [
+        'id', 'email', 'name', 'phone', 'is_verified',
+        'COALESCE(is_suspended,false) as is_suspended',
+        'created_at', 'COALESCE(updated_at, created_at) AS updated_at'
+      ];
+
+      if (hasRoleColumn) {
+        returningColumns.splice(5, 0, 'role'); // Insert role after is_verified
+      }
+
+      const returningClause = returningColumns.join(', ');
+
+      const r = await pool.query(`UPDATE users SET is_suspended = $1, updated_at = NOW() WHERE id = $2 RETURNING ${returningClause}`, [newSuspended, id]);
 
       console.log('Query result:', r.rows.length, 'rows affected');
 
