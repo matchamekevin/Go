@@ -61,7 +61,7 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + Config.otpExpiryMinutes * 60 * 1000);
     await EmailOTPRepository.create(user.id, otp, expiresAt);
 
-    // send email avec template HTML amélioré
+    // Envoi d'email en arrière-plan (non-bloquant)
     const emailSubject = 'Votre code de vérification GoSOTRAL';
     const emailText = `Votre code de vérification est : ${otp}`;
     const emailHtml = `
@@ -119,8 +119,12 @@ export class AuthService {
         </div>
       </div>
     `;
-    
-    await sendEmail(user.email, emailSubject, emailText, emailHtml);
+
+    // Envoi d'email asynchrone (non-bloquant)
+    sendEmail(user.email, emailSubject, emailText, emailHtml).catch(error => {
+      console.error(`[AuthService] Erreur envoi email pour ${user.email}:`, error);
+      // L'erreur d'email n'empêche pas l'inscription de réussir
+    });
 
     return { user: { id: user.id, email: user.email, name: user.name, phone: user.phone }, message: 'Utilisateur créé. Vérifiez votre email pour l OTP.' };
   }
@@ -161,7 +165,7 @@ export class AuthService {
     const record = await EmailOTPRepository.create(user.id, otp, expiresAt);
     console.log('[AuthService.resendEmailOTP] created OTP record:', { id: record.id, otp, expiresAt });
     
-    // Email de renvoi avec template HTML amélioré
+    // Email de renvoi avec template HTML amélioré (envoi asynchrone)
     const emailSubject = 'Nouveau code de vérification GoSOTRAL';
     const emailText = `Votre nouveau code de vérification est : ${otp}`;
     const emailHtml = `
@@ -220,7 +224,11 @@ export class AuthService {
       </div>
     `;
     
-    await sendEmail(user.email, emailSubject, emailText, emailHtml);
+    // Envoi d'email asynchrone (non-bloquant)
+    sendEmail(user.email, emailSubject, emailText, emailHtml).catch(error => {
+      console.error(`[AuthService.resendEmailOTP] Erreur envoi email pour ${user.email}:`, error);
+    });
+    
     return { message: 'OTP renvoyé' };
   }
 
