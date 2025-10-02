@@ -15,6 +15,7 @@ interface AuthContextType {
   refreshAuth: () => Promise<void>;
   verifyOTP: (email: string, otp: string) => Promise<void>;
   resendOTP: (email: string) => Promise<void>;
+  getOTPFromAPI: (email: string) => Promise<string>; // Fonction temporaire
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
 }
 
@@ -193,6 +194,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Fonction temporaire pour récupérer l'OTP directement (solution de secours)
+  const getOTPFromAPI = async (email: string) => {
+    try {
+      const response = await fetch(`https://go-j2rr.onrender.com/_test/latest-email-otp?email=${encodeURIComponent(email)}`);
+      const data = await response.json();
+      if (data.success && data.data) {
+        return data.data.otp;
+      }
+      throw new Error('OTP non trouvé');
+    } catch (error) {
+      throw new Error('Impossible de récupérer l\'OTP');
+    }
+  };
+
   const updateUserProfile = async (userData: Partial<User>) => {
     try {
       if (!user) throw new Error('Utilisateur non connecté');
@@ -245,6 +260,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshAuth,
     verifyOTP,
     resendOTP,
+    getOTPFromAPI,
     updateUserProfile,
   };
 

@@ -13,7 +13,11 @@ import {
 } from 'react-native';
 import { AuthService } from '../services/authService';
 
-export const RegisterScreen: React.FC = () => {
+interface RegisterScreenProps {
+  navigation: any;
+}
+
+export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -39,8 +43,14 @@ export const RegisterScreen: React.FC = () => {
       return;
     }
 
+    console.log('[RegisterScreen] 🚀 Starting registration attempt');
+    console.log('[RegisterScreen] 📧 Email:', email.trim());
+    console.log('[RegisterScreen] 👤 Name:', name.trim());
+    console.log('[RegisterScreen] 📞 Phone:', phone.trim());
+
     setLoading(true);
     try {
+      console.log('[RegisterScreen] 📡 Calling AuthService.register...');
       const result = await AuthService.register({
         email: email.trim(),
         name: name.trim(),
@@ -48,12 +58,26 @@ export const RegisterScreen: React.FC = () => {
         phone: phone.trim(),
       });
 
+      console.log('[RegisterScreen] ✅ Registration successful:', result);
       Alert.alert(
         'Inscription réussie',
-        'Votre compte a été créé. Vérifiez votre email pour confirmer votre inscription.',
-        [{ text: 'OK' }]
+        'Votre compte a été créé. Vous allez recevoir un code de vérification par email.',
+        [
+          {
+            text: 'Continuer',
+            onPress: () => {
+              // Naviguer vers l'écran de vérification OTP
+              navigation.navigate('OTPVerification', { email: email.trim() });
+            },
+          },
+        ]
       );
     } catch (error: any) {
+      console.log('[RegisterScreen] ❌ Registration failed:', error);
+      console.log('[RegisterScreen] 💥 Error message:', error.message);
+      console.log('[RegisterScreen] 🔍 Error type:', error.constructor.name);
+
+      // Afficher le message d'erreur exact pour le debug
       Alert.alert('Erreur', error.message || 'Une erreur est survenue');
     } finally {
       setLoading(false);

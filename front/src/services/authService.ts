@@ -83,49 +83,68 @@ export class AuthService {
 
   // Inscription utilisateur
   static async register(userData: RegisterRequest): Promise<AuthResponse> {
+    console.log('[AuthService] 🔍 Starting registration with:', {
+      email: userData.email,
+      endpoint: apiClient.getCurrentBaseUrl(),
+      networkConfig: apiClient.getNetworkConfig()
+    });
+
     try {
       const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/register', userData);
+      console.log('[AuthService] ✅ API Response received:', response);
+
       if (!response.success) {
+        console.log('[AuthService] ❌ API returned success=false:', response.error);
         throw new Error(response.error || 'Erreur lors de l\'inscription');
       }
-      
+
+      console.log('[AuthService] ✅ Registration successful for:', userData.email);
       // L'inscription ne retourne pas de token directement (vérification OTP requise)
       // Donc on ne sauvegarde pas le token ici
       return response.data!;
     } catch (error: any) {
-      console.log('[AuthService] Register error details:', {
+      console.log('[AuthService] ❌ Register error details:', {
         message: error?.message,
         response: error?.response,
         responseData: error?.response?.data,
-        status: error?.response?.status
+        status: error?.response?.status,
+        fullError: error
       });
 
       // Gestion spécifique des erreurs d'inscription
       if (error?.response) {
         const status = error.response.status;
         const data = error.response.data;
-        
+
+        console.log('[AuthService] 📊 Processing HTTP error:', { status, data });
+
         if (status === 400 && data) {
           // Vérifier différents formats de réponse d'erreur
           const errorMessage = data.error || data.message || '';
-          
-          if (errorMessage.includes('Email déjà utilisé') || 
+          console.log('[AuthService] 🎯 Error message extracted:', errorMessage);
+
+          if (errorMessage.includes('Email déjà utilisé') ||
               errorMessage.includes('already exists') ||
               errorMessage.includes('already used') ||
               errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('exist')) {
+            console.log('[AuthService] 🏷️ Transforming to: EMAIL_ALREADY_EXISTS');
             throw new Error('EMAIL_ALREADY_EXISTS');
           }
           if (errorMessage.includes('Email invalide') || errorMessage.includes('invalid email')) {
+            console.log('[AuthService] 🏷️ Transforming to: INVALID_EMAIL');
             throw new Error('INVALID_EMAIL');
           }
           if (errorMessage.includes('Mot de passe') || errorMessage.includes('password')) {
+            console.log('[AuthService] 🏷️ Transforming to: INVALID_PASSWORD');
             throw new Error('INVALID_PASSWORD');
           }
           // Autres erreurs 400
+          console.log('[AuthService] 🏷️ Transforming to generic error:', errorMessage);
           throw new Error(errorMessage || 'Erreur de validation');
         }
-        
+
         if (status === 409) {
+          console.log('[AuthService] 🏷️ Transforming 409 to: EMAIL_ALREADY_EXISTS');
           throw new Error('EMAIL_ALREADY_EXISTS');
         }
       }
@@ -133,18 +152,22 @@ export class AuthService {
       // Si l'erreur vient directement de la réponse API (pas d'axios response wrapper)
       if (error?.data?.error) {
         const errorMessage = error.data.error;
-        if (errorMessage.includes('Email déjà utilisé') || 
+        console.log('[AuthService] 📦 Direct API error:', errorMessage);
+        if (errorMessage.includes('Email déjà utilisé') ||
             errorMessage.includes('already exists') ||
             errorMessage.includes('already used')) {
+          console.log('[AuthService] 🏷️ Transforming direct error to: EMAIL_ALREADY_EXISTS');
           throw new Error('EMAIL_ALREADY_EXISTS');
         }
       }
-      
+
       // Erreur réseau
       if (error.message === 'Network Error') {
+        console.log('[AuthService] 🌐 Network error detected');
         throw new Error('Impossible de contacter le serveur. Vérifiez votre connexion.');
       }
-      
+
+      console.log('[AuthService] 💥 Throwing unhandled error:', error.message);
       throw error;
     }
   }

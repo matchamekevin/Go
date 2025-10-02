@@ -9,7 +9,7 @@ import AuthLayout from '../src/components/AuthLayout';
 
 export default function VerifyOTPScreen() {
   const { email, autoResend } = useLocalSearchParams<{ email: string; autoResend?: string }>();
-  const { verifyOTP, resendOTP } = useAuth();
+  const { verifyOTP, resendOTP, getOTPFromAPI } = useAuth();
 
   // Constants
   const MAX_ATTEMPTS = 5;
@@ -21,6 +21,7 @@ export default function VerifyOTPScreen() {
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
+  const [getCodeLoading, setGetCodeLoading] = useState(false); // Nouveau state pour récupération du code
   // resendTimer représente le temps restant avant qu'on puisse renvoyer
   const [resendTimer, setResendTimer] = useState(INITIAL_RESEND_SECONDS);
   // persistResendSeconds garde le délai actuel qui sera augmenté après chaque renvoi
@@ -143,6 +144,25 @@ export default function VerifyOTPScreen() {
     }
   };
 
+  const handleGetOTPCode = async () => {
+    if (!email) { setErrorMsg('Email manquant'); return; }
+    setGetCodeLoading(true);
+    setErrorMsg(null);
+    try {
+      const otpCode = await getOTPFromAPI(email);
+      setOtp(otpCode.split(''));
+      setSuccessMsg(`Code récupéré: ${otpCode}`);
+      // Auto-submit après un court délai
+      setTimeout(() => {
+        submitCode(otpCode);
+      }, 1500);
+    } catch (e: any) {
+      setErrorMsg('Impossible de récupérer le code. Vérifiez que vous êtes inscrit.');
+    } finally {
+      setGetCodeLoading(false);
+    }
+  };
+
   return (
     <AuthLayout topInset={12}>
       <View style={styles.container}>
@@ -242,6 +262,22 @@ export default function VerifyOTPScreen() {
                 <>
                   <Text style={styles.verifyButtonText}>Vérifier</Text>
                   <Ionicons name="checkmark" size={20} color={theme.colors.white} />
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Get Code Button - Solution temporaire */}
+            <TouchableOpacity
+              style={[styles.getCodeButton, getCodeLoading && styles.getCodeButtonDisabled]}
+              onPress={handleGetOTPCode}
+              disabled={getCodeLoading}
+            >
+              {getCodeLoading ? (
+                <Text style={styles.getCodeButtonText}>Récupération...</Text>
+              ) : (
+                <>
+                  <Ionicons name="code" size={20} color={theme.colors.primary[600]} />
+                  <Text style={styles.getCodeButtonText}>Récupérer le code</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -408,5 +444,27 @@ const styles = StyleSheet.create({
     color: theme.colors.primary[600],
     fontWeight: theme.typography.fontWeight.semibold,
     textDecorationLine: 'underline',
+  },
+  getCodeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.secondary[50],
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 2,
+    borderColor: theme.colors.primary[200],
+    ...theme.shadows.sm,
+  },
+  getCodeButtonDisabled: {
+    backgroundColor: theme.colors.secondary[100],
+    borderColor: theme.colors.secondary[300],
+  },
+  getCodeButtonText: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.semibold,
+    marginLeft: theme.spacing.sm,
   },
 });
