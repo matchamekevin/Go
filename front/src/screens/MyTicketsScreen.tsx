@@ -12,12 +12,57 @@ import {
 import { Ticket } from '../types/api';
 import { TicketService } from '../services/ticketService';
 import TicketCard from '../components/TicketCard';
+import { useSotralRealtime } from '../hooks/useSotralRealtime';
 
 export default function MyTicketsScreen() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
+
+  // Hook pour la synchronisation temps réel
+  const { isConnected } = useSotralRealtime({
+    baseUrl: 'http://192.168.1.78:7000', // À adapter selon votre configuration réseau
+    clientId: 'mobile_tickets_screen',
+    onTicketDeleted: (data) => {
+      console.log('🎫 Ticket deleted in realtime:', data);
+      // Recharger les tickets quand un ticket est supprimé
+      loadTickets();
+    },
+    onTicketPurchased: (data) => {
+      console.log('🎫 Ticket purchased in realtime:', data);
+      // Recharger les tickets quand un ticket est acheté
+      loadTickets();
+    },
+    onTicketValidated: (data) => {
+      console.log('🎫 Ticket validated in realtime:', data);
+      // Recharger les tickets quand un ticket est validé
+      loadTickets();
+    },
+    onSotralTicketPurchased: (data) => {
+      console.log('🎫 SOTRAL ticket purchased in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est acheté
+      loadTickets();
+    },
+    onSotralTicketValidated: (data) => {
+      console.log('🎫 SOTRAL ticket validated in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est validé
+      loadTickets();
+    },
+    onSotralTicketCancelled: (data) => {
+      console.log('🎫 SOTRAL ticket cancelled in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est annulé
+      loadTickets();
+    },
+    onSotralTicketDeleted: (data) => {
+      console.log('🎫 SOTRAL ticket deleted in realtime:', data);
+      // Recharger les tickets quand un ticket SOTRAL est supprimé
+      loadTickets();
+    },
+    onAnyEvent: (event) => {
+      console.log('📱 Realtime event in tickets screen:', event);
+    }
+  });
 
   const loadTickets = async () => {
     try {
@@ -69,7 +114,15 @@ export default function MyTicketsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Mes tickets</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Mes tickets</Text>
+        <View style={styles.realtimeIndicator}>
+          <View style={[styles.realtimeDot, { backgroundColor: isConnected ? '#4CAF50' : '#FF9800' }]} />
+          <Text style={styles.realtimeText}>
+            {isConnected ? 'Synchronisation active' : 'Synchronisation hors ligne'}
+          </Text>
+        </View>
+      </View>
       
       {/* Statistiques */}
       <View style={styles.statsContainer}>
@@ -134,12 +187,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  header: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1a1a1a',
     textAlign: 'center',
-    marginVertical: 20,
+    marginBottom: 8,
+  },
+  realtimeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  realtimeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  realtimeText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
   },
   loadingText: {
     marginTop: 16,

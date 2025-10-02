@@ -13,16 +13,11 @@ const DEFAULT_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
 class NetworkManager {
   private config: NetworkConfig = {
     endpoints: [
-  // Production cloud prioritaire
-  'https://go-j2rr.onrender.com',        // ✅ Render production (priorité 1)
-  // Environnements locaux / émulation
-  'http://192.168.1.184:7000',           // IP réseau local (priorité 2)
-  'http://10.0.2.2:7000',                // Android emulator (priorité 3)
-  'http://127.0.0.1:7000',               // iOS simulator (priorité 4)
-  'http://localhost:7000',               // Web fallback (priorité 5)
-  // Autres clouds (placeholders / futurs)
-  'https://backend-api-production.up.railway.app',  // Railway (à venir)
-  // Tu peux ajouter d'autres URLs via l'interface Configuration Réseau
+      // Production Render - endpoint principal
+      'https://go-j2rr.onrender.com',
+      // Développement local (seulement si nécessaire)
+      'http://localhost:7000',
+      'http://127.0.0.1:7000',
     ],
     current: null,
     lastChecked: 0,
@@ -84,14 +79,29 @@ class NetworkManager {
     console.log('[NetworkManager] Recherche du meilleur endpoint...');
 
     try {
+      // En production, prioriser Render pour éviter les tests locaux inutiles
+      const isProduction = __DEV__ === false;
+      let endpointsToTest = [...this.config.endpoints];
+      
+      if (isProduction) {
+        // En production, tester Render en premier
+        const renderEndpoint = 'https://go-j2rr.onrender.com';
+        if (this.config.endpoints.includes(renderEndpoint)) {
+          endpointsToTest = [renderEndpoint, ...this.config.endpoints.filter(e => e !== renderEndpoint)];
+        }
+      }
+
       // Tester les endpoints en parallèle pour la vitesse
-      const tests = this.config.endpoints.map(async (endpoint) => {
+      const tests = endpointsToTest.map(async (endpoint) => {
         try {
           const startTime = Date.now();
           
-          // Créer un controller pour annuler la requête après timeout
+          // Timeout adapté selon le type d'endpoint
+          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
+          const timeout = isLocal ? 2000 : (endpoint.startsWith('https://') ? 8000 : 4000);
+          
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
           
           const response = await fetch(`${endpoint}/health`, {
             method: 'GET',
@@ -105,7 +115,11 @@ class NetworkManager {
             return { endpoint, responseTime, success: true };
           }
         } catch (error) {
-          console.log(`[NetworkManager] ${endpoint} non disponible:`, error instanceof Error ? error.message : error);
+          // Réduire le log pour les endpoints locaux en production
+          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
+          if (!isProduction || !isLocal) {
+            console.log(`[NetworkManager] ${endpoint} non disponible:`, error instanceof Error ? error.message : error);
+          }
         }
         return { endpoint, responseTime: Infinity, success: false };
       });
@@ -156,17 +170,12 @@ class NetworkManager {
   }
 
   private async ensureProductionEndpoint(endpoint: string): Promise<void> {
+    // En développement, ne pas forcer la production en première position
+    // seulement s'assurer qu'elle est dans la liste
     if (!this.config.endpoints.includes(endpoint)) {
-      this.config.endpoints.unshift(endpoint);
+      this.config.endpoints.push(endpoint); // Ajouter à la fin, pas en premier
       await this.saveConfig();
-      console.log('[NetworkManager] Endpoint production ajouté automatiquement:', endpoint);
-    } else {
-      // S'il existe mais pas en première position, on le remonte
-      if (this.config.endpoints[0] !== endpoint) {
-        this.config.endpoints = [endpoint, ...this.config.endpoints.filter(e => e !== endpoint)];
-        await this.saveConfig();
-        console.log('[NetworkManager] Endpoint production priorisé:', endpoint);
-      }
+      console.log('[NetworkManager] Endpoint production ajouté:', endpoint);
     }
   }
 
@@ -188,8 +197,9 @@ class NetworkManager {
 
   async testEndpoint(endpoint: string): Promise<boolean> {
     try {
+      const timeout = endpoint.startsWith('https://') ? 10000 : 5000;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
       
       const response = await fetch(`${endpoint}/health`, {
         method: 'GET',

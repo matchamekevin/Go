@@ -7,7 +7,8 @@ interface StatusBadgeProps {
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = "" }) => {
   const getStatusConfig = (status: string) => {
-    switch (status.toLowerCase()) {
+    const s = status.toLowerCase();
+    switch (s) {
       case 'active':
       case 'actif':
       case 'verified':
@@ -16,13 +17,26 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = "" }) => 
           label: 'Actif',
           className: 'bg-green-100 text-green-800 border-green-200'
         };
-      case 'inactive':
-      case 'inactif':
       case 'suspended':
       case 'suspendu':
         return {
+          label: 'Compte suspendu',
+          className: 'bg-red-100 text-red-800 border-red-200'
+        };
+      case 'inactive':
+      case 'inactif':
+        return {
           label: 'Inactif',
           className: 'bg-red-100 text-red-800 border-red-200'
+        };
+      case 'unverified':
+      case 'non vérifié':
+      case 'non-verifié':
+      case 'non-verifie':
+      case 'nonverifie':
+        return {
+          label: 'Compte non vérifié',
+          className: 'bg-yellow-100 text-yellow-800 border-yellow-200'
         };
       case 'pending':
       case 'en attente':

@@ -18,7 +18,14 @@ router.put('/routes/:id', AdminTicketsController.updateRoute);
 router.delete('/routes/:id', AdminTicketsController.deleteRoute);
 
 // Routes pour les tickets
+router.get('/', AdminTicketsController.getAllTickets);
+router.patch('/:id/status', AdminTicketsController.updateTicketStatus);
+// Suppression en masse de tickets
+router.delete('/', AdminTicketsController.deleteTickets);
+
+// Alias routes mounted as /admin/tickets/tickets to support clients using that path
 router.get('/tickets', AdminTicketsController.getAllTickets);
 router.patch('/tickets/:id/status', AdminTicketsController.updateTicketStatus);
+router.delete('/tickets', AdminTicketsController.deleteTickets);
 
 export default router;

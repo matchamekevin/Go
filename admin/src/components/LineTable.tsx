@@ -1,9 +1,14 @@
 import React from 'react';
-import { SotralLine } from '../services/sotralService';
+// Accept a flexible line type to be compatible with both service and shared types
+type AnySotralLine = any;
 
 interface LineTableProps {
-  lines: SotralLine[];
-  onDetailsClick: (line: SotralLine) => void;
+  lines: AnySotralLine[];
+  loading?: boolean;
+  onDetailsClick: (line: AnySotralLine) => void;
+  onEditClick?: (line: AnySotralLine) => void;
+  onDeleteClick?: (line: AnySotralLine) => void;
+  onToggleStatus?: (id: number) => Promise<any>;
 }
 
 const LineTable: React.FC<LineTableProps> = ({ lines, onDetailsClick }) => {
@@ -35,13 +40,14 @@ const LineTable: React.FC<LineTableProps> = ({ lines, onDetailsClick }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Statut
               </th>
+              {/* Actions column removed */}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {lines.map((line) => (
               <tr 
                 key={line.id} 
-                className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                className="cursor-pointer transition-colors duration-200"
                 onClick={() => onDetailsClick(line)}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -58,7 +64,7 @@ const LineTable: React.FC<LineTableProps> = ({ lines, onDetailsClick }) => {
                         Ligne {line.line_number}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {line.name}
+                        {line.line_name || (line as any).name}
                       </div>
                     </div>
                   </div>
@@ -76,11 +82,11 @@ const LineTable: React.FC<LineTableProps> = ({ lines, onDetailsClick }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    line.category?.name === 'Lignes étudiantes' 
+                    ((line as any).category?.name === 'Lignes étudiantes') 
                       ? 'bg-blue-100 text-blue-800'
                       : 'bg-green-100 text-green-800'
                   }`}>
-                    {line.category?.name || 'Ordinaire'}
+                    {(line as any).category?.name || 'Ordinaire'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -92,6 +98,7 @@ const LineTable: React.FC<LineTableProps> = ({ lines, onDetailsClick }) => {
                     {line.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
+                {/* Actions cell removed */}
               </tr>
             ))}
           </tbody>

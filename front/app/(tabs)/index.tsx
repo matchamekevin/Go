@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import HelpFAB from '../../src/components/HelpFAB';
@@ -86,8 +87,8 @@ export default function HomeTab() {
                     // Navigue vers l'onglet Recherche et demande focus sur la barre
                     router.push({ pathname: '/(tabs)/search', params: { focus: 'true', focusTs: String(Date.now()) } });
                   } else if (action.id === 3) {
-                    // Navigue vers l'onglet Recherche et demande d'afficher l'historique des billets
-                    router.push({ pathname: '/(tabs)/search', params: { activeTab: 'history', focusTs: String(Date.now()) } });
+                    // Navigue vers la page Historique dédiée
+                    router.push('/(tabs)/history');
                   }
                 }}
               >

@@ -22,20 +22,20 @@ export const getApiBaseUrl = (): string => {
     const platform = require('react-native').Platform;
     
     if (platform.OS === 'web') {
-      // Web : utilise localhost
-      return 'http://localhost:7000';
+      // Web : utilise l'URL de production
+      return 'https://go-j2rr.onrender.com';
     } else if (platform.OS === 'ios') {
-      // iOS Simulator : utilise localhost
-      return 'http://localhost:7000';
+      // iOS Simulator : utilise l'URL de production
+      return 'https://go-j2rr.onrender.com';
     } else if (platform.OS === 'android') {
-      // Android Emulator : utilise l'IP spéciale pour accéder à la machine hôte
-  console.log('[Config] Platform Android dev -> utilisation de http://10.0.2.2:7000');
-  return 'http://10.0.2.2:7000';
+      // Android Emulator : utilise l'URL de production
+      console.log('[Config] Platform Android dev -> utilisation de https://go-j2rr.onrender.com');
+      return 'https://go-j2rr.onrender.com';
     }
     
-    // Appareil physique: configurer l'adresse IP de la machine dev (à adapter)
-  console.warn('[Config] Appareil physique détecté: adapter IP locale si nécessaire.');
-  return 'http://192.168.1.184:7000';
+    // Appareil physique: utilise l'URL de production
+    console.log('[Config] Appareil physique détecté: utilisation de l\'URL de production.');
+    return 'https://go-j2rr.onrender.com';
   }
   
   // En production, utilisez l'URL de votre serveur de production
@@ -60,7 +60,7 @@ export const getApiBaseUrl = (): string => {
 export const Config = {
   apiBaseUrl: getApiBaseUrl(),
   // Timeout pour les requêtes API : augmenté à 30s pour les réseaux lents
-  apiTimeout: 30000,
+  apiTimeout: 15000, // Réduit de 30s à 15s pour éviter les timeouts trop longs
   
   // Clés de stockage local
   storageKeys: {

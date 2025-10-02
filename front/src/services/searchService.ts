@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { ApiResponse, Route } from '../types/api';
+import type { ApiResponse, Route, SotralLine, SotralTicketType, SotralTicket } from '../types/api';
 import { DEV_CONFIG, devLog, devError } from '../config/devConfig';
 
 export interface SearchResult {
@@ -13,9 +13,9 @@ export interface SearchResult {
 }
 
 export class SearchService {
-  // Recherche de trajets via l'API
+  // Recherche de lignes SOTRAL via l'API
   static async searchRoutes(query: string): Promise<SearchResult[]> {
-    devLog('SearchService', `searchRoutes query=${query}`);
+    devLog('SearchService', `searchRoutes query=${query} (utilise maintenant les lignes SOTRAL)`);
 
     if (DEV_CONFIG.FORCE_FALLBACK) {
       devLog('SearchService', 'Mode fallback activé, retour des résultats mockés');
@@ -23,49 +23,118 @@ export class SearchService {
     }
 
     try {
-      const response = await apiClient.get<ApiResponse<Route[]>>(`/tickets/routes?search=${encodeURIComponent(query)}`);
-      if (!response.success) {
-        devError('SearchService', new Error(response.error || 'API error'), 'searchRoutes');
+      console.log('[SearchService] Début de la recherche pour:', query);
+
+      // Test simple de l'endpoint generated-tickets
+      console.log('[SearchService] Test de l\'endpoint generated-tickets...');
+      try {
+        const testResponse = await apiClient.get('/sotral/generated-tickets');
+        console.log('[SearchService] Test réussi:', testResponse);
+      } catch (testError) {
+        console.error('[SearchService] Test échoué:', testError);
         return this.getFallbackResults(query);
       }
 
-      const routes = response.data || [];
-      // Transformer
-      return routes.map(r => ({
-        id: r.id,
-        from: r.start_point || 'Départ',
-        to: r.end_point || 'Arrivée',
-        price: this.priceFromCategory(r.price_category),
-        duration: r.duration_minutes ? `${r.duration_minutes} min` : '--',
-        type: 'Bus urbain',
-        company: r.metadata?.company || undefined
-      }));
+      // Récupérer les lignes SOTRAL
+      const linesResponse = await apiClient.get<ApiResponse<SotralLine[]>>('/sotral/lines');
+      console.log('[SearchService] Réponse lignes:', {
+        success: linesResponse.success,
+        count: linesResponse.data?.length || 0
+      });
+
+      if (!linesResponse.success) {
+        devError('SearchService', new Error(linesResponse.error || 'API error'), 'searchRoutes');
+        return this.getFallbackResults(query);
+      }
+
+      const lines = linesResponse.data || [];
+      
+      // Récupérer les types de tickets pour avoir les prix
+      const ticketTypesResponse = await apiClient.get<ApiResponse<SotralTicketType[]>>('/sotral/ticket-types');
+      console.log('[SearchService] Réponse types de tickets:', {
+        success: ticketTypesResponse.success,
+        count: ticketTypesResponse.data?.length || 0
+      });
+
+      const ticketTypes = ticketTypesResponse.success ? ticketTypesResponse.data || [] : [];
+      
+      // Récupérer les tickets générés pour voir les prix réels
+      const generatedTicketsResponse = await apiClient.get<ApiResponse<SotralTicket[]>>('/sotral/generated-tickets');
+      console.log('[SearchService] Réponse tickets générés complète:', {
+        success: generatedTicketsResponse.success,
+        count: generatedTicketsResponse.count,
+        dataLength: generatedTicketsResponse.data?.length || 0,
+        pagination: generatedTicketsResponse.pagination,
+        error: generatedTicketsResponse.error,
+        fullResponse: generatedTicketsResponse
+      });
+
+      // Validation manuelle de la réponse
+      if (!generatedTicketsResponse.success) {
+        console.error('[SearchService] Réponse tickets générés invalide:', generatedTicketsResponse);
+        return this.getFallbackResults(query);
+      }
+
+      if (!generatedTicketsResponse.data || !Array.isArray(generatedTicketsResponse.data)) {
+        console.error('[SearchService] Données tickets générés invalides:', generatedTicketsResponse.data);
+        return this.getFallbackResults(query);
+      }
+
+      const generatedTickets = generatedTicketsResponse.success ? generatedTicketsResponse.data || [] : [];
+
+      // Filtrer par la requête si elle existe
+      let filteredLines = lines;
+      if (query && query.trim()) {
+        const searchTerm = query.toLowerCase().trim();
+        filteredLines = lines.filter(line => 
+          line.name.toLowerCase().includes(searchTerm) ||
+          line.route_from.toLowerCase().includes(searchTerm) ||
+          line.route_to.toLowerCase().includes(searchTerm) ||
+          line.line_number.toString().includes(searchTerm)
+        );
+      }
+
+      console.log('[SearchService] Lignes filtrées:', filteredLines.length);
+
+      // Transformer les lignes en résultats de recherche avec les vrais prix
+      const results = filteredLines.map(line => {
+        // Chercher un ticket généré pour cette ligne pour avoir le prix réel
+        const ticketForLine = generatedTickets.find(ticket => ticket.line_id === line.id);
+        let price = '-- FCFA';
+        
+        if (ticketForLine && ticketForLine.price_paid_fcfa) {
+          price = `${ticketForLine.price_paid_fcfa} FCFA`;
+        } else {
+          // Sinon utiliser le prix du type de ticket par défaut (SIMPLE)
+          const simpleTicketType = ticketTypes.find(type => type.code === 'SIMPLE');
+          if (simpleTicketType && simpleTicketType.price_fcfa) {
+            price = `${simpleTicketType.price_fcfa} FCFA`;
+          }
+        }
+
+        return {
+          id: line.id.toString(),
+          from: line.route_from,
+          to: line.route_to,
+          price: price,
+          duration: '--', // Durée déterminée par l'admin
+          type: `Ligne ${line.line_number}`,
+          company: line.category?.name || 'SOTRAL'
+        };
+      });
+
+      console.log('[SearchService] Résultats finaux:', results.length);
+      return results;
     } catch (error) {
+      console.error('[SearchService] Erreur complète:', error);
       devError('SearchService', error, 'searchRoutes - network');
       return this.getFallbackResults(query);
     }
   }
 
   private static getFallbackResults(query: string): SearchResult[] {
-    const base: SearchResult[] = [
-      { id: 'fb1', from: 'Centre-ville', to: 'Aéroport', price: '250 FCFA', duration: '45 min', type: 'Bus rapide', company: 'SOTRAL Express' },
-      { id: 'fb2', from: 'Université', to: 'Plateau', price: '150 FCFA', duration: '25 min', type: 'Bus urbain', company: 'Transport City' },
-      { id: 'fb3', from: 'Marché', to: 'Gare routière', price: '100 FCFA', duration: '20 min', type: 'Mini-bus', company: 'Petit Transport' }
-    ];
-
-    if (!query) return base;
-    const q = query.toLowerCase();
-    return base.filter(r => r.from.toLowerCase().includes(q) || r.to.toLowerCase().includes(q) || (r.company || '').toLowerCase().includes(q));
-  }
-
-  private static priceFromCategory(cat: string) {
-    switch (cat) {
-      case 'T100': return '100 FCFA';
-      case 'T150': return '150 FCFA';
-      case 'T200': return '200 FCFA';
-      case 'T250': return '250 FCFA';
-      case 'T300': return '300 FCFA';
-      default: return '-- FCFA';
-    }
+    // Plus de données hardcodées - utiliser uniquement les données de l'admin via l'API
+    devLog('SearchService', 'Aucun résultat API disponible, retour vide (pas de fallback)');
+    return [];
   }
 }

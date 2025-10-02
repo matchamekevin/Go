@@ -1,0 +1,1 @@
+export { TicketsManagement } from '../../../modules/tickets/components/TicketsManagement';

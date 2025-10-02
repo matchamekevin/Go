@@ -27,21 +27,26 @@ export class UserService {
     return apiClient.put<ApiResponse<User>>(`/admin/users/${id}`, data);
   }
 
-  static async deleteUser(id: number): Promise<ApiResponse<void>> {
-    return apiClient.delete<ApiResponse<void>>(`/admin/users/${id}`);
-  }
-
   static async toggleUserStatus(id: number): Promise<ApiResponse<User>> {
     return apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-status`);
   }
 
-  static async getUserStats(): Promise<ApiResponse<{
-    total: number;
-    verified: number;
-    unverified: number;
-    recently_registered: number;
-  }>> {
-    return apiClient.get<ApiResponse<any>>('/admin/users/stats');
+  static async toggleUserSuspension(id: number): Promise<ApiResponse<User>> {
+    // Workaround temporaire : utiliser la route de changement de statut comme fallback
+    try {
+      return await apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-suspension`);
+    } catch (error: any) {
+      // Si la route principale échoue (404), utiliser la route de toggle status comme fallback temporaire
+      if (error.response?.status === 404) {
+        console.warn('Route toggle-suspension non trouvée, utilisation de toggle-status comme fallback');
+        return await apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-status`);
+      }
+      throw error;
+    }
+  }
+
+  static async getSuspendedUsers(): Promise<ApiResponse<User[]>> {
+    return apiClient.get<ApiResponse<User[]>>('/admin/users/suspended');
   }
 
   static async createUser(data: {

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Phone, Calendar, Shield, ShieldCheck, Users } from 'lucide-react';
 import { UserService } from '../services/userService';
 import { User } from '../types/api';
-import { toast } from 'react-hot-toast';
 import SearchBar from '../components/SearchBar';
 import StatusBadge from '../components/StatusBadge';
 import Pagination from '../components/Pagination';
 import StatsCard from '../components/StatsCard';
 import DataTable from '../components/DataTable';
+import UserActionsModal from '../components/UserActionsModal';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 
 const UsersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,6 +17,19 @@ const UsersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [actionsModalOpen, setActionsModalOpen] = useState(false);
+
+  // Fonction de rafraîchissement des données
+  const refreshAllData = async () => {
+    await fetchUsers();
+  };
+
+  // Utiliser le hook de réactualisation automatique
+  const { isRefreshing } = useAutoRefresh(refreshAllData, {
+    interval: 30000, // 30 secondes
+    enabled: true
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -37,7 +51,7 @@ const UsersPage: React.FC = () => {
       } else {
         console.warn('Aucune donnée utilisateur reçue:', response);
         setUsers([]);
-        toast.error('Aucune donnée utilisateur disponible');
+        // Ne pas afficher de toast ici car apiClient gère déjà les erreurs globalement
       }
     } catch (error) {
       console.error('Erreur lors du chargement des utilisateurs:', error);
@@ -48,16 +62,13 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  const handleToggleStatus = async (userId: number) => {
-    try {
-      const response = await UserService.toggleUserStatus(userId);
-      if (response.success) {
-        toast.success('Statut utilisateur modifié');
-        fetchUsers(); // Recharger la liste
-      }
-    } catch (error) {
-      toast.error('Erreur lors du changement de statut');
-    }
+  const openActionsForUser = (user: User) => {
+    setSelectedUser(user);
+    setActionsModalOpen(true);
+  };
+
+  const onActionComplete = () => {
+    fetchUsers();
   };
 
   const userColumns = [
@@ -98,10 +109,10 @@ const UsersPage: React.FC = () => {
       )
     },
     {
-      key: 'is_verified',
+      key: 'is_suspended',
       header: 'Statut',
-      render: (value: boolean) => (
-        <StatusBadge status={value ? 'verified' : 'unverified'} />
+      render: (_value: boolean, user: User) => (
+        <StatusBadge status={user.is_suspended ? 'suspended' : 'active'} />
       )
     },
     {
@@ -120,28 +131,10 @@ const UsersPage: React.FC = () => {
         </span>
       )
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: (_value: any, user: User) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => handleToggleStatus(user.id)}
-            className={`px-3 py-1 rounded text-xs font-medium ${
-              user.is_verified
-                ? 'bg-red-100 text-red-800 hover:bg-red-200'
-                : 'bg-green-100 text-green-800 hover:bg-green-200'
-            }`}
-          >
-            {user.is_verified ? 'Suspendre' : 'Activer'}
-          </button>
-        </div>
-      )
-    }
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-12">
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-center">
@@ -152,53 +145,70 @@ const UsersPage: React.FC = () => {
             </p>
           </div>
         </div>
-      </div>
 
-      {/* Filters, Search & Add User Button */}
-      <div className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <SearchBar
-            placeholder="Rechercher par nom, email ou téléphone..."
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="flex-1"
-          />
-          <div className="flex gap-2 items-center">
-            <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#065f46] text-black bg-white"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="verified">Vérifiés</option>
-              <option value="unverified">Non vérifiés</option>
-            </select>
+        {/* Filters, Search & Add User Button */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <SearchBar
+              placeholder="Rechercher par nom, email ou téléphone..."
+              value={searchQuery}
+              onChange={(v) => { setSearchQuery(v); setCurrentPage(1); }}
+              className="flex-1"
+            />
+            <div className="flex gap-2 items-center">
+              <select
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#065f46] text-black bg-white"
+                value={filterStatus}
+                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="verified">Vérifiés</option>
+                <option value="unverified">Non vérifiés</option>
+                <option value="suspended">Suspendus</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Total"
-          value={users.length}
-          icon={Users}
-        />
-        <StatsCard
-          title="Vérifiés"
-          value={users.filter(u => u.is_verified === true).length}
-          icon={ShieldCheck}
-        />
-        <StatsCard
-          title="Non vérifiés"
-          value={users.filter(u => u.is_verified === false).length}
-          icon={Shield}
-        />
-        <StatsCard
-          title="Admins"
-          value={users.filter(u => u.email?.includes('admin')).length}
-          icon={ShieldCheck}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Total"
+            value={users.length}
+            icon={Users}
+          />
+        </div>
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Vérifiés"
+            value={users.filter(u => u.is_verified === true).length}
+            icon={ShieldCheck}
+          />
+        </div>
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Non vérifiés"
+            value={users.filter(u => u.is_verified === false).length}
+            icon={Shield}
+          />
+        </div>
       </div>
 
       {/* Users Table */}
@@ -211,6 +221,7 @@ const UsersPage: React.FC = () => {
           columns={userColumns}
           loading={loading}
           emptyMessage="Aucun utilisateur trouvé"
+          onRowClick={(user) => openActionsForUser(user)}
         />
       </div>
 
@@ -220,6 +231,13 @@ const UsersPage: React.FC = () => {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         className="mt-6"
+      />
+
+      <UserActionsModal
+        user={selectedUser}
+        isOpen={actionsModalOpen}
+        onClose={() => { setActionsModalOpen(false); setSelectedUser(null); }}
+        onActionComplete={onActionComplete}
       />
     </div>
   );

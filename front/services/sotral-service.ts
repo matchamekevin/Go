@@ -1,77 +1,5 @@
-// Configuration par défaut - à adapter selon l'environnement
-const API_BASE_URL = 'http://localhost:7000';
-
-// ==========================================
-// TYPES POUR LE FRONTEND MOBILE
-// ==========================================
-
-export interface SotralLine {
-  id: number;
-  line_number: number;
-  name: string;
-  route_from: string;
-  route_to: string;
-  category_id: number;
-  distance_km?: number;
-  stops_count?: number;
-  is_active: boolean;
-  category?: {
-    id: number;
-    name: string;
-    description?: string;
-  };
-}
-
-export interface SotralStop {
-  id: number;
-  name: string;
-  code: string;
-  latitude?: number;
-  longitude?: number;
-  address?: string;
-  is_major_stop: boolean;
-  is_active: boolean;
-}
-
-export interface SotralTicketType {
-  id: number;
-  name: string;
-  code: string;
-  description?: string;
-  price_fcfa: number;
-  validity_duration_hours?: number;
-  max_trips: number;
-  is_student_discount: boolean;
-  is_active: boolean;
-}
-
-export interface PricingZone {
-  id: number;
-  name: string;
-  base_price_fcfa: number;
-  student_discount_percent: number;
-  description?: string;
-}
-
-export interface SotralTicket {
-  id: number;
-  ticket_code: string;
-  qr_code: string;
-  user_id?: number;
-  ticket_type_id: number;
-  line_id?: number;
-  stop_from_id?: number;
-  stop_to_id?: number;
-  price_paid_fcfa: number;
-  status: 'active' | 'used' | 'expired' | 'cancelled';
-  purchased_at: string;
-  expires_at?: string;
-  trips_remaining: number;
-  payment_method?: string;
-  payment_reference?: string;
-  created_at: string;
-  updated_at: string;
-}
+import { apiClient } from '../src/services/apiClient';
+import type { SotralLine, SotralStop, SotralTicketType, PricingZone, SotralTicket } from '../src/types/api';
 
 export interface TicketPurchaseRequest {
   ticket_type_code: string;
@@ -110,102 +38,31 @@ export interface ValidationResponse {
 }
 
 // ==========================================
-// CONFIGURATION API
-// ==========================================
-
-class ApiClient {
-  private baseURL: string;
-  private token: string | null = null;
-
-  constructor(baseURL: string) {
-    this.baseURL = baseURL;
-  }
-
-  setToken(token: string) {
-    this.token = token;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
-
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
-
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-  }
-
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' });
-  }
-
-  async post<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async put<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined,
-    });
-  }
-
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
-  }
-}
-
-// ==========================================
 // SERVICE SOTRAL POUR FRONTEND MOBILE
 // ==========================================
 
 export class SotralMobileService {
-  private static client = new ApiClient(API_BASE_URL || 'http://localhost:7000');
-
-  // Définir le token utilisateur
-  static setAuthToken(token: string) {
-    this.client.setToken(token);
-  }
-
   // ==========================================
   // LIGNES ET ARRÊTS
   // ==========================================
 
+  /**
+   * Récupérer toutes les lignes avec les tickets générés associés
+   */
   static async getAllLines(): Promise<{ data: SotralLine[] }> {
-    return this.client.get('/sotral/lines');
+    return apiClient.get('/sotral/lines');
   }
 
   static async getLineById(id: number): Promise<{ data: SotralLine }> {
-    return this.client.get(`/sotral/lines/${id}`);
+    return apiClient.get(`/sotral/lines/${id}`);
   }
 
   static async getLinesByCategory(categoryId: number): Promise<{ data: SotralLine[] }> {
-    return this.client.get(`/sotral/lines/category/${categoryId}`);
+    return apiClient.get(`/sotral/lines/category/${categoryId}`);
   }
 
   static async getStopsByLine(lineId: number): Promise<{ data: SotralStop[] }> {
-    return this.client.get(`/sotral/lines/${lineId}/stops`);
+    return apiClient.get(`/sotral/lines/${lineId}/stops`);
   }
 
   // ==========================================
@@ -213,11 +70,11 @@ export class SotralMobileService {
   // ==========================================
 
   static async getTicketTypes(): Promise<{ data: SotralTicketType[] }> {
-    return this.client.get('/sotral/ticket-types');
+    return apiClient.get('/sotral/ticket-types');
   }
 
   static async getPricingZones(): Promise<{ data: PricingZone[] }> {
-    return this.client.get('/sotral/pricing-zones');
+    return apiClient.get('/sotral/pricing-zones');
   }
 
   static async calculatePrice(params: {
@@ -225,16 +82,16 @@ export class SotralMobileService {
     stopFromId?: number;
     stopToId?: number;
     isStudent?: boolean;
-  }): Promise<{ 
-    data: { 
+  }): Promise<{
+    data: {
       distance_km: number;
       base_price_fcfa: number;
       is_student_discount: boolean;
       final_price_fcfa: number;
       zone_name: string;
-    } 
+    }
   }> {
-    return this.client.post('/sotral/calculate-price', {
+    return apiClient.post('/sotral/calculate-price', {
       lineId: params.lineId,
       stopFromId: params.stopFromId,
       stopToId: params.stopToId,
@@ -251,7 +108,7 @@ export class SotralMobileService {
     data: SotralTicket;
     message?: string;
   }> {
-    return this.client.post('/sotral/purchase', purchaseData);
+    return apiClient.post('/sotral/purchase', purchaseData);
   }
 
   // ==========================================
@@ -259,11 +116,65 @@ export class SotralMobileService {
   // ==========================================
 
   static async getMyTickets(): Promise<{ data: SotralTicket[] }> {
-    return this.client.get('/sotral/my-tickets');
+    return apiClient.get('/sotral/my-tickets');
+  }
+
+  /**
+   * Récupérer les tickets générés par l'admin (publics)
+   */
+  static async getGeneratedTickets(options: {
+    lineId?: number;
+    status?: string;
+    page?: number;
+    limit?: number;
+  } = {}): Promise<{
+    success: boolean;
+    data: Array<{
+      id: number;
+      ticket_code: string;
+      qr_code: string;
+      line_id?: number;
+      line_name?: string;
+      price_paid_fcfa: number;
+      status: string;
+      expires_at?: string;
+      trips_remaining: number;
+      created_at: string;
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+    count: number;
+  }> {
+    const params = new URLSearchParams();
+    if (options.lineId) params.append('lineId', options.lineId.toString());
+    if (options.status) params.append('status', options.status);
+    if (options.page) params.append('page', options.page.toString());
+    if (options.limit) params.append('limit', options.limit.toString());
+
+    const queryString = params.toString();
+    const endpoint = `/sotral/generated-tickets${queryString ? `?${queryString}` : ''}`;
+
+    return apiClient.get(endpoint);
   }
 
   static async getTicketByCode(ticketCode: string): Promise<{ data: SotralTicket }> {
-    return this.client.get(`/sotral/ticket/${ticketCode}`);
+    return apiClient.get(`/sotral/ticket/${ticketCode}`);
+  }
+
+  // ==========================================
+  // ANNULATION DE TICKETS UTILISATEUR
+  // ==========================================
+
+  static async cancelUserTicket(ticketId: number): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    return apiClient.delete(`/sotral/my-tickets/${ticketId}`);
   }
 
   // ==========================================
@@ -276,7 +187,7 @@ export class SotralMobileService {
     message?: string;
     error?: string;
   }> {
-    return this.client.post('/sotral/validate-ticket', validationData);
+    return apiClient.post('/sotral/validate-ticket', validationData);
   }
 
   // ==========================================
@@ -291,7 +202,7 @@ export class SotralMobileService {
     data?: any;
     error?: string;
   }> {
-    return this.client.get('/sotral/health');
+    return apiClient.get('/sotral/health');
   }
 
   // ==========================================
@@ -343,21 +254,21 @@ export class SotralMobileService {
 
   static getTimeUntilExpiry(expiresAt?: string): string | null {
     if (!expiresAt) return null;
-    
+
     const now = new Date();
     const expiry = new Date(expiresAt);
     const diff = expiry.getTime() - now.getTime();
-    
+
     if (diff <= 0) return 'Expiré';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24);
       return `${days}j ${hours % 24}h`;
     }
-    
+
     return `${hours}h ${minutes}min`;
   }
 

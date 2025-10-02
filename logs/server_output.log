@@ -1,0 +1,16 @@
+Database SSL config: {
+  NODE_ENV: 'development',
+  DATABASE_SSL: undefined,
+  databaseUrl: 'postgresql://gosotral_user:Ps33lqNo85kEj...',
+  sslEnabled: true,
+  reason: 'host looks hosted (render/aws)'
+}
+[Email Service] Configuration SMTP: {
+  host: 'smtp.gmail.com',
+  port: 587,
+  user: '2003gnati24@gmail.com',
+  from: 'GoSOTRAL <2003gnati24@gmail.com>'
+}
+Using databaseUrl: postgresql://gosotral_user:Ps33lqNo85kEjLVgosFFxcWsCsnt3z3W@dpg-d305h0mr433s73euqgfg-a.oregon-postgres.render.com:5432/gosotral_db
+Listening on port: 7000
+🚀 Server is running on port 7000

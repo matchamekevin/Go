@@ -4,6 +4,13 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  count?: number;
 }
 
 export interface TicketProduct {
@@ -99,4 +106,120 @@ export interface RegisterRequest {
   password: string;
   name: string;
   phone: string;
+}
+
+// ==========================================
+// TYPES SOTRAL SPÉCIFIQUES
+// ==========================================
+
+export interface SotralLine {
+  id: number;
+  line_number: number;
+  name: string;
+  route_from: string;
+  route_to: string;
+  category_id: number;
+  distance_km?: number;
+  stops_count?: number;
+  is_active: boolean;
+  category?: {
+    id: number;
+    name: string;
+    description?: string;
+  };
+}
+
+export interface SotralStop {
+  id: number;
+  name: string;
+  code: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+  is_major_stop: boolean;
+  is_active: boolean;
+}
+
+export interface SotralTicketType {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  price_fcfa: number;
+  validity_duration_hours?: number;
+  max_trips: number;
+  is_student_discount: boolean;
+  is_active: boolean;
+}
+
+export interface PricingZone {
+  id: number;
+  name: string;
+  base_price_fcfa: number;
+  student_discount_percent: number;
+  description?: string;
+}
+
+export interface SotralTicket {
+  id: number;
+  ticket_code: string;
+  qr_code: string;
+  user_id?: number;
+  ticket_type_id: number;
+  line_id?: number;
+  stop_from_id?: number;
+  stop_to_id?: number;
+  price_paid_fcfa: number;
+  status: 'active' | 'used' | 'expired' | 'cancelled';
+  purchased_at: string;
+  expires_at?: string;
+  trips_remaining: number;
+  payment_method?: string;
+  payment_reference?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ==========================================
+// TYPES DE PAIEMENT MOBILE
+// ==========================================
+
+export interface MobilePaymentRequest {
+  ticket_id: number;
+  payment_method: 'mixx' | 'flooz';
+  phone_number: string;
+  amount: number;
+}
+
+export interface MobilePaymentResponse {
+  payment_ref: string;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  payment_url?: string;
+  expires_at?: string;
+}
+
+export interface PaymentStatusResponse {
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  ticket?: SotralTicket;
+  transaction_details?: {
+    payment_ref: string;
+    amount: number;
+    phone_number: string;
+    payment_method: 'mixx' | 'flooz';
+    processed_at?: string;
+  };
+}
+
+export interface PaymentInitiationData {
+  ticketId: number;
+  paymentMethod: 'mixx' | 'flooz';
+  phoneNumber: string;
+  amount: number;
+}
+
+export interface PaymentStatus {
+  success: boolean;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  ticket?: SotralTicket;
+  error?: string;
 }

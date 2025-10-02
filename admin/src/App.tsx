@@ -9,13 +9,9 @@ import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import UsersPage from './pages/UsersPage';
 import TicketsPage from './pages/TicketsPage';
-import PaymentsPage from './pages/PaymentsPage';
-import ProductsPage from './pages/ProductsPage';
 import ReportsPage from './pages/ReportsPage';
-import MessagesPage from './pages/MessagesPage';
 import HelpPage from './pages/HelpPage';
 import SettingsPage from './pages/SettingsPage';
-import StatisticsPage from './pages/StatisticsPage';
 import SotralManagementPage from './pages/SotralManagementPage';
 import './index.css';
 
@@ -62,7 +58,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const AppContent: React.FC = () => {
   return (
-    <Router>
+    <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <Routes>
         {/* Routes publiques */}
         <Route 
@@ -87,17 +83,12 @@ const AppContent: React.FC = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="tickets" element={<TicketsPage />} />
-          <Route path="payments" element={<PaymentsPage />} />
-          <Route path="products" element={<ProductsPage />} />
           <Route path="reports" element={<ReportsPage />} />
-          <Route path="messages" element={<MessagesPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="statistics" element={<StatisticsPage />} />
           <Route path="sotral" element={<SotralManagementPage />} />
           <Route path="routes" element={<Navigate to="/dashboard" replace />} />
           <Route path="transactions" element={<Navigate to="/dashboard" replace />} />
-          <Route path="stats" element={<Navigate to="/statistics" replace />} />
         </Route>
 
         {/* Route 404 */}

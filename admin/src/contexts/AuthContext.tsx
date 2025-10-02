@@ -139,6 +139,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    // En développement, retourner un contexte par défaut pour éviter les erreurs HMR
+    if (import.meta.env.DEV) {
+      console.warn('useAuth utilisé en dehors d\'un AuthProvider - contexte par défaut utilisé');
+      return {
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+        login: async () => {},
+        logout: async () => {},
+        checkAuth: async () => {},
+      };
+    }
     throw new Error('useAuth doit être utilisé dans un AuthProvider');
   }
   return context;

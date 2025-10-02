@@ -21,9 +21,10 @@ export default function NetworkTestScreen() {
   const [results, setResults] = useState<TestResult[]>([]);
 
   const testUrls = [
-    'http://192.168.1.184:7000', // IP réseau local (ta machine)
-    'http://10.0.2.2:7000',      // Android emulator
-    'http://127.0.0.1:7000',     // iOS simulator
+    'https://go-j2rr.onrender.com', // Production Render (priorité 1)
+    'http://192.168.1.184:7000', // IP réseau local (fallback)
+    'http://10.0.2.2:7000',      // Android emulator (fallback)
+    'http://127.0.0.1:7000',     // iOS simulator (fallback)
     'http://localhost:7000',      // Web/fallback
   ];
 

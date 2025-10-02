@@ -31,18 +31,14 @@ RUN npm ci --omit=dev
 # Copier le build compilé
 COPY --from=builder /usr/src/app/dist ./dist
 
-# Copier les scripts d'initialisation avec chemins absolus
-COPY --from=builder /usr/src/app/init-sotral.sh /usr/src/app/init-sotral.sh
-COPY --from=builder /usr/src/app/init-sotral-manual.sh /usr/src/app/init-sotral-manual.sh
-COPY --from=builder /usr/src/app/diagnose-sotral.sh /usr/src/app/diagnose-sotral.sh
-COPY --from=builder /usr/src/app/insert-stops.sh /usr/src/app/insert-stops.sh
+# Copier les scripts d'initialisation depuis le répertoire scripts
+COPY --from=builder /usr/src/app/scripts/apply-migrations.sh /usr/src/app/scripts/apply-migrations.sh
+COPY --from=builder /usr/src/app/scripts/start-debug.sh /usr/src/app/scripts/start-debug.sh
+COPY --from=builder /usr/src/app/scripts/seed_canonical_lines.sh /usr/src/app/scripts/seed_canonical_lines.sh
 COPY --from=builder /usr/src/app/src/schema /usr/src/app/src/schema
 
-# Rendre le script exécutable et vérifier
-RUN chmod +x /usr/src/app/*.sh && \
-    ls -la /usr/src/app/*.sh && \
-    echo "Scripts disponibles:" && \
-    find /usr/src/app -name "*.sh" -type f -executable
+# Rendre les scripts exécutables
+RUN chmod +x /usr/src/app/scripts/*.sh
 
 # Healthcheck interne (utilise fetch natif Node 20, sans curl)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD node -e "fetch('http://localhost:7000/health').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"

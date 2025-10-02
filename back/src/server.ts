@@ -20,6 +20,7 @@ if (fs.existsSync(envPath)) {
   });
 }
 
+import http from 'http';
 import app from './app';
 import { Config } from './enviroment/env.config';
 
@@ -29,6 +30,26 @@ const port = Config.port || (process.env.PORT ? Number(process.env.PORT) : 7000)
 console.log('Using databaseUrl:', Config.databaseUrl);
 console.log('Listening on port:', port);
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Create HTTP server
+const server = http.createServer(app);
+
+server.listen(port, () => {
+  console.log(`🚀 Server is running on port ${port}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });

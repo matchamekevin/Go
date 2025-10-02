@@ -21,22 +21,12 @@ export const useNavigation = () => {
       items: [
         { name: 'SOTRAL', href: '/sotral', iconName: 'Ticket' },
         { name: 'Tickets', href: '/tickets', iconName: 'Ticket' },
-        { name: 'Produits', href: '/products', iconName: 'Package' },
-      ]
-    },
-    {
-      category: "Finance",
-      items: [
-        { name: 'Paiements', href: '/payments', iconName: 'CreditCard' },
-        { name: 'Statistiques', href: '/statistics', iconName: 'PieChart' },
       ]
     },
     {
       category: "Support",
       items: [
-        { name: 'Messages', href: '/messages', iconName: 'MessageSquare' },
         { name: 'Aide', href: '/help', iconName: 'HelpCircle' },
-        { name: 'Paramètres', href: '/settings', iconName: 'Settings' },
       ]
     }
   ];

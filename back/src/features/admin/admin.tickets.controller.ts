@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { TicketRepository } from '../tickets/Ticket.repository';
 import { RequestWithUser } from '../tickets/ticket.request';
+import pool from '../../shared/database/client';
 
 export class AdminTicketsController {
   /**
@@ -186,7 +187,7 @@ export class AdminTicketsController {
   }
 
   /**
-   * [ADMIN] Récupérer tous les tickets avec pagination et filtres
+   * [ADMIN] Obtenir tous les tickets avec pagination et filtres
    */
   static async getAllTickets(req: RequestWithUser, res: Response) {
     try {
@@ -194,36 +195,85 @@ export class AdminTicketsController {
         return res.status(403).json({ success: false, error: 'Accès admin requis' });
       }
 
-      const { 
-        page = 1, 
-        limit = 50, 
-        status, 
-        user_id, 
-        product_code,
-        start_date,
-        end_date 
-      } = req.query;
+      // Test simple d'abord - vérifier si les tables existent
+      try {
+        const tableCheck = await pool.query(`
+          SELECT 
+            EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tickets') as tickets_exists,
+            EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ticket_products') as products_exists,
+            EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'routes') as routes_exists,
+            EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') as users_exists;
+        `);
+        
+        const { tickets_exists, products_exists, routes_exists, users_exists } = tableCheck.rows[0];
+        
+        if (!tickets_exists) {
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Table tickets non trouvée dans la base de données' 
+          });
+        }
+        
+        if (!products_exists) {
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Table ticket_products non trouvée - impossible de joindre les produits' 
+          });
+        }
 
-      const filters: any = {};
-      if (status) filters.status = status;
-      if (user_id) filters.user_id = parseInt(user_id as string);
-      if (product_code) filters.product_code = product_code;
-      if (start_date) filters.start_date = start_date;
-      if (end_date) filters.end_date = end_date;
+        // Essayer une requête simple d'abord
+        const simpleResult = await pool.query('SELECT COUNT(*) as total FROM tickets');
+        const totalTickets = parseInt(simpleResult.rows[0].total);
 
-      console.log('[AdminTicketsController.getAllTickets] fetching tickets with', { page: parseInt(page as string), limit: parseInt(limit as string), filters });
-      const tickets = await TicketRepository.getAllTicketsWithFilters(
-        parseInt(page as string),
-        parseInt(limit as string),
-        filters
-      );
-  console.log('[AdminTicketsController.getAllTickets] got tickets count', Array.isArray((tickets as any)?.tickets) ? (tickets as any).tickets.length : typeof tickets);
+        if (totalTickets === 0) {
+          return res.status(200).json({ 
+            success: true, 
+            data: { tickets: [], total: 0, page: 1, limit: 50 },
+            message: 'Aucun ticket trouvé'
+          });
+        }
 
-      return res.status(200).json({ success: true, data: tickets });
+        const { 
+          page = 1, 
+          limit = 50, 
+          status, 
+          user_id, 
+          product_code,
+          start_date,
+          end_date 
+        } = req.query;
+
+        const filters: any = {};
+        if (status) filters.status = status;
+        if (user_id) filters.user_id = parseInt(user_id as string);
+        if (product_code) filters.product_code = product_code;
+        if (start_date) filters.start_date = start_date;
+        if (end_date) filters.end_date = end_date;
+
+        console.log('[AdminTicketsController.getAllTickets] fetching tickets with', { page: parseInt(page as string), limit: parseInt(limit as string), filters });
+        const tickets = await TicketRepository.getAllTicketsWithFilters(
+          parseInt(page as string),
+          parseInt(limit as string),
+          filters
+        );
+        console.log('[AdminTicketsController.getAllTickets] got tickets count', Array.isArray((tickets as any)?.tickets) ? (tickets as any).tickets.length : typeof tickets);
+
+        return res.status(200).json({ success: true, data: tickets });
+        
+      } catch (dbError: any) {
+        console.error('[AdminTicketsController.getAllTickets] Database error:', dbError);
+        return res.status(500).json({ 
+          success: false, 
+          error: `Erreur base de données: ${dbError.message}` 
+        });
+      }
+      
     } catch (error: any) {
       console.error('[AdminTicketsController.getAllTickets] error:', error);
-      // NOTE: Expose error.message temporarily for debugging the 500 on deployed service.
-      return res.status(500).json({ success: false, error: error?.message || 'Erreur lors de la récupération des tickets' });
+      return res.status(500).json({ 
+        success: false, 
+        error: `Erreur système: ${error?.message || 'Erreur inconnue'}` 
+      });
     }
   }
 
@@ -256,6 +306,32 @@ export class AdminTicketsController {
     } catch (error) {
       console.error('[AdminTicketsController.updateTicketStatus] error:', error);
       return res.status(500).json({ success: false, error: 'Erreur lors de la mise à jour du statut' });
+    }
+  }
+
+  /**
+   * [ADMIN] Supprimer plusieurs tickets par ids
+   */
+  static async deleteTickets(req: RequestWithUser, res: Response) {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Accès admin requis' });
+      }
+      // Debug logging to help diagnose routing/availability issues
+      console.log('[AdminTicketsController.deleteTickets] called. method=', req.method, 'path=', req.path);
+      console.log('[AdminTicketsController.deleteTickets] headers=', Object.keys(req.headers));
+      console.log('[AdminTicketsController.deleteTickets] raw body=', req.body);
+
+      const { ids } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ success: false, error: 'Aucun id fourni' });
+      }
+
+      const result = await TicketRepository.deleteTicketsByIds(ids);
+      return res.status(200).json({ success: true, message: `${result} ticket(s) supprimé(s)` });
+    } catch (error) {
+      console.error('[AdminTicketsController.deleteTickets] error:', error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la suppression des tickets' });
     }
   }
 }

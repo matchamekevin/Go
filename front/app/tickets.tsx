@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../src/styles/theme';
@@ -8,63 +9,11 @@ export default function TicketsTab() {
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
 
   const activeTickets = [
-    {
-      id: 1,
-      type: 'Bus rapide',
-      route: 'Centre-ville → Aéroport',
-      date: '2025-09-08',
-      time: '14:30',
-      price: '2500 FCFA',
-      seat: '12A',
-      qrCode: 'TICKET_001_2025090814',
-      status: 'valid',
-      expiresIn: '2h 30min',
-    },
-    {
-      id: 2,
-      type: 'Métro',
-      route: 'Université → Plateau',
-      date: '2025-09-08',
-      time: '18:00',
-      price: '1000 FCFA',
-      seat: '---',
-      qrCode: 'TICKET_002_2025090818',
-      status: 'valid',
-      expiresIn: '6h 00min',
-    },
+    // Plus de données hardcodées - les tickets viennent maintenant de l'admin via l'API
   ];
 
   const historyTickets = [
-    {
-      id: 3,
-      type: 'Bus urbain',
-      route: 'Marché → Centre-ville',
-      date: '2025-09-07',
-      time: '09:15',
-      price: '1500 FCFA',
-      seat: '8B',
-      status: 'used',
-    },
-    {
-      id: 4,
-      type: 'Bus rapide',
-      route: 'Aéroport → Université',
-      date: '2025-09-06',
-      time: '16:45',
-      price: '2500 FCFA',
-      seat: '15C',
-      status: 'used',
-    },
-    {
-      id: 5,
-      type: 'Métro',
-      route: 'Plateau → Gare routière',
-      date: '2025-09-05',
-      time: '12:30',
-      price: '1000 FCFA',
-      seat: '---',
-      status: 'used',
-    },
+    // Plus de données hardcodées - l'historique vient maintenant de l'admin via l'API
   ];
 
   const renderActiveTicket = (ticket: any) => (

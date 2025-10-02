@@ -5,5 +5,6 @@ export interface User {
   password: string;
   phone?: string;
   is_verified: boolean;
+  is_suspended?: boolean;
   role?: string; // Ajouté pour compatibilité admin
 }

@@ -71,13 +71,17 @@ class HttpClient implements ApiClient {
           break;
         case 422:
           if (data.errors) {
-            Object.values(data.errors).forEach((errorMessages: any) => {
-              if (Array.isArray(errorMessages)) {
-                errorMessages.forEach((message) => toast.error(message));
+            // Collecter tous les messages d'erreur en un seul
+            const errorMessages: string[] = [];
+            Object.values(data.errors).forEach((errorMessagesArray: any) => {
+              if (Array.isArray(errorMessagesArray)) {
+                errorMessages.push(...errorMessagesArray);
               } else {
-                toast.error(errorMessages);
+                errorMessages.push(errorMessagesArray);
               }
             });
+            // Afficher un seul toast avec tous les messages d'erreur
+            toast.error(`Erreurs de validation: ${errorMessages.join(', ')}`);
           } else {
             toast.error(data.message || 'Données invalides.');
           }
@@ -122,7 +126,7 @@ class HttpClient implements ApiClient {
 }
 
 // Configuration de l'API (par défaut pointant vers le backend local)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const apiClient = new HttpClient(API_BASE_URL);
 export default apiClient;

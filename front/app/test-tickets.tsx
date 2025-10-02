@@ -2,251 +2,199 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  TextInput,
-  SafeAreaView,
+  SafeAreaView
 } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { theme } from '../src/styles/theme';
-import { TicketService } from '../src/services/ticketService';
-import type { TicketProduct, Route, Ticket } from '../src/types/api';
+import { SotralMobileService } from '../services/sotral-service';
+
+interface GeneratedTicket {
+  id: number;
+  ticket_code: string;
+  qr_code: string;
+  line_id?: number;
+  line_name?: string;
+  price_paid_fcfa: number;
+  status: string;
+  expires_at?: string;
+  trips_remaining: number;
+  created_at: string;
+}
 
 export default function TestTicketsScreen() {
-  const [products, setProducts] = useState<TicketProduct[]>([]);
-  const [routes, setRoutes] = useState<Route[]>([]);
-  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [testUserId, setTestUserId] = useState('1');
+  const [tickets, setTickets] = useState<GeneratedTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
 
-  const loadProducts = async () => {
-    setLoading(true);
+  useEffect(() => {
+    loadGeneratedTickets();
+  }, []);
+
+  const loadGeneratedTickets = async () => {
     try {
-      const data = await TicketService.getAllProducts();
-      setProducts(data);
-      Alert.alert('Succès', `${data.length} produits chargés`);
-    } catch (error: any) {
-      Alert.alert('Erreur Products', error.message);
+      setLoading(true);
+      setError(null);
+
+      const response = await SotralMobileService.getGeneratedTickets();
+      if (response.success && response.data) {
+        setTickets(response.data);
+      } else {
+        setError('Erreur lors du chargement des tickets');
+      }
+    } catch (err) {
+      console.error('Erreur chargement tickets:', err);
+      setError('Impossible de charger les tickets. Vérifiez votre connexion.');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadRoutes = async () => {
-    setLoading(true);
-    try {
-      const data = await TicketService.getAllRoutes();
-      setRoutes(data);
-      Alert.alert('Succès', `${data.length} trajets chargés`);
-    } catch (error: any) {
-      Alert.alert('Erreur Routes', error.message);
-    } finally {
-      setLoading(false);
+  const renderTicket = (ticket: GeneratedTicket) => {
+    const isSelected = selectedTicket === ticket.ticket_code;
+    const statusColor = getStatusColor(ticket.status);
+
+    return (
+      <TouchableOpacity
+        key={ticket.id}
+        style={[styles.ticketCard, isSelected && styles.selectedTicket]}
+        onPress={() => setSelectedTicket(isSelected ? null : ticket.ticket_code)}
+      >
+        {/* En-tête du ticket */}
+        <View style={styles.ticketHeader}>
+          <View style={styles.ticketInfo}>
+            <Text style={styles.ticketCode}>{ticket.ticket_code}</Text>
+            {ticket.line_name && (
+              <Text style={styles.lineName}>{ticket.line_name}</Text>
+            )}
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Text style={styles.statusText}>{getStatusLabel(ticket.status)}</Text>
+          </View>
+        </View>
+
+        {/* Détails */}
+        <View style={styles.ticketDetails}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailItem}>
+              <Ionicons name="cash" size={16} color="#666" />
+              <Text style={styles.detailValue}>{ticket.price_paid_fcfa} FCFA</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Ionicons name="refresh" size={16} color="#666" />
+              <Text style={styles.detailValue}>{ticket.trips_remaining} trajet{ticket.trips_remaining > 1 ? 's' : ''}</Text>
+            </View>
+          </View>
+
+          {ticket.expires_at && (
+            <View style={styles.detailRow}>
+              <View style={styles.detailItem}>
+                <Ionicons name="time" size={16} color="#666" />
+                <Text style={styles.detailValue}>
+                  Expire: {new Date(ticket.expires_at).toLocaleString('fr-FR')}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <Text style={styles.createdAt}>
+            Créé le {new Date(ticket.created_at).toLocaleString('fr-FR')}
+          </Text>
+        </View>
+
+        {/* QR Code (affiché seulement si sélectionné) */}
+        {isSelected && (
+          <View style={styles.qrContainer}>
+            <QRCode
+              value={ticket.qr_code}
+              size={120}
+              color="#000"
+              backgroundColor="#fff"
+            />
+            <Text style={styles.qrText}>Présentez ce QR code</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case 'active': return 'Actif';
+      case 'used': return 'Utilisé';
+      case 'expired': return 'Expiré';
+      case 'cancelled': return 'Annulé';
+      default: return status;
     }
   };
 
-  const loadMyTickets = async () => {
-    setLoading(true);
-    try {
-      const data = await TicketService.getMyTickets();
-      setMyTickets(data);
-      Alert.alert('Succès', `${data.length} tickets trouvés`);
-    } catch (error: any) {
-      Alert.alert('Erreur My Tickets', error.message);
-    } finally {
-      setLoading(false);
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'active': return '#10B981';
+      case 'used': return '#6B7280';
+      case 'expired': return '#EF4444';
+      case 'cancelled': return '#F59E0B';
+      default: return '#6B7280';
     }
   };
 
-  const loadUserTicketsById = async () => {
-    if (!testUserId) {
-      Alert.alert('Erreur', 'Veuillez saisir un ID utilisateur');
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await TicketService.getUserTicketsById(parseInt(testUserId));
-      Alert.alert('Succès', `${data.length} tickets trouvés pour l'utilisateur ${testUserId}`);
-    } catch (error: any) {
-      Alert.alert('Erreur User Tickets', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3F51B5" />
+          <Text style={styles.loadingText}>Chargement des tickets générés...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  const testPurchase = async () => {
-    if (products.length === 0 || routes.length === 0) {
-      Alert.alert('Erreur', 'Veuillez d\'abord charger les produits et trajets');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const purchase = {
-        product_code: products[0].code,
-        route_code: routes[0].code,
-        quantity: 1,
-        purchase_method: 'mobile_money' as const,
-        payment_details: { external_id: `TEST_${Date.now()}` }
-      };
-      
-      const ticket = await TicketService.purchaseTicket(purchase);
-      Alert.alert('Achat réussi', `Ticket créé: ${ticket.code}`);
-      loadMyTickets(); // Recharger mes tickets
-    } catch (error: any) {
-      Alert.alert('Erreur Purchase', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testValidation = async () => {
-    if (myTickets.length === 0) {
-      Alert.alert('Erreur', 'Aucun ticket à valider. Achetez d\'abord un ticket.');
-      return;
-    }
-
-    const ticketCode = myTickets[0].code;
-    if (!ticketCode) {
-      Alert.alert('Erreur', 'Code ticket invalide');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const validation = {
-        ticket_code: ticketCode,
-      };
-      
-      const result = await TicketService.validateTicket(validation);
-      Alert.alert('Validation réussie', JSON.stringify(result, null, 2));
-    } catch (error: any) {
-      Alert.alert('Erreur Validation', error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={48} color="#EF4444" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadGeneratedTickets}>
+            <Text style={styles.retryButtonText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.primary[600]} />
+        <Text style={styles.headerTitle}>Tickets Générés par l'Admin</Text>
+        <TouchableOpacity onPress={loadGeneratedTickets} style={styles.refreshButton}>
+          <Ionicons name="refresh" size={24} color="#3F51B5" />
         </TouchableOpacity>
-        <Text style={styles.title}>Test Tickets Service</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tests de base</Text>
-          
-          <TouchableOpacity style={styles.testButton} onPress={loadProducts} disabled={loading}>
-            <Ionicons name="pricetag" size={20} color={theme.colors.white} />
-            <Text style={styles.buttonText}>Charger Products ({products.length})</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.testButton} onPress={loadRoutes} disabled={loading}>
-            <Ionicons name="map" size={20} color={theme.colors.white} />
-            <Text style={styles.buttonText}>Charger Routes ({routes.length})</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.testButton} onPress={loadMyTickets} disabled={loading}>
-            <Ionicons name="ticket" size={20} color={theme.colors.white} />
-            <Text style={styles.buttonText}>Mes Tickets ({myTickets.length})</Text>
-          </TouchableOpacity>
+      {tickets.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="ticket-outline" size={64} color="#CCC" />
+          <Text style={styles.emptyText}>Aucun ticket généré trouvé.</Text>
+          <Text style={styles.emptySubtext}>
+            Les tickets générés par l'administrateur apparaîtront ici.
+          </Text>
         </View>
+      ) : (
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <Text style={styles.totalText}>
+            {tickets.length} ticket{tickets.length > 1 ? 's' : ''} généré{tickets.length > 1 ? 's' : ''}
+          </Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tests utilisateur spécifique</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>User ID à tester:</Text>
-            <TextInput
-              style={styles.input}
-              value={testUserId}
-              onChangeText={setTestUserId}
-              keyboardType="numeric"
-              placeholder="1"
-            />
-          </View>
+          {tickets.map(renderTicket)}
 
-          <TouchableOpacity style={styles.testButton} onPress={loadUserTicketsById} disabled={loading}>
-            <Ionicons name="person" size={20} color={theme.colors.white} />
-            <Text style={styles.buttonText}>Tickets User #{testUserId}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tests avancés</Text>
-          
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: theme.colors.success[600] }]} 
-            onPress={testPurchase} 
-            disabled={loading}
-          >
-            <Ionicons name="card" size={20} color={theme.colors.white} />
-            <Text style={styles.buttonText}>Test Purchase</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.testButton, { backgroundColor: theme.colors.warning[600] }]} 
-            onPress={testValidation} 
-            disabled={loading}
-          >
-            <Ionicons name="checkmark-circle" size={20} color={theme.colors.white} />
-            <Text style={styles.buttonText}>Test Validation</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Données chargées</Text>
-          
-          {products.length > 0 && (
-            <View style={styles.dataBox}>
-              <Text style={styles.dataTitle}>Products ({products.length}):</Text>
-              {products.slice(0, 3).map((product, i) => (
-                <Text key={i} style={styles.dataItem}>
-                  • {product.name} - {product.price} FCFA
-                </Text>
-              ))}
-              {products.length > 3 && <Text style={styles.dataItem}>... et {products.length - 3} autres</Text>}
-            </View>
-          )}
-
-          {routes.length > 0 && (
-            <View style={styles.dataBox}>
-              <Text style={styles.dataTitle}>Routes ({routes.length}):</Text>
-              {routes.slice(0, 3).map((route, i) => (
-                <Text key={i} style={styles.dataItem}>
-                  • {route.start_point} → {route.end_point} ({route.price_category})
-                </Text>
-              ))}
-              {routes.length > 3 && <Text style={styles.dataItem}>... et {routes.length - 3} autres</Text>}
-            </View>
-          )}
-
-          {myTickets.length > 0 && (
-            <View style={styles.dataBox}>
-              <Text style={styles.dataTitle}>Mes Tickets ({myTickets.length}):</Text>
-              {myTickets.slice(0, 3).map((ticket, i) => (
-                <Text key={i} style={styles.dataItem}>
-                  • {ticket.code} - {ticket.status}
-                </Text>
-              ))}
-              {myTickets.length > 3 && <Text style={styles.dataItem}>... et {myTickets.length - 3} autres</Text>}
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={theme.colors.primary[600]} />
-        </View>
+          <View style={styles.spacer} />
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -255,96 +203,173 @@ export default function TestTicketsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.secondary[50],
+    backgroundColor: '#F5F5F5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#3F51B5',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.secondary[200],
-    backgroundColor: theme.colors.white,
+    borderBottomColor: '#E5E5E5',
   },
-  backButton: {
-    padding: 8,
-    marginRight: 12,
-  },
-  title: {
+  headerTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: theme.colors.secondary[900],
+    fontWeight: 'bold',
+    color: '#333',
   },
-  content: {
+  refreshButton: {
+    padding: 8,
+  },
+  emptyContainer: {
     flex: 1,
-    padding: 16,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.secondary[900],
-    marginBottom: 12,
-  },
-  testButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.primary[600],
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  buttonText: {
-    color: theme.colors.white,
-    fontSize: 16,
-    fontWeight: '500',
-    marginLeft: 8,
-  },
-  inputGroup: {
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.secondary[900],
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.secondary[300],
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: theme.colors.white,
-  },
-  dataBox: {
-    backgroundColor: theme.colors.white,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary[600],
-  },
-  dataTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.secondary[900],
-    marginBottom: 4,
-  },
-  dataItem: {
-    fontSize: 12,
-    color: theme.colors.secondary[600],
-    marginBottom: 2,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 15,
+  },
+  totalText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  ticketCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 15,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  selectedTicket: {
+    borderWidth: 2,
+    borderColor: '#3F51B5',
+  },
+  ticketHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  ticketInfo: {
+    flex: 1,
+  },
+  ticketCode: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'monospace',
+  },
+  lineName: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  ticketDetails: {
+    marginBottom: 15,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
+  },
+  createdAt: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'right',
+    marginTop: 5,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F9F9F9',
+    padding: 20,
+    borderRadius: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  qrText: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#666',
+  },
+  spacer: {
+    height: 30,
   },
 });

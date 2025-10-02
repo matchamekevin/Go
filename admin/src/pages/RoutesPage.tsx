@@ -97,7 +97,7 @@ const RoutesPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex justify-between items-center">
@@ -265,7 +265,7 @@ const RoutesPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="input"
+                    className="input text-gray-900"
                     placeholder="DAK_XXX_001"
                   />
                 </div>
@@ -276,7 +276,7 @@ const RoutesPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="input"
+                    className="input text-gray-900"
                     placeholder="Dakar - Destination"
                   />
                 </div>
@@ -287,7 +287,7 @@ const RoutesPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="input"
+                    className="input text-gray-900"
                     placeholder="Point de départ"
                   />
                 </div>
@@ -298,7 +298,7 @@ const RoutesPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="input"
+                    className="input text-gray-900"
                     placeholder="Point d'arrivée"
                   />
                 </div>
@@ -307,7 +307,7 @@ const RoutesPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Catégorie de prix
                   </label>
-                  <select className="input">
+                  <select className="input text-gray-900">
                     <option value="">Sélectionner une catégorie</option>
                     <option value="T100">T100 - 100 FCFA</option>
                     <option value="T150">T150 - 150 FCFA</option>
@@ -324,7 +324,7 @@ const RoutesPage: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      className="input"
+                      className="input text-gray-900"
                       placeholder="15"
                     />
                   </div>
@@ -334,7 +334,7 @@ const RoutesPage: React.FC = () => {
                     </label>
                     <input
                       type="number"
-                      className="input"
+                      className="input text-gray-900"
                       placeholder="45"
                     />
                   </div>

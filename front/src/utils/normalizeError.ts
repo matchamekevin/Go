@@ -1,7 +1,19 @@
 // Normalise différentes formes d'erreurs réseau/API pour affichage utilisateur
 export function normalizeErrorMessage(raw: any): string {
   if (!raw) return 'Une erreur est survenue';
-  let msg = typeof raw === 'string' ? raw : (raw.message || raw.error || JSON.stringify(raw));
+  
+  // IMPORTANT: Pour les erreurs Axios, extraire d'abord le message de la réponse API
+  let msg = '';
+  if (raw.response?.data) {
+    // Priorité: error > message > msg
+    msg = raw.response.data.error || raw.response.data.message || raw.response.data.msg || '';
+  }
+  
+  // Si pas de message dans la réponse, prendre le message de l'erreur Axios
+  if (!msg) {
+    msg = typeof raw === 'string' ? raw : (raw.message || raw.error || JSON.stringify(raw));
+  }
+  
   let parsedJson: any = null;
 
   // Retirer préfixes de logs internes
@@ -27,6 +39,12 @@ export function normalizeErrorMessage(raw: any): string {
     } catch {}
   }
 
+  // IMPORTANT: Garder les messages spécifiques avant la transformation générique
+  // Cas spécifique: "Email déjà utilisé" - ne pas transformer en "requête invalide"
+  if (msg.toLowerCase().includes('email déjà') || msg.toLowerCase().includes('already exist') || msg.toLowerCase().includes('already used')) {
+    return 'Email déjà utilisé.';
+  }
+
   // Cas spécifique: endpoint de vérification OTP -> message explicite
   try {
     const p = parsedJson || (typeof raw === 'object' ? raw : null);
@@ -47,8 +65,37 @@ export function normalizeErrorMessage(raw: any): string {
     }
   } catch {}
 
-  // Cas fréquents de statut Axios
+  // Cas fréquents de statut Axios - NE PAS transformer si c'est déjà un message spécifique
   if (/request failed with status code/i.test(msg)) {
+    // Vérifier le code de statut pour un message plus spécifique
+    const statusMatch = msg.match(/status code (\d+)/i);
+    if (statusMatch) {
+      const statusCode = parseInt(statusMatch[1]);
+      switch (statusCode) {
+        case 404:
+          return 'Service non trouvé. L\'endpoint demandé n\'existe pas sur le serveur.';
+        case 403:
+          return 'Accès refusé. Vous n\'avez pas les permissions nécessaires.';
+        case 401:
+          return 'Authentification requise. Veuillez vous reconnecter.';
+        case 500:
+          return 'Erreur serveur. Le service est temporairement indisponible.';
+        case 502:
+        case 503:
+        case 504:
+          return 'Service indisponible. Réessayez dans quelques instants.';
+        case 400:
+          // Pour 400, ne pas transformer automatiquement - laisser le message original
+          // sauf si c'est vraiment générique
+          if (msg.toLowerCase().includes('bad request') || msg.toLowerCase().includes('invalid request')) {
+            return 'Requête invalide. Vérifiez vos informations et réessayez.';
+          }
+          // Sinon, retourner le message tel quel
+          return msg;
+        default:
+          return 'Requête invalide. Vérifiez vos informations et réessayez.';
+      }
+    }
     // si on a déjà parsé JSON et qu'il y a un message d'erreur spécifique, l'avoir pris en compte
     // sinon renvoyer un message plus utile
     return 'Requête invalide. Vérifiez vos informations et réessayez.';
@@ -67,7 +114,7 @@ export function mapAuthErrorToFriendly(msg: string): string {
   const raw = String(msg || '');
   const upper = raw.toUpperCase();
 
-  // Codes d'erreur renvoyés par les services
+  // Codes d'erreur renvoyés par les services - TRAITER EN PREMIER
   if (upper.includes('USER_NOT_FOUND') || upper.includes('USER NOT FOUND') || upper.includes('USER_NOT_FOUND')) {
     return 'Utilisateur introuvable.';
   }
@@ -77,9 +124,17 @@ export function mapAuthErrorToFriendly(msg: string): string {
   if (upper.includes('ACCOUNT_NOT_VERIFIED') || upper.includes('ACCOUNT NOT VERIFIED')) {
     return 'Compte non vérifié. Vérifiez votre email.';
   }
-  if (upper.includes('EMAIL_ALREADY_EXISTS') || upper.includes('EMAIL_ALREADY_EXIST') || upper.includes('EMAIL_ALREADY') ) {
+  if (upper.includes('EMAIL_ALREADY_EXISTS') || upper.includes('EMAIL_ALREADY_EXIST') || upper.includes('EMAIL_ALREADY')) {
     return 'Email déjà utilisé.';
   }
+  if (upper.includes('INVALID_EMAIL')) {
+    return 'Adresse email invalide.';
+  }
+  if (upper.includes('INVALID_PASSWORD')) {
+    return 'Mot de passe invalide.';
+  }
+
+  // Messages textuels - TRAITER ENSUITE
   if (lower.includes('compte non vérifié') || lower.includes('not verified')) {
     return 'Compte non vérifié. Vérifiez votre email.';
   }

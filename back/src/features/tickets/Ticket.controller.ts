@@ -3,6 +3,7 @@ import { TicketRepository } from './Ticket.repository';
 import { TicketPurchaseSchema, TicketValidationSchema } from './Ticket.types';
 import { v4 as uuidv4 } from 'uuid';
 import { RequestWithUser } from './ticket.request';
+import { realtimeService } from '../../services/realtime.service';
 
 export class TicketController {
   /**
@@ -114,6 +115,16 @@ export class TicketController {
         tickets.push(ticket);
       }
       
+      // Diffuser l'événement temps réel pour l'achat de tickets
+      realtimeService.broadcast('ticket_purchased', {
+        user_id: parseInt(userId as string),
+        product_code,
+        route_code,
+        quantity: quantity as number,
+        total_rides: totalRides,
+        tickets_count: tickets.length
+      });
+      
       return res.status(201).json({ 
         success: true, 
         data: { 
@@ -199,6 +210,15 @@ export class TicketController {
       
       // Marquer le ticket comme utilisé
       const updatedTicket = await TicketRepository.updateTicketStatus(ticket_code, 'used');
+      
+      // Diffuser l'événement temps réel pour la validation du ticket
+      realtimeService.broadcast('ticket_validated', {
+        ticket_code,
+        validator_id: req.user?.id,
+        validator_role: req.user?.role,
+        previous_status: ticket.status,
+        new_status: 'used'
+      });
       
       return res.status(200).json({ 
         success: true, 

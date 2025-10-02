@@ -16,7 +16,7 @@ class ApiClient {
   constructor() {
     // Initialisation avec une URL temporaire
     this.client = axios.create({
-      baseURL: 'http://localhost:7000', // Sera remplacée par NetworkManager
+      baseURL: 'https://go-j2rr.onrender.com', // Sera remplacée par NetworkManager
       timeout: Config.apiTimeout,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -53,14 +53,14 @@ class ApiClient {
       const platform = require('react-native').Platform;
       
       if (platform.OS === 'android') {
-        return 'http://10.0.2.2:7000';
+        return 'https://go-j2rr.onrender.com';
       } else if (platform.OS === 'ios') {
-        return 'http://192.168.1.184:7000';
+        return 'https://go-j2rr.onrender.com';
       } else {
-        return 'http://localhost:7000';
+        return 'https://go-j2rr.onrender.com';
       }
     } catch (error) {
-      return 'http://localhost:7000';
+      return 'https://go-j2rr.onrender.com';
     }
   }
 
@@ -126,6 +126,10 @@ class ApiClient {
             status: response.status,
             url: response.config.url,
             baseURL: response.config.baseURL,
+            dataKeys: response.data ? Object.keys(response.data) : 'no-data',
+            dataSuccess: response.data?.success,
+            dataCount: response.data?.count,
+            dataLength: response.data?.data?.length || 'no-data-array'
           });
         }
         return response;

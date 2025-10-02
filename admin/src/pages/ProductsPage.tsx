@@ -187,7 +187,7 @@ const ProductsPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="input"
+                    className="input text-gray-900"
                     placeholder="TKT_NOUVEAU"
                   />
                 </div>
@@ -198,7 +198,7 @@ const ProductsPage: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    className="input"
+                    className="input text-gray-900"
                     placeholder="Nom du ticket"
                   />
                 </div>
@@ -208,7 +208,7 @@ const ProductsPage: React.FC = () => {
                     Description
                   </label>
                   <textarea
-                    className="input"
+                    className="input text-gray-900"
                     rows={3}
                     placeholder="Description du produit"
                   />
@@ -220,7 +220,7 @@ const ProductsPage: React.FC = () => {
                   </label>
                   <input
                     type="number"
-                    className="input"
+                    className="input text-gray-900"
                     placeholder="250"
                   />
                 </div>
@@ -229,7 +229,7 @@ const ProductsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Catégorie
                   </label>
-                  <select className="input">
+                  <select className="input text-gray-900">
                     <option value="">Sélectionner une catégorie</option>
                     <option value="T100">T100</option>
                     <option value="T150">T150</option>

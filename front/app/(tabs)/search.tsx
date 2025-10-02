@@ -1,71 +1,37 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView, TextInput } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../../src/styles/theme';
 import HelpFAB from '../../src/components/HelpFAB';
-import { UserTicketService, type UserTicket, type UserTicketHistory } from '../../src/services/userTicketService';
-import { SearchService, type SearchResult } from '../../src/services/searchService';
+import MobilePaymentModal from '../../src/components/MobilePaymentModal';
+import { sotralUnifiedService, UnifiedSotralLine, UnifiedSotralTicket, UnifiedSearchData } from '../../src/services/sotralUnifiedService';
 
 export default function SearchTab() {
   // Capturer le paramètre focus envoyé depuis Home
-  const { focus, focusTs, activeTab: paramsActiveTab } = useLocalSearchParams<{ focus?: string; focusTs?: string; activeTab?: string }>();
+  const { focus, focusTs } = useLocalSearchParams<{ focus?: string; focusTs?: string }>();
+  const router = useRouter();
   const searchInputRef = useRef<TextInput | null>(null);
-  const scrollRef = useRef<any>(null);
-  const historySectionY = useRef<number | null>(null);
 
   const [fromLocation, setFromLocation] = useState('');
   const [toLocation, setToLocation] = useState('');
   const [selectedDate, setSelectedDate] = useState('Aujourd\'hui');
   const [passengerCount, setPassengerCount] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResultsState, setSearchResultsState] = useState<SearchResult[]>([]);
+  const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const requestIdRef = useRef(0);
   const MIN_QUERY_LENGTH = 1; // déclencher dès 1 caractère
 
-  const popularLocations = React.useMemo(() => [
-    'Centre-ville', 'Aéroport', 'Université', 'Marché central', 
-    'Gare routière', 'Plateau', 'Zone industrielle', 'Hôpital'
-  ], []);
-
-  const searchResults = [
-    {
-      id: 1,
-      type: 'Bus rapide',
-      company: 'SOTRAL Express',
-      departure: '08:30',
-      arrival: '09:15',
-      duration: '45 min',
-      price: '2500 FCFA',
-      seats: 12,
-      rating: 4.8,
-    },
-    {
-      id: 2,
-      type: 'Bus urbain',
-      company: 'Transport City',
-      departure: '09:00',
-      arrival: '09:30',
-      duration: '30 min',
-      price: '1500 FCFA',
-      seats: 8,
-      rating: 4.5,
-    },
-    {
-      id: 3,
-      type: 'Métro',
-      company: 'Metro Line 1',
-      departure: '09:15',
-      arrival: '09:35',
-      duration: '20 min',
-      price: '1000 FCFA',
-      seats: 25,
-      rating: 4.9,
-    },
-  ];
+  const popularLocations = React.useMemo(() => {
+    // Les emplacements populaires viennent maintenant de l'admin via l'API
+    // Cette liste sera remplacée par des données dynamiques de l'admin
+    return [];
+  }, []);
 
   const swapLocations = () => {
     const temp = fromLocation;
@@ -87,10 +53,10 @@ export default function SearchTab() {
       setSearchLoading(true);
       // don't clear results immediately to avoid flicker
 
-      const resultsRaw = await SearchService.searchRoutes(q);
+      const searchData: UnifiedSearchData = await sotralUnifiedService.search(q);
       // ignore if a newer request started
       if (myRequestId !== requestIdRef.current) return;
-      const results = Array.isArray(resultsRaw) ? resultsRaw : [];
+      const results = searchData.searchResults;
 
       // Prioritize items whose 'from', 'to' or 'company' start with the query (prefix-match)
       const qStart = q.split(/→|-/)[0].trim().toLowerCase();
@@ -109,26 +75,12 @@ export default function SearchTab() {
 
       // If no API results, try local popularLocations that start with the query
       if (finalResults.length === 0) {
-        const local = popularLocations.filter((loc) => loc.toLowerCase().startsWith(qStart));
-        if (local.length > 0) {
-          finalResults = local.map((loc, idx) => ({
-            id: `suggest-${idx}`,
-            type: 'Suggestion',
-            company: '',
-            departure: '',
-            arrival: '',
-            duration: '',
-            price: '',
-            seats: 0,
-            rating: 0,
-            from: loc,
-            to: '',
-          }));
-        }
+        // Plus de données locales hardcodées - utiliser uniquement l'API admin
+        finalResults = [];
       }
 
       if (myRequestId === requestIdRef.current) {
-        setSearchResultsState(finalResults as SearchResult[]);
+        setSearchResultsState(finalResults);
       }
     } catch (e: any) {
       // if stale request, ignore
@@ -171,28 +123,94 @@ export default function SearchTab() {
     return () => clearTimeout(handle);
   }, [searchQuery, fromLocation, toLocation, performSearch]);
 
-  // TicketsTab logic intégré avec API
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
-  const [activeTickets, setActiveTickets] = useState<UserTicket[]>([]);
-  const [historyTickets, setHistoryTickets] = useState<UserTicketHistory[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [availableTickets, setAvailableTickets] = useState<UnifiedSotralTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+
+  const [selectedLine, setSelectedLine] = useState<UnifiedSotralLine | null>(null);
+  const [lineTickets, setLineTickets] = useState<UnifiedSotralTicket[]>([]);
+  const [lineTicketsLoading, setLineTicketsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'search' | 'line-tickets'>('search');
+
+  // État pour le modal de paiement
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [selectedTicketForPayment, setSelectedTicketForPayment] = useState<UnifiedSotralTicket | null>(null);
+
+  // Gérer l'achat d'un ticket
+  const handlePurchaseTicket = (ticket: UnifiedSotralTicket) => {
+    setSelectedTicketForPayment(ticket);
+    setPaymentModalVisible(true);
+  };
+
+  // Gérer le succès du paiement
+  const handlePaymentSuccess = (purchasedTicket: UnifiedSotralTicket) => {
+    console.log('[SearchTab] Paiement réussi pour ticket:', purchasedTicket.ticket_code);
+
+    // Mettre à jour la liste des tickets disponibles (retirer le ticket acheté)
+    setAvailableTickets(prev => prev.filter(t => t.id !== purchasedTicket.id));
+    setLineTickets(prev => prev.filter(t => t.id !== purchasedTicket.id));
+
+    // Afficher un message de succès
+    Alert.alert(
+      'Achat réussi !',
+      `Votre ticket ${purchasedTicket.ticket_code} a été acheté avec succès.`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  // Charger les tickets pour une ligne spécifique
+  const loadLineTickets = async (lineId: number) => {
+    try {
+      setLineTicketsLoading(true);
+      console.log(`[SearchTab] Chargement des tickets pour la ligne ${lineId}...`);
+
+      // Filtrer les tickets disponibles pour cette ligne
+      const lineSpecificTickets = availableTickets.filter(ticket => ticket.line_id === lineId);
+      setLineTickets(lineSpecificTickets);
+
+      console.log(`[SearchTab] ${lineSpecificTickets.length} tickets trouvés pour la ligne ${lineId}`);
+    } catch (error) {
+      console.error('[SearchTab] Erreur chargement tickets ligne:', error);
+      setLineTickets([]);
+    } finally {
+      setLineTicketsLoading(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Recharger les tickets disponibles
+    const loadTickets = async () => {
+      try {
+        console.log('[SearchTab] Rechargement des tickets disponibles...');
+        const tickets = await sotralUnifiedService.getGeneratedTickets();
+        console.log('[SearchTab] Tickets rechargés:', tickets.length);
+        setAvailableTickets(tickets);
+      } catch (error) {
+        console.error('[SearchTab] Erreur rechargement tickets:', error);
+        setAvailableTickets([]);
+      } finally {
+        setRefreshing(false);
+      }
+    };
+    loadTickets();
+  };
 
   // Charger les tickets depuis l'API
   useEffect(() => {
     const loadTickets = async () => {
       try {
         setTicketsLoading(true);
-        
-        // Charger les tickets actifs et l'historique en parallèle
-        const [activeData, historyData] = await Promise.all([
-          UserTicketService.getActiveTickets(),
-          UserTicketService.getTicketHistory(),
-        ]);
-        
-        setActiveTickets(activeData);
-        setHistoryTickets(historyData);
+        console.log('[SearchTab] Chargement des tickets disponibles...');
+
+        // Charger les tickets générés par l'admin
+        const tickets = await sotralUnifiedService.getGeneratedTickets();
+        console.log('[SearchTab] Tickets récupérés:', tickets.length);
+
+        setAvailableTickets(tickets);
       } catch (error) {
-        console.error('Erreur lors du chargement des tickets:', error);
+        console.error('[SearchTab] Erreur générale chargement tickets:', error);
+        // Ne pas afficher d'erreur à l'utilisateur, juste logger
+        setAvailableTickets([]);
       } finally {
         setTicketsLoading(false);
       }
@@ -200,19 +218,22 @@ export default function SearchTab() {
 
     loadTickets();
   }, []);
-  const renderActiveTicket = (ticket: UserTicket) => (
+
+  const renderAvailableTicket = (ticket: UnifiedSotralTicket) => (
     <View key={ticket.id} style={styles.ticketCard}>
       {/* Ticket Header */}
       <View style={styles.ticketHeader}>
         <View style={styles.ticketInfo}>
           <View style={styles.transportBadge}>
-            <Text style={styles.transportBadgeText}>{ticket.type}</Text>
+            <Text style={styles.transportBadgeText}>SOTRAL</Text>
           </View>
-          <Text style={styles.routeText}>{ticket.route}</Text>
+          <Text style={styles.routeText}>
+            {(ticket as any).line_name || `Ligne ${ticket.line_id}`}
+          </Text>
         </View>
         <View style={styles.statusBadge}>
           <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Actif</Text>
+          <Text style={styles.statusText}>Disponible</Text>
         </View>
       </View>
       {/* Ticket Body */}
@@ -220,27 +241,29 @@ export default function SearchTab() {
         <View style={styles.ticketDetails}>
           <View style={styles.detailRow}>
             <View style={styles.detailItem}>
-              <Ionicons name="calendar" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Date</Text>
-              <Text style={styles.detailValue}>{ticket.date}</Text>
+              <Ionicons name="pricetag" size={16} color={theme.colors.secondary[500]} />
+              <Text style={styles.detailLabel}>Code</Text>
+              <Text style={styles.detailValue}>{ticket.ticket_code}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Ionicons name="time" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Heure</Text>
-              <Text style={styles.detailValue}>{ticket.time}</Text>
+              <Ionicons name="refresh" size={16} color={theme.colors.secondary[500]} />
+              <Text style={styles.detailLabel}>Trajets</Text>
+              <Text style={styles.detailValue}>{ticket.trips_remaining}</Text>
             </View>
           </View>
           <View style={styles.detailRow}>
             <View style={styles.detailItem}>
               <Ionicons name="cash" size={16} color={theme.colors.secondary[500]} />
               <Text style={styles.detailLabel}>Prix</Text>
-              <Text style={styles.detailValue}>{ticket.price}</Text>
+              <Text style={styles.detailValue}>{ticket.price_paid_fcfa} FCFA</Text>
             </View>
-            {ticket.seat && ticket.seat !== '---' && (
+            {ticket.expires_at && (
               <View style={styles.detailItem}>
-                <Ionicons name="car-sport" size={16} color={theme.colors.secondary[500]} />
-                <Text style={styles.detailLabel}>Siège</Text>
-                <Text style={styles.detailValue}>{ticket.seat}</Text>
+                <Ionicons name="time" size={16} color={theme.colors.secondary[500]} />
+                <Text style={styles.detailLabel}>Expire</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(ticket.expires_at).toLocaleDateString('fr-FR')}
+                </Text>
               </View>
             )}
           </View>
@@ -248,7 +271,7 @@ export default function SearchTab() {
         {/* QR Code */}
         <View style={styles.qrContainer}>
           <QRCode
-            value={ticket.qrCode || `TICKET_${ticket.id}`}
+            value={ticket.qr_code}
             size={100}
             color={theme.colors.secondary[900]}
             backgroundColor={theme.colors.white}
@@ -259,13 +282,11 @@ export default function SearchTab() {
       <View style={styles.ticketFooter}>
         <View style={styles.expiryInfo}>
           <Ionicons name="time-outline" size={16} color={theme.colors.warning[600]} />
-          <Text style={styles.expiryText}>
-            {ticket.expiresIn ? `Expire dans ${ticket.expiresIn}` : 'Valide'}
-          </Text>
+          <Text style={styles.expiryText}>Généré par l'admin</Text>
         </View>
-        <TouchableOpacity style={styles.showButton}>
-          <Text style={styles.showButtonText}>Présenter</Text>
-          <Ionicons name="expand" size={16} color={theme.colors.primary[600]} />
+        <TouchableOpacity style={styles.showButton} onPress={() => handlePurchaseTicket(ticket)}>
+          <Text style={styles.showButtonText}>Acheter</Text>
+          <Ionicons name="card" size={16} color={theme.colors.primary[600]} />
         </TouchableOpacity>
       </View>
       {/* Ticket perforation */}
@@ -277,49 +298,9 @@ export default function SearchTab() {
     </View>
   );
 
-  const renderHistoryTicket = (ticket: UserTicketHistory) => (
-    <View key={ticket.id} style={styles.historyTicketCard}>
-      <View style={styles.historyHeader}>
-        <View style={styles.historyInfo}>
-          <Text style={styles.historyRoute}>{ticket.route}</Text>
-          <Text style={styles.historyType}>{ticket.type}</Text>
-        </View>
-        <View style={styles.historyStatus}>
-          <Text style={styles.historyPrice}>{ticket.price}</Text>
-          <Text style={styles.historyDate}>{ticket.date} • {ticket.time}</Text>
-        </View>
-      </View>
-      <View style={styles.usedBadge}>
-        <Ionicons 
-          name={ticket.status === 'expired' ? "time-outline" : "checkmark-circle"} 
-          size={14} 
-          color={ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600]} 
-        />
-        <Text style={[
-          styles.usedText,
-          { color: ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600] }
-        ]}>
-          {ticket.status === 'expired' ? 'Expiré' : 'Utilisé'}
-        </Text>
-      </View>
-    </View>
-  );
-  // Si on arrive avec activeTab=history, basculer et scroller vers la section historique
-  useEffect(() => {
-    if (paramsActiveTab === 'history') {
-      setActiveTab('history');
-      // attendre que la layout soit calculée, puis scroller
-      setTimeout(() => {
-        if (historySectionY.current != null && scrollRef.current && typeof scrollRef.current.scrollTo === 'function') {
-          scrollRef.current.scrollTo({ y: historySectionY.current, animated: true });
-        }
-      }, 250);
-    }
-  }, [paramsActiveTab, focusTs]);
-
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView ref={r => { scrollRef.current = r; }} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Rechercher un trajet</Text>
@@ -361,9 +342,19 @@ export default function SearchTab() {
             ) : (
               searchResultsState.map((r) => (
                 <TouchableOpacity key={r.id} style={styles.resultCard} onPress={() => {
-                  // Préremplir les champs from/to et naviguer vers les résultats détaillés si nécessaire
-                  setFromLocation(r.from);
-                  setToLocation(r.to);
+                  // Naviguer vers les détails de la ligne selon le nouveau flux MVC
+                  if (r.line) {
+                    router.push({
+                      pathname: '/line-details',
+                      params: { lineId: r.line.id.toString() }
+                    });
+                  } else {
+                    // Créer une ligne basique si pas disponible
+                    router.push({
+                      pathname: '/line-details',
+                      params: { lineId: r.id }
+                    });
+                  }
                 }}>
                   <View style={styles.resultHeader}>
                     <View style={styles.transportInfo}>
@@ -392,47 +383,74 @@ export default function SearchTab() {
             )}
           </View>
         </View>
-        {/* Popular Locations */}
-        {/* ...existing code... */}
         {/* Search Results */}
-        {/* ...existing code... */}
-        {/* Billets actifs */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mes billets actifs</Text>
-          {ticketsLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Chargement de vos billets...</Text>
+        {viewMode === 'search' && (
+          <>
+            {/* Popular Locations */}
+            {/* ...existing code... */}
+            {/* Search Results */}
+            {/* ...existing code... */}
+
+            {/* Tickets disponibles (générés par admin) */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Billets disponibles SOTRAL</Text>
+              {ticketsLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>Chargement des tickets disponibles...</Text>
+                </View>
+              ) : availableTickets.length > 0 ? (
+                availableTickets.map(renderAvailableTicket)
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
+                  <Text style={styles.emptyText}>Aucun ticket disponible</Text>
+                  <Text style={styles.emptySubtext}>Les tickets générés par l'admin apparaîtront ici</Text>
+                </View>
+              )}
             </View>
-          ) : activeTickets.length > 0 ? (
-            activeTickets.map(renderActiveTicket)
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="ticket-outline" size={48} color={theme.colors.secondary[300]} />
-              <Text style={styles.emptyText}>Aucun billet actif</Text>
-              <Text style={styles.emptySubtext}>Vos prochains voyages apparaîtront ici</Text>
+          </>
+        )}
+
+        {/* Line Tickets View */}
+        {viewMode === 'line-tickets' && selectedLine && (
+          <View style={styles.section}>
+            <View style={styles.lineHeader}>
+              <TouchableOpacity onPress={() => setViewMode('search')} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={20} color={theme.colors.primary[600]} />
+                <Text style={styles.backButtonText}>Retour</Text>
+              </TouchableOpacity>
+              <View style={styles.lineInfo}>
+                <Text style={styles.lineTitle}>{selectedLine.name}</Text>
+                <Text style={styles.lineSubtitle}>Ligne {selectedLine.line_number}</Text>
+              </View>
             </View>
-          )}
-        </View>
-        
-        {/* Historique des billets */}
-        <View style={styles.section} onLayout={e => { historySectionY.current = e.nativeEvent.layout.y; }}>
-          <Text style={styles.sectionTitle}>Historique des billets</Text>
-          {ticketsLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Chargement de l'historique...</Text>
-            </View>
-          ) : historyTickets.length > 0 ? (
-            historyTickets.map(renderHistoryTicket)
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="archive-outline" size={48} color={theme.colors.secondary[300]} />
-              <Text style={styles.emptyText}>Aucun historique</Text>
-              <Text style={styles.emptySubtext}>Vos voyages passés apparaîtront ici</Text>
-            </View>
-          )}
-        </View>
+
+            {lineTicketsLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Chargement des tickets...</Text>
+              </View>
+            ) : lineTickets.length > 0 ? (
+              lineTickets.map(renderAvailableTicket)
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="ticket" size={48} color={theme.colors.secondary[300]} />
+                <Text style={styles.emptyText}>Aucun ticket disponible</Text>
+                <Text style={styles.emptySubtext}>pour cette ligne actuellement</Text>
+              </View>
+            )}
+          </View>
+        )}
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      {/* Modal de paiement mobile */}
+      <MobilePaymentModal
+        visible={paymentModalVisible}
+        ticket={selectedTicketForPayment}
+        onClose={() => setPaymentModalVisible(false)}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+
       <HelpFAB />
     </SafeAreaView>
   );
@@ -949,5 +967,41 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     paddingHorizontal: theme.spacing.sm,
     paddingBottom: theme.spacing.sm,
+  },
+  lineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.secondary[200],
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.primary[50],
+    borderRadius: theme.borderRadius.lg,
+    marginRight: theme.spacing.md,
+  },
+  backButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.semibold,
+    marginLeft: theme.spacing.xs,
+  },
+  lineInfo: {
+    flex: 1,
+  },
+  lineTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    color: theme.colors.secondary[900],
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  lineSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.secondary[500],
+    marginTop: theme.spacing.xs,
   },
 });

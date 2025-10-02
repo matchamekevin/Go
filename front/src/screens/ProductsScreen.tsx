@@ -12,6 +12,7 @@ import { TicketProduct, Route } from '../types/api';
 import { TicketService } from '../services/ticketService';
 import ProductCard from '../components/ProductCard';
 import Button from '../components/Button';
+import { useSotralRealtime } from '../hooks/useSotralRealtime';
 
 export default function ProductsScreen() {
   const [products, setProducts] = useState<TicketProduct[]>([]);
@@ -21,6 +22,39 @@ export default function ProductsScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const categories = ['T100', 'T150', 'T200', 'T250', 'T300'];
+
+  // Hook pour la synchronisation temps réel
+  const { isConnected } = useSotralRealtime({
+    baseUrl: 'http://192.168.1.78:7000', // À adapter selon votre configuration réseau
+    clientId: 'mobile_products_screen',
+    onLineCreated: (data) => {
+      console.log('🚌 Line created in realtime:', data);
+      // Recharger les données quand une ligne est créée
+      loadData();
+    },
+    onLineUpdated: (data) => {
+      console.log('🚌 Line updated in realtime:', data);
+      // Recharger les données quand une ligne est modifiée
+      loadData();
+    },
+    onLineDeleted: (data) => {
+      console.log('🚌 Line deleted in realtime:', data);
+      // Recharger les données quand une ligne est supprimée
+      loadData();
+    },
+    onTicketTypeCreated: (data) => {
+      console.log('🎫 Ticket type created in realtime:', data);
+      // Recharger les données quand un type de ticket est créé
+      loadData();
+    },
+    onTicketPurchased: (data) => {
+      console.log('🎫 Ticket purchased in realtime:', data);
+      // Optionnel: mettre à jour les statistiques ou l'état des produits
+    },
+    onAnyEvent: (event) => {
+      console.log('📱 Realtime event in products screen:', event);
+    }
+  });
 
   const loadData = async () => {
     try {
@@ -96,7 +130,15 @@ export default function ProductsScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Billets disponibles</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Billets disponibles</Text>
+        <View style={styles.realtimeIndicator}>
+          <View style={[styles.realtimeDot, { backgroundColor: isConnected ? '#4CAF50' : '#FF9800' }]} />
+          <Text style={styles.realtimeText}>
+            {isConnected ? 'Synchronisation active' : 'Synchronisation hors ligne'}
+          </Text>
+        </View>
+      </View>
       
       {/* Filtres par catégorie */}
       <View style={styles.categoryContainer}>
@@ -171,12 +213,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  header: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1a1a1a',
     textAlign: 'center',
-    marginVertical: 20,
+    marginBottom: 8,
+  },
+  realtimeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  realtimeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  realtimeText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
   },
   loadingText: {
     marginTop: 16,

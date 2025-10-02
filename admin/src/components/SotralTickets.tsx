@@ -1,141 +1,247 @@
 import React, { useState, useEffect } from 'react';
+import { Trash2, AlertTriangle, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 import SotralService, { type SotralTicket } from '../services/sotralService';
+import { adminSotralService } from '../services/adminSotralService';
 
 interface TicketCardProps {
   ticket: SotralTicket;
+  onDelete?: (ticket: SotralTicket) => void;
+  canDelete?: boolean;
 }
 
-const TicketCard: React.FC<TicketCardProps> = ({ ticket }) => {
+const TicketCard: React.FC<TicketCardProps> = ({ ticket, onDelete, canDelete = true }) => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('fr-FR');
   };
 
   const getTimeRemaining = (expiresAt?: string) => {
     if (!expiresAt) return null;
-    
+
     const now = new Date();
     const expiry = new Date(expiresAt);
     const diff = expiry.getTime() - now.getTime();
-    
+
     if (diff <= 0) return 'Expiré';
-    
+
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (hours > 24) {
       const days = Math.floor(hours / 24);
       return `${days}j ${hours % 24}h`;
     }
-    
+
     return `${hours}h ${minutes}min`;
   };
 
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete(ticket);
+      setShowDeleteModal(false);
+    }
+  };
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          {/* Header avec code ticket et statut */}
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-mono font-medium">
-              {ticket.ticket_code}
+    <>
+      <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            {/* Header avec code ticket et statut */}
+            <div className="flex items-center space-x-3 mb-3 justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-mono font-medium">
+                  {ticket.ticket_code}
+                </div>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${SotralService.getTicketStatusColor(ticket.status)}`}>
+                  {SotralService.getTicketStatusLabel(ticket.status)}
+                </span>
+              </div>
+
+              {/* Bouton de suppression pour l'admin */}
+              {canDelete && (
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors duration-200"
+                  title="Supprimer ce ticket"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${SotralService.getTicketStatusColor(ticket.status)}`}>
-              {SotralService.getTicketStatusLabel(ticket.status)}
-            </span>
+
+            {/* Informations du ticket */}
+            <div className="space-y-2 text-sm">
+              {ticket.ticket_type && (
+                <div className="flex items-center">
+                  <span className="w-20 font-medium text-gray-600">Type:</span>
+                  <span className="text-gray-900">{ticket.ticket_type.name}</span>
+                </div>
+              )}
+
+              <div className="flex items-center">
+                <span className="w-20 font-medium text-gray-600">Prix:</span>
+                <span className="text-gray-900 font-medium">
+                  {SotralService.formatCurrency(ticket.price_paid_fcfa)}
+                </span>
+              </div>
+
+              {ticket.line && (
+                <div className="flex items-center">
+                  <span className="w-20 font-medium text-gray-600">Ligne:</span>
+                  <span className="text-gray-900">
+                    Ligne {ticket.line.line_number} - {ticket.line.name}
+                  </span>
+                </div>
+              )}
+
+              {ticket.stop_from && ticket.stop_to && (
+                <div className="flex items-center">
+                  <span className="w-20 font-medium text-gray-600">Trajet:</span>
+                  <span className="text-gray-900">
+                    {ticket.stop_from.name} → {ticket.stop_to.name}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center">
+                <span className="w-20 font-medium text-gray-600">Voyages:</span>
+                <span className="text-gray-900">
+                  {ticket.trips_remaining} restant{ticket.trips_remaining !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {ticket.payment_method && (
+                <div className="flex items-center">
+                  <span className="w-20 font-medium text-gray-600">Paiement:</span>
+                  <span className="text-gray-900">
+                    {SotralService.getPaymentMethodLabel(ticket.payment_method)}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center">
+                <span className="w-20 font-medium text-gray-600">Acheté:</span>
+                <span className="text-gray-900">
+                  {formatDate(ticket.purchased_at)}
+                </span>
+              </div>
+
+              {ticket.expires_at && (
+                <div className="flex items-center">
+                  <span className="w-20 font-medium text-gray-600">Expire:</span>
+                  <div className="flex flex-col">
+                    <span className="text-gray-900">
+                      {formatDate(ticket.expires_at)}
+                    </span>
+                    {ticket.status === 'active' && (
+                      <span className="text-xs text-orange-600">
+                        {getTimeRemaining(ticket.expires_at)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Informations du ticket */}
-          <div className="space-y-2 text-sm">
-            {ticket.ticket_type && (
-              <div className="flex items-center">
-                <span className="w-20 font-medium text-gray-600">Type:</span>
-                <span className="text-gray-900">{ticket.ticket_type.name}</span>
-              </div>
-            )}
-            
-            <div className="flex items-center">
-              <span className="w-20 font-medium text-gray-600">Prix:</span>
-              <span className="text-gray-900 font-medium">
-                {SotralService.formatCurrency(ticket.price_paid_fcfa)}
-              </span>
+          {/* QR Code (placeholder) */}
+          <div className="ml-4 flex-shrink-0">
+            <div className="w-16 h-16 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
+              <span className="text-xs text-gray-500 text-center">QR</span>
             </div>
+          </div>
+        </div>
 
-            {ticket.line && (
-              <div className="flex items-center">
-                <span className="w-20 font-medium text-gray-600">Ligne:</span>
-                <span className="text-gray-900">
-                  Ligne {ticket.line.line_number} - {ticket.line.name}
-                </span>
-              </div>
-            )}
-
-            {ticket.stop_from && ticket.stop_to && (
-              <div className="flex items-center">
-                <span className="w-20 font-medium text-gray-600">Trajet:</span>
-                <span className="text-gray-900">
-                  {ticket.stop_from.name} → {ticket.stop_to.name}
-                </span>
-              </div>
-            )}
-
-            <div className="flex items-center">
-              <span className="w-20 font-medium text-gray-600">Voyages:</span>
-              <span className="text-gray-900">
-                {ticket.trips_remaining} restant{ticket.trips_remaining !== 1 ? 's' : ''}
-              </span>
+        {/* Footer avec référence de paiement */}
+        {ticket.payment_reference && (
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="text-xs text-gray-500">
+              Référence: {ticket.payment_reference}
             </div>
+          </div>
+        )}
 
-            {ticket.payment_method && (
-              <div className="flex items-center">
-                <span className="w-20 font-medium text-gray-600">Paiement:</span>
-                <span className="text-gray-900">
-                  {SotralService.getPaymentMethodLabel(ticket.payment_method)}
-                </span>
+        {/* Modal de suppression */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <AlertTriangle className="h-6 w-6 mr-3 text-red-600" />
+                  Confirmer la suppression
+                </h3>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-            )}
 
-            <div className="flex items-center">
-              <span className="w-20 font-medium text-gray-600">Acheté:</span>
-              <span className="text-gray-900">
-                {formatDate(ticket.purchased_at)}
-              </span>
-            </div>
+              <div className="space-y-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertTriangle className="h-5 w-5 text-red-400" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800">
+                        Action définitive
+                      </h3>
+                      <p className="mt-2 text-sm text-red-700">
+                        Êtes-vous sûr de vouloir supprimer le ticket <strong>{ticket.ticket_code}</strong> ?
+                        Cette action ne peut pas être annulée.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-            {ticket.expires_at && (
-              <div className="flex items-center">
-                <span className="w-20 font-medium text-gray-600">Expire:</span>
-                <div className="flex flex-col">
-                  <span className="text-gray-900">
-                    {formatDate(ticket.expires_at)}
-                  </span>
-                  {ticket.status === 'active' && (
-                    <span className="text-xs text-orange-600">
-                      {getTimeRemaining(ticket.expires_at)}
-                    </span>
-                  )}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Détails du ticket :</h4>
+                  <dl className="space-y-1">
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-600">Code :</dt>
+                      <dd className="text-sm font-medium text-gray-900">{ticket.ticket_code}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-600">Prix :</dt>
+                      <dd className="text-sm font-medium text-gray-900">{SotralService.formatCurrency(ticket.price_paid_fcfa)}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-sm text-gray-600">Statut :</dt>
+                      <dd className="text-sm font-medium">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${SotralService.getTicketStatusColor(ticket.status)}`}>
+                          {SotralService.getTicketStatusLabel(ticket.status)}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    onClick={handleDelete}
+                    className="flex items-center justify-center px-4 py-2 bg-red-600 text-white font-semibold rounded-lg transition-all duration-200 flex-1"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer définitivement
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg transition-all duration-200 flex-1"
+                  >
+                    Annuler
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
-
-        {/* QR Code (placeholder) */}
-        <div className="ml-4 flex-shrink-0">
-          <div className="w-16 h-16 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
-            <span className="text-xs text-gray-500 text-center">QR</span>
-          </div>
-        </div>
+        )}
       </div>
-
-      {/* Footer avec référence de paiement */}
-      {ticket.payment_reference && (
-        <div className="mt-4 pt-3 border-t border-gray-200">
-          <div className="text-xs text-gray-500">
-            Référence: {ticket.payment_reference}
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 };
 
@@ -335,6 +441,25 @@ const SotralTickets: React.FC = () => {
     setFilters(prev => ({ ...prev, page }));
   };
 
+  const handleDeleteTicket = async (ticket: SotralTicket) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement le ticket ${ticket.ticket_code} ?`)) {
+      return;
+    }
+
+    try {
+      const result = await adminSotralService.deleteTicket(ticket.id);
+      if (result.success) {
+        toast.success(result.message || 'Ticket supprimé avec succès');
+        loadTickets(); // Recharger la liste
+      } else {
+        toast.error(result.error || 'Erreur lors de la suppression du ticket');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression du ticket:', error);
+      toast.error('Erreur lors de la suppression du ticket');
+    }
+  };
+
   useEffect(() => {
     loadTickets();
   }, [filters]);
@@ -426,7 +551,12 @@ const SotralTickets: React.FC = () => {
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {tickets.map((ticket) => (
-              <TicketCard key={ticket.id} ticket={ticket} />
+              <TicketCard
+                key={ticket.id}
+                ticket={ticket}
+                onDelete={handleDeleteTicket}
+                canDelete={true}
+              />
             ))}
           </div>
 

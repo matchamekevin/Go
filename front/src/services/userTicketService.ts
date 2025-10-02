@@ -71,8 +71,8 @@ export class UserTicketService {
       devLog('UserTicketService', `Tickets actifs trouvés: ${activeTickets.length}`);
       
       if (activeTickets.length === 0) {
-        devLog('UserTicketService', 'Aucun ticket actif, utilisation du fallback');
-        return this.getFallbackActiveTickets();
+        devLog('UserTicketService', 'Aucun ticket actif trouvé via API');
+        return [];
       }
       
       return activeTickets;
@@ -96,8 +96,8 @@ export class UserTicketService {
       devLog('UserTicketService', `Tickets historiques trouvés: ${historyTickets.length}`);
       
       if (historyTickets.length === 0) {
-        devLog('UserTicketService', 'Aucun historique, utilisation du fallback');
-        return this.getFallbackTicketHistory();
+        devLog('UserTicketService', 'Aucun historique trouvé via API');
+        return [];
       }
       
       return historyTickets;
@@ -190,63 +190,15 @@ export class UserTicketService {
 
   // Données de fallback pour les tickets actifs
   private static getFallbackActiveTickets(): UserTicket[] {
-    return [
-      {
-        id: 'fallback-active-1',
-        type: 'Bus rapide',
-        route: 'Centre-ville → Aéroport',
-        date: new Date().toLocaleDateString('fr-FR'),
-        time: '14:30',
-        price: '250 FCFA',
-        seat: '12A',
-        qrCode: 'TICKET_FALLBACK_001',
-        status: 'valid',
-        expiresIn: '2h 30min',
-      },
-      {
-        id: 'fallback-active-2',
-        type: 'Métro',
-        route: 'Université → Plateau',
-        date: new Date().toLocaleDateString('fr-FR'),
-        time: '18:00',
-        price: '100 FCFA',
-        seat: '---',
-        qrCode: 'TICKET_FALLBACK_002',
-        status: 'valid',
-        expiresIn: '6h 00min',
-      }
-    ];
+    // Plus de données hardcodées - utiliser uniquement les données de l'admin via l'API
+    devLog('UserTicketService', 'Aucun ticket actif via API, retour vide');
+    return [];
   }
 
   // Données de fallback pour l'historique
   private static getFallbackTicketHistory(): UserTicketHistory[] {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const dayBefore = new Date();
-    dayBefore.setDate(dayBefore.getDate() - 2);
-
-    return [
-      {
-        id: 'fallback-history-1',
-        type: 'Bus urbain',
-        route: 'Marché → Centre-ville',
-        date: yesterday.toLocaleDateString('fr-FR'),
-        time: '09:15',
-        price: '150 FCFA',
-        seat: '8B',
-        status: 'used',
-      },
-      {
-        id: 'fallback-history-2',
-        type: 'Bus rapide',
-        route: 'Aéroport → Université',
-        date: dayBefore.toLocaleDateString('fr-FR'),
-        time: '16:45',
-        price: '250 FCFA',
-        seat: '15C',
-        status: 'used',
-      }
-    ];
+    // Plus de données hardcodées - utiliser uniquement les données de l'admin via l'API
+    devLog('UserTicketService', 'Aucun historique via API, retour vide');
+    return [];
   }
 }

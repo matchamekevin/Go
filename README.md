@@ -2,9 +2,41 @@
 
 Système de billetterie électronique pour les transports en commun SOTRAL.
 
+## 📁 **Structure Organisée du Projet**
+
+```text
+├── 📖 docs/                    # Documentation centralisée
+│   ├── guides/                # Guides utilisateur & technique
+│   ├── deployment/            # Guides de déploiement
+│   ├── api/                   # Documentation API
+│   └── deployment-solutions.md
+├── 🔧 scripts/                 # Scripts d'automatisation organisés
+│   ├── deploy/                # Scripts de déploiement
+│   ├── test/                  # Scripts de test
+│   └── utils/                 # Scripts utilitaires
+├── 💾 data/                    # Données et sauvegardes
+│   ├── backups/               # Sauvegardes base de données
+│   ├── config/                # Fichiers de configuration
+│   └── samples/               # Exemples et données test
+├── 📋 logs/                    # Fichiers de logs
+│   ├── server.log             # Logs backend
+│   └── server_output.log      # Sortie complète serveur
+├── ⚙️ admin/                   # Interface administration Web
+├── 🚀 back/                    # Backend Node.js/Express API
+├── 📱 front/                   # App mobile utilisateur (React Native)
+├── 📱 scan/                    # App mobile scanner QR
+├── .gitignore
+├── package.json                # Scripts projet
+├── README.md                   # Cette documentation
+└── TODO.md                     # Notes de développement
+```
+
+**✅ Projet parfaitement organisé pour une maintenance optimale !**
+
 ## 🚀 **Démarrage Ultra-Rapide**
 
 ### Backend + Frontend en 3 commandes
+
 ```bash
 # 1. Backend (API + Base de données)
 cd /home/connect/kev/Go/back && docker compose up -d --build
@@ -17,11 +49,12 @@ cd /home/connect/kev/Go/front && npm run android
 ```
 
 ### ✅ Vérification rapide
+
 ```bash
 # Backend OK ?
 curl -i http://localhost:7000/health
 
-# App mobile OK ? 
+# App mobile OK ?
 # → Dev Menu automatique > Test Connectivité Réseau
 ```
 
@@ -29,36 +62,49 @@ curl -i http://localhost:7000/health
 
 ## 🌐 **Accès depuis N'importe quel Réseau**
 
-### Solutions GRATUITES pour accès global :
+### Solutions GRATUITES pour accès global
 
 #### 🎯 Railway (Recommandé - 5 minutes)
+
 ```bash
 cd /home/connect/kev/Go/back
 ./deploy.sh railway
 # Résultat: https://ton-app.up.railway.app
 ```
+
 **Gratuit**: 512MB RAM, 500h/mois, PostgreSQL incluse
 
 #### 🎨 Render.com (Alternative)
+
 ```bash
-cd /home/connect/kev/Go/back  
+cd /home/connect/kev/Go/back
 ./deploy.sh render
 # Résultat: https://ton-app.onrender.com
 ```
+
 **Gratuit**: 512MB RAM, 750h/mois, SSL auto
 
-#### 🔗 ngrok (Développement)
+#### 🔗 ngrok (Développement - Accès Public Immédiat)
+
 ```bash
-# Configuration unique
+# Installation unique
+npm install -g ngrok
 ngrok config add-authtoken TON_TOKEN_GRATUIT
 
-# À chaque session
-ngrok http 7000
-# Résultat: https://abc123.ngrok.io (temporaire)
+# Configuration automatique
+./setup-ngrok.sh
+# Résultat: https://abc123.ngrok.io (public permanent)
+
+# Test de la synchronisation
+./test-ngrok-sync.sh
 ```
 
+**Avantages**: Accès public immédiat, synchronisation partout, gratuit pour développement
+
 ### 📱 Configuration App
+
 Après déploiement :
+
 1. App mobile > **Dev Menu** > **Configuration Réseau**
 2. Ajoute l'URL obtenue
 3. L'app s'adapte automatiquement à ton réseau
@@ -67,7 +113,7 @@ Après déploiement :
 
 ## 🏗️ **Architecture Complète**
 
-```
+```text
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   BACKEND API   │◄──►│  FRONTEND USER  │    │   ADMIN WEB     │
 │  (Node.js/TS)   │    │ (React Native)  │    │ (React/TS/Web)  │
@@ -97,38 +143,47 @@ Après déploiement :
 ## 📁 **Structure & Commandes**
 
 ### `/back` - API Backend ⭐
+
 ```bash
 cd /home/connect/kev/Go/back
 docker compose up -d --build    # Démarrer
 docker compose logs -f api      # Voir les logs
 curl http://localhost:7000/health # Tester
 ```
+
 **Tech**: Node.js + TypeScript + Express + PostgreSQL
 
-### `/front` - App Mobile Utilisateur ⭐  
+### `/front` - App Mobile Utilisateur ⭐
+
 ```bash
 cd /home/connect/kev/Go/front
 npm install && npm run android   # Android
 npm run ios                      # iOS
 npm run web                      # Navigateur
 ```
+
 **Tech**: React Native + Expo + TypeScript
 
 ### `/admin` - Interface Web Admin
+
 ```bash
 cd /home/connect/kev/Go/admin
 npm install && npm run dev       # Port 3000
 ```
+
 **Tech**: React + TypeScript + Vite + Tailwind
 
 ### `/scan` - App Mobile Scanner
+
 ```bash
 cd /home/connect/kev/Go/scan
 npm install && npm start
 ```
+
 **Tech**: React Native + Expo (contrôleurs bus)
 
 ### `/GoSOTRAL_front` - Version Alternative User
+
 **Tech**: React Native + Expo (version alternative de `/front`)
 
 ---
@@ -136,16 +191,18 @@ npm install && npm start
 ## 🔗 **URLs et Endpoints**
 
 ### Backend API (Port 7000)
+
 - `GET /health` - Santé du système
-- `POST /auth/register` - Inscription 
+- `POST /auth/register` - Inscription
 - `POST /auth/login` - Connexion
 - `GET /tickets/products` - Produits tickets
 - `POST /tickets/purchase` - Achat ticket
 - `POST /tickets/validate` - Validation (scan)
 
 ### Configuration Réseau Automatique
+
 - **Simulateur iOS**: `http://localhost:7000`
-- **Android Emulator**: `http://10.0.2.2:7000`  
+- **Android Emulator**: `http://10.0.2.2:7000`
 - **Appareil physique**: `http://192.168.1.184:7000`
 - **Déploiement cloud**: URL automatiquement détectée
 
@@ -154,18 +211,21 @@ npm install && npm start
 ## 👥 **Comptes de Test**
 
 ### Utilisateur Mobile
+
 - Email: `test@example.com`
 - Password: `test123`
 
-### Admin Web  
+### Admin Web
+
 - Email: `admin@gosotral.com`
 - Password: `admin123`
 
 ---
 
-## �️ **Dépannage Rapide**
+## ⚠️ **Dépannage Rapide**
 
 ### ❌ "Network Error" dans l'app
+
 ```bash
 # 1. Vérifier le backend
 curl http://localhost:7000/health
@@ -177,6 +237,7 @@ hostname -I
 ```
 
 ### ❌ Base de données vide
+
 ```bash
 cd /home/connect/kev/Go/back
 for sql_file in src/schema/*.sql; do 
@@ -185,6 +246,7 @@ done
 ```
 
 ### ❌ Cache Expo
+
 ```bash
 cd /home/connect/kev/Go/front
 npx expo start --clear
@@ -204,6 +266,49 @@ npx expo start --clear
 
 ---
 
+## ⚡ **Synchronisation Temps Réel Complète**
+
+Toutes les actions se synchronisent automatiquement entre tous les appareils !
+
+### 🎯 **Événements Synchronisés**
+
+| Action | Événement | Impact |
+|--------|-----------|---------|
+| 🧾 Achat ticket | `ticket_purchased` | Mise à jour des listes de tickets |
+| ✅ Validation ticket | `ticket_validated` | Statut mis à jour partout |
+| 🗑️ Suppression ticket | `ticket_deleted` | Ticket disparaît de toutes les vues |
+| 🚌 Création ligne | `line_created` | Nouvelles lignes disponibles |
+| ✏️ Modification ligne | `line_updated` | Informations mises à jour |
+| ❌ Suppression ligne | `line_deleted` | Ligne retirée partout |
+| 🎫 Achat SOTRAL | `sotral_ticket_*` | Synchronisation complète SOTRAL |
+
+### 🧪 **Test de la Synchronisation**
+
+```bash
+# Test automatique de tous les événements
+./test-realtime-sync.sh
+
+# Test avec ngrok (accès global)
+./setup-ngrok.sh
+./test-ngrok-sync.sh
+```
+
+### 📱 **Comment Ça Marche**
+
+1. **Backend** : Diffuse les événements via Server-Sent Events (SSE)
+2. **Mobile** : Reçoit et met à jour automatiquement les écrans
+3. **Admin** : Reçoit et met à jour les tableaux de bord
+4. **Temps réel** : Toutes les modifications sont instantanées
+
+### 🎉 **Résultat**
+
+- ✅ **Achetez un ticket** → Il apparaît immédiatement dans "Mes tickets"
+- ✅ **Validez un ticket** → Le statut change partout
+- ✅ **Modifiez une ligne** → Les produits se mettent à jour automatiquement
+- ✅ **Supprimez un ticket** → Il disparaît de toutes les vues
+
+---
+
 ## 📈 **Roadmap**
 
 - ✅ **Backend complet** (Auth, Tickets, DB)
@@ -218,4 +323,5 @@ npx expo start --clear
 
 **Status**: ✅ Architecture fonctionnelle et testée  
 **Accès Global**: ✅ Solutions gratuites implémentées  
+**Synchronisation Temps Réel**: ✅ Toutes les actions se synchronisent automatiquement  
 **Last Update**: 10 septembre 2025
