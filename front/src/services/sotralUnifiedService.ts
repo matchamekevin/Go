@@ -13,6 +13,7 @@ export interface UnifiedSotralLine {
   route_to: string;
   category_id: number;
   distance_km?: number;
+  duration_minutes?: number;
   stops_count?: number;
   is_active: boolean;
   category?: {
@@ -127,8 +128,58 @@ class SotralUnifiedService {
   }
 
   /**
-   * Enrichir les lignes avec les informations de prix et nombre de tickets
+   * Récupérer une ligne spécifique par ID
    */
+  async getLineById(id: number): Promise<UnifiedSotralLine | null> {
+    try {
+      console.log(`[SotralUnifiedService] Récupération de la ligne ${id}...`);
+      const response: ApiResponse<SotralLine> = await this.apiClient.get(`/sotral/lines/${id}`);
+
+      if (!response.success || !response.data) {
+        console.error('[SotralUnifiedService] Erreur récupération ligne:', response);
+        return null;
+      }
+
+      const line: UnifiedSotralLine = response.data;
+      console.log(`[SotralUnifiedService] Ligne ${id} récupérée`);
+
+      // Enrichir la ligne avec les informations de prix
+      const enrichedLines = await this.enrichLinesWithPricing([line]);
+      return enrichedLines[0] || null;
+    } catch (error) {
+      console.error('[SotralUnifiedService] Erreur réseau ligne:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Récupérer les tickets pour une ligne spécifique
+   */
+  async getTicketsByLine(lineId: number): Promise<UnifiedSotralTicket[]> {
+    try {
+      console.log(`[SotralUnifiedService] Récupération des tickets pour la ligne ${lineId}...`);
+      const response: ApiResponse<SotralTicket[]> = await this.apiClient.get(`/sotral/lines/${lineId}/tickets`);
+
+      if (!response.success || !response.data) {
+        console.error('[SotralUnifiedService] Erreur récupération tickets ligne:', response);
+        return [];
+      }
+
+      const tickets: UnifiedSotralTicket[] = response.data;
+      console.log(`[SotralUnifiedService] ${tickets.length} tickets récupérés pour la ligne ${lineId}`);
+
+      return tickets;
+    } catch (error: any) {
+      // Vérifier si c'est une erreur 404 (endpoint non déployé)
+      if (error.status === 404) {
+        console.warn(`[SotralUnifiedService] Endpoint /sotral/lines/${lineId}/tickets non disponible sur ce serveur (404). Retour de tableau vide.`);
+        return [];
+      }
+      
+      console.error('[SotralUnifiedService] Erreur réseau tickets ligne:', error);
+      return [];
+    }
+  }
   private async enrichLinesWithPricing(lines: UnifiedSotralLine[]): Promise<UnifiedSotralLine[]> {
     try {
       // Récupérer tous les tickets générés pour calculer les prix

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../../src/styles/theme';
@@ -12,6 +12,7 @@ import { sotralUnifiedService, UnifiedSotralLine, UnifiedSotralTicket, UnifiedSe
 export default function SearchTab() {
   // Capturer le paramètre focus envoyé depuis Home
   const { focus, focusTs } = useLocalSearchParams<{ focus?: string; focusTs?: string }>();
+  const router = useRouter();
   const searchInputRef = useRef<TextInput | null>(null);
 
   const [fromLocation, setFromLocation] = useState('');
@@ -22,6 +23,7 @@ export default function SearchTab() {
   const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const requestIdRef = useRef(0);
   const MIN_QUERY_LENGTH = 1; // déclencher dès 1 caractère
 
@@ -174,6 +176,25 @@ export default function SearchTab() {
     }
   };
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Recharger les tickets disponibles
+    const loadTickets = async () => {
+      try {
+        console.log('[SearchTab] Rechargement des tickets disponibles...');
+        const tickets = await sotralUnifiedService.getGeneratedTickets();
+        console.log('[SearchTab] Tickets rechargés:', tickets.length);
+        setAvailableTickets(tickets);
+      } catch (error) {
+        console.error('[SearchTab] Erreur rechargement tickets:', error);
+        setAvailableTickets([]);
+      } finally {
+        setRefreshing(false);
+      }
+    };
+    loadTickets();
+  };
+
   // Charger les tickets depuis l'API
   useEffect(() => {
     const loadTickets = async () => {
@@ -279,7 +300,7 @@ export default function SearchTab() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Rechercher un trajet</Text>
@@ -321,25 +342,18 @@ export default function SearchTab() {
             ) : (
               searchResultsState.map((r) => (
                 <TouchableOpacity key={r.id} style={styles.resultCard} onPress={() => {
-                  // Utiliser la ligne complète si disponible, sinon créer un objet basique
+                  // Naviguer vers les détails de la ligne selon le nouveau flux MVC
                   if (r.line) {
-                    setSelectedLine(r.line);
-                    setViewMode('line-tickets');
-                    loadLineTickets(r.line.id);
+                    router.push({
+                      pathname: '/line-details',
+                      params: { lineId: r.line.id.toString() }
+                    });
                   } else {
                     // Créer une ligne basique si pas disponible
-                    const basicLine: UnifiedSotralLine = {
-                      id: parseInt(r.id),
-                      line_number: parseInt(r.id),
-                      name: r.from + ' - ' + r.to,
-                      route_from: r.from,
-                      route_to: r.to,
-                      category_id: 1,
-                      is_active: true
-                    };
-                    setSelectedLine(basicLine);
-                    setViewMode('line-tickets');
-                    loadLineTickets(parseInt(r.id));
+                    router.push({
+                      pathname: '/line-details',
+                      params: { lineId: r.id }
+                    });
                   }
                 }}>
                   <View style={styles.resultHeader}>

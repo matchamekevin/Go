@@ -4,13 +4,23 @@ Système de billetterie électronique pour les transports en commun SOTRAL.
 
 ## 📁 **Structure Organisée du Projet**
 
-```
+```text
 ├── 📖 docs/                    # Documentation centralisée
 │   ├── guides/                # Guides utilisateur & technique
 │   ├── deployment/            # Guides de déploiement
 │   ├── api/                   # Documentation API
 │   └── deployment-solutions.md
-├── 🔧 scripts/                 # Scripts automatisation & tests
+├── 🔧 scripts/                 # Scripts d'automatisation organisés
+│   ├── deploy/                # Scripts de déploiement
+│   ├── test/                  # Scripts de test
+│   └── utils/                 # Scripts utilitaires
+├── 💾 data/                    # Données et sauvegardes
+│   ├── backups/               # Sauvegardes base de données
+│   ├── config/                # Fichiers de configuration
+│   └── samples/               # Exemples et données test
+├── 📋 logs/                    # Fichiers de logs
+│   ├── server.log             # Logs backend
+│   └── server_output.log      # Sortie complète serveur
 ├── ⚙️ admin/                   # Interface administration Web
 ├── 🚀 back/                    # Backend Node.js/Express API
 ├── 📱 front/                   # App mobile utilisateur (React Native)
@@ -21,11 +31,12 @@ Système de billetterie électronique pour les transports en commun SOTRAL.
 └── TODO.md                     # Notes de développement
 ```
 
-**✅ Projet réorganisé pour une meilleure maintenance !**
+**✅ Projet parfaitement organisé pour une maintenance optimale !**
 
 ## 🚀 **Démarrage Ultra-Rapide**
 
 ### Backend + Frontend en 3 commandes
+
 ```bash
 # 1. Backend (API + Base de données)
 cd /home/connect/kev/Go/back && docker compose up -d --build
@@ -51,22 +62,26 @@ curl -i http://localhost:7000/health
 
 ## 🌐 **Accès depuis N'importe quel Réseau**
 
-### Solutions GRATUITES pour accès global :
+### Solutions GRATUITES pour accès global
 
 #### 🎯 Railway (Recommandé - 5 minutes)
+
 ```bash
 cd /home/connect/kev/Go/back
 ./deploy.sh railway
 # Résultat: https://ton-app.up.railway.app
 ```
+
 **Gratuit**: 512MB RAM, 500h/mois, PostgreSQL incluse
 
 #### 🎨 Render.com (Alternative)
+
 ```bash
-cd /home/connect/kev/Go/back  
+cd /home/connect/kev/Go/back
 ./deploy.sh render
 # Résultat: https://ton-app.onrender.com
 ```
+
 **Gratuit**: 512MB RAM, 750h/mois, SSL auto
 
 #### 🔗 ngrok (Développement - Accès Public Immédiat)
