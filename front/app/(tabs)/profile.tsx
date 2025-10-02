@@ -22,6 +22,7 @@ import * as ExpoRouter from 'expo-router';
 const useRouter = ExpoRouter.useRouter;
 import HelpFAB from '../../src/components/HelpFAB';
 import { apiClient } from '../../src/services/apiClient';
+import { UserService } from '../../src/services/userService';
 
 export default function ProfileTab() {
   const { user, logout, updateUserProfile, isLoading } = useAuth();
@@ -271,10 +272,29 @@ export default function ProfileTab() {
   </Pressable>
   );
 
-  const saveEditedName = () => {
-    setUserProfile(prev => ({ ...prev, name: editedName }));
-    updateUserProfile({ name: editedName });
-    setEditAvatarModalOpen(false);
+  const saveEditedName = async () => {
+    try {
+      setUserProfile(prev => ({ ...prev, name: editedName }));
+      await updateUserProfile({ name: editedName });
+      setEditAvatarModalOpen(false);
+      
+      // Auto-refresh du profil depuis le serveur après 500ms
+      setTimeout(async () => {
+        try {
+          const freshProfile = await UserService.getProfile();
+          setUserProfile(prev => ({
+            ...prev,
+            name: freshProfile.name || prev.name,
+          }));
+          setEditedName(freshProfile.name || '');
+          console.log('✅ Profil utilisateur rafraîchi depuis le serveur');
+        } catch (error) {
+          console.log('⚠️ Erreur refresh profil:', error);
+        }
+      }, 500);
+    } catch (error) {
+      Alert.alert('Erreur', 'Impossible de mettre à jour le nom');
+    }
   };
 
   const savePersonalInfo = async () => {
@@ -294,6 +314,25 @@ export default function ProfileTab() {
       
       setPersonalInfoOpen(false);
       Alert.alert('Succès', 'Informations mises à jour avec succès');
+      
+      // Auto-refresh du profil depuis le serveur après 500ms
+      setTimeout(async () => {
+        try {
+          const freshProfile = await UserService.getProfile();
+          setUserProfile(prev => ({
+            ...prev,
+            name: freshProfile.name || prev.name,
+            email: freshProfile.email || prev.email,
+            phone: freshProfile.phone || prev.phone,
+          }));
+          setEditedName(freshProfile.name || '');
+          setEditedEmail(freshProfile.email || '');
+          setEditedPhone(freshProfile.phone || '');
+          console.log('✅ Profil utilisateur rafraîchi depuis le serveur');
+        } catch (error) {
+          console.log('⚠️ Erreur refresh profil:', error);
+        }
+      }, 500);
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de mettre à jour les informations');
     }

@@ -1,33 +1,18 @@
-// Configuration API pour l'app scan
-import { Platform } from 'react-native'
+// Configuration API pour l'app scan - Version simplifiée
 
-export const getApiBaseUrl = (): string => {
-  if (__DEV__) {
-    // Utilise l'URL de production même en développement
-    return 'https://go-j2rr.onrender.com'
-  }
-  
-  // Production
-  return 'https://go-j2rr.onrender.com'
-}
+// URL de production du backend GoSOTRAL
+export const API_BASE_URL = 'https://go-j2rr.onrender.com'
 
-export const Config = {
-  apiBaseUrl: getApiBaseUrl(),
-  apiTimeout: 10000,
-  
-  // Clés de stockage
-  storageKeys: {
-    token: 'scan_token',
-    operator: 'scan_operator',
-  },
-  
-  // Configuration du scanner
-  scanner: {
-    scanInterval: 1000,
-    vibrationEnabled: true,
-    soundEnabled: true,
-  },
-  
-  // Mode debug
-  debug: __DEV__,
-} as const
+// Clés de stockage AsyncStorage - Export direct
+export const STORAGE_KEY_TOKEN = 'scan_token'
+export const STORAGE_KEY_OPERATOR = 'scan_operator'
+export const STORAGE_KEY_LAST_SYNC = 'scan_last_sync'
+
+// Configuration
+export const API_TIMEOUT = 15000
+export const SCAN_INTERVAL = 1000
+export const VIBRATION_ENABLED = true
+export const SOUND_ENABLED = true
+export const DEBUG_MODE = __DEV__ || false
+export const APP_NAME = 'GoSOTRAL Scan'
+export const APP_VERSION = '1.0.0'

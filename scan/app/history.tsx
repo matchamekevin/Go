@@ -14,13 +14,18 @@ import { ScanService } from '../src/services/scanService';
 
 interface ScanHistoryItem {
   id: string;
-  ticketId: string;
-  userId: string;
-  userName: string;
-  ticketType: string;
-  scanTime: string;
-  status: 'valid' | 'invalid' | 'expired';
-  route?: string;
+  ticket_code: string;
+  ticket_id?: string;
+  result: 'valid' | 'invalid' | 'already_used' | 'expired' | 'not_found';
+  message: string;
+  scanned_at: string;
+  operator_id: string;
+  operator_name?: string;
+  ticket_info?: {
+    product_name?: string;
+    user_email?: string;
+    user_name?: string;
+  };
 }
 
 export default function HistoryScreen() {
@@ -55,25 +60,31 @@ export default function HistoryScreen() {
     loadHistory();
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (result: string) => {
+    switch (result) {
       case 'valid':
         return '#28a745';
       case 'invalid':
+      case 'not_found':
         return '#dc3545';
-      case 'expired':
+      case 'already_used':
         return '#ffc107';
+      case 'expired':
+        return '#ff6b6b';
       default:
         return '#6c757d';
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
+  const getStatusText = (result: string) => {
+    switch (result) {
       case 'valid':
         return '✅ Valide';
       case 'invalid':
+      case 'not_found':
         return '❌ Invalide';
+      case 'already_used':
+        return '⚠️ Déjà utilisé';
       case 'expired':
         return '⏰ Expiré';
       default:
@@ -96,31 +107,42 @@ export default function HistoryScreen() {
     <View style={styles.historyItem}>
       <View style={styles.itemHeader}>
         <View style={styles.itemInfo}>
-          <Text style={styles.userName}>{item.userName}</Text>
-          <Text style={styles.ticketType}>{item.ticketType}</Text>
-          {item.route && (
-            <Text style={styles.route}>Ligne: {item.route}</Text>
-          )}
+          <Text style={styles.userName}>
+            {item.ticket_info?.user_name || item.ticket_info?.user_email || 'Client inconnu'}
+          </Text>
+          <Text style={styles.ticketType}>
+            {item.ticket_info?.product_name || 'Ticket'}
+          </Text>
+          <Text style={styles.route}>Code: {item.ticket_code}</Text>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.result) }]}>
+          <Text style={styles.statusText}>{getStatusText(item.result)}</Text>
         </View>
       </View>
       
       <View style={styles.itemFooter}>
-        <Text style={styles.ticketId}>ID: {item.ticketId}</Text>
-        <Text style={styles.scanTime}>{formatDateTime(item.scanTime)}</Text>
+        <Text style={styles.ticketId}>
+          {item.ticket_id ? `ID: ${item.ticket_id.substring(0, 8)}...` : 'Pas d\'ID'}
+        </Text>
+        <Text style={styles.scanTime}>{formatDateTime(item.scanned_at)}</Text>
       </View>
+      
+      {item.message && (
+        <View style={styles.messageContainer}>
+          <Text style={styles.messageText}>{item.message}</Text>
+        </View>
+      )}
     </View>
   );
 
   const getStatsText = () => {
     const total = history.length;
-    const valid = history.filter(item => item.status === 'valid').length;
-    const invalid = history.filter(item => item.status === 'invalid').length;
-    const expired = history.filter(item => item.status === 'expired').length;
+    const valid = history.filter(item => item.result === 'valid').length;
+    const invalid = history.filter(item => item.result === 'invalid' || item.result === 'not_found').length;
+    const alreadyUsed = history.filter(item => item.result === 'already_used').length;
+    const expired = history.filter(item => item.result === 'expired').length;
 
-    return `Total: ${total} | Valides: ${valid} | Invalides: ${invalid} | Expirés: ${expired}`;
+    return `Total: ${total} | Valides: ${valid} | Invalides: ${invalid} | Déjà utilisés: ${alreadyUsed} | Expirés: ${expired}`;
   };
 
   if (loading) {
@@ -340,5 +362,16 @@ const styles = StyleSheet.create({
   scanTime: {
     fontSize: 12,
     color: '#6c757d',
+  },
+  messageContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f8f9fa',
+  },
+  messageText: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontStyle: 'italic',
   },
 });

@@ -1,7 +1,7 @@
 {
   "name": "gosotral-scan",
   "version": "1.0.0",
-  "main": "expo/AppEntry.js",
+  "main": "App.js",
   "scripts": {
     "start": "expo start --port 8083",
     "android": "expo start --android --port 8083",
@@ -16,6 +16,7 @@
     "expo-barcode-scanner": "~14.0.0",
     "expo-camera": "~17.0.8",
     "expo-constants": "~18.0.9",
+    "expo-dev-client": "^6.0.13",
     "expo-haptics": "~15.0.7",
     "expo-router": "~6.0.6",
     "expo-status-bar": "~3.0.8",

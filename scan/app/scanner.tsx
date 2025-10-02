@@ -50,18 +50,29 @@ export default function ScannerScreen() {
         // Ticket valide - feedback positif
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Vibration.vibrate([0, 200, 100, 200]);
+        
         const ticket = result.ticket;
+        const ticketInfo = [
+          `🎫 Code: ${ticket?.code || 'N/A'}`,
+          `📦 Produit: ${ticket?.product_name || 'N/A'}`,
+          `👤 Client: ${ticket?.user_email || ticket?.user_name || 'N/A'}`,
+          ticket?.product_price ? `💰 Prix: ${ticket.product_price} FCFA` : '',
+          ticket?.purchased_at ? `📅 Achat: ${new Date(ticket.purchased_at).toLocaleString('fr-FR')}` : '',
+        ].filter(Boolean).join('\n');
+        
         Alert.alert(
-          '✅ Ticket Valide',
-          `Code: ${ticket?.code}\nProduit: ${ticket?.product_name || 'N/A'}\nUtilisateur: ${ticket?.user_email || 'N/A'}`,
+          '✅ TICKET VALIDE',
+          ticketInfo,
           [
             {
-              text: 'Scanner Suivant',
+              text: '🔄 Scanner Suivant',
               onPress: () => setIsScanning(true),
+              style: 'default',
             },
             {
-              text: 'Retour',
+              text: '← Retour',
               onPress: () => router.back(),
+              style: 'cancel',
             },
           ]
         );
@@ -71,36 +82,42 @@ export default function ScannerScreen() {
         Vibration.vibrate([0, 500, 200, 500]);
         
         Alert.alert(
-          '❌ Ticket Invalide',
-          result.message || 'Ticket invalide',
+          '❌ TICKET INVALIDE',
+          result.message || 'Ce ticket ne peut pas être utilisé.',
           [
             {
-              text: 'Scanner Autre',
+              text: '🔄 Scanner Autre',
               onPress: () => setIsScanning(true),
+              style: 'default',
             },
             {
-              text: 'Retour',
+              text: '← Retour',
               onPress: () => router.back(),
+              style: 'cancel',
             },
           ]
         );
       }
-    } catch (error) {
-      console.error('Erreur validation:', error);
+    } catch (error: any) {
+      console.error('❌ Erreur validation:', error);
       
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       
+      const errorMessage = error?.message || 'Erreur inconnue lors de la validation';
+      
       Alert.alert(
-        '⚠️ Erreur de Connexion',
-        'Impossible de valider le ticket. Vérifiez votre connexion.',
+        '⚠️ ERREUR DE VALIDATION',
+        errorMessage + '\n\nVérifiez votre connexion internet et réessayez.',
         [
           {
-            text: 'Réessayer',
+            text: '🔄 Réessayer',
             onPress: () => setIsScanning(true),
+            style: 'default',
           },
           {
-            text: 'Retour',
+            text: '← Retour',
             onPress: () => router.back(),
+            style: 'cancel',
           },
         ]
       );

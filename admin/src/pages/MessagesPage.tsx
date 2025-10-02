@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Send, Search, Filter, Trash2, Eye, Reply, MessageCircle, UserCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -26,15 +26,7 @@ const MessagesPage: React.FC = () => {
   const [replyContent, setReplyContent] = useState('');
   const [showReplyModal, setShowReplyModal] = useState(false);
 
-  useEffect(() => {
-    fetchMessages();
-  }, []);
-
-  useEffect(() => {
-    filterMessages();
-  }, [messages, searchTerm, statusFilter, typeFilter]);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       setLoading(true);
       // TODO: Remplacer par l'appel API réel
@@ -81,13 +73,22 @@ const MessagesPage: React.FC = () => {
       ];
       
       setMessages(mockMessages);
+      console.log('✅ Messages rechargés:', mockMessages.length);
     } catch (error) {
       console.error('Erreur lors du chargement des messages:', error);
       toast.error('Erreur lors du chargement des messages');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [fetchMessages]);
+
+  useEffect(() => {
+    filterMessages();
+  }, [messages, searchTerm, statusFilter, typeFilter]);
 
   const filterMessages = () => {
     let filtered = messages;
@@ -158,6 +159,8 @@ const MessagesPage: React.FC = () => {
         msg.id === messageId ? { ...msg, status: 'read' } : msg
       ));
       toast.success('Message marqué comme lu');
+      // Auto-refresh après modification
+      setTimeout(() => fetchMessages(), 500);
     } catch (error) {
       toast.error('Erreur lors de la mise à jour');
     }
@@ -169,6 +172,8 @@ const MessagesPage: React.FC = () => {
         // TODO: Appel API pour supprimer
         setMessages(messages.filter(msg => msg.id !== messageId));
         toast.success('Message supprimé');
+        // Auto-refresh après suppression
+        setTimeout(() => fetchMessages(), 500);
       } catch (error) {
         toast.error('Erreur lors de la suppression');
       }
@@ -192,6 +197,8 @@ const MessagesPage: React.FC = () => {
       setReplyContent('');
       setSelectedMessage(null);
       toast.success('Réponse envoyée');
+      // Auto-refresh après envoi de réponse
+      setTimeout(() => fetchMessages(), 500);
     } catch (error) {
       toast.error('Erreur lors de l\'envoi');
     }
