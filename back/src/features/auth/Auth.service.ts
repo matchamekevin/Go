@@ -270,7 +270,7 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + Config.otpExpiryMinutes * 60 * 1000);
     await PasswordResetOTPRepository.create(user.id, otp, expiresAt);
     
-    // Email de réinitialisation avec template HTML amélioré
+    // Email de réinitialisation avec template HTML amélioré (envoi asynchrone)
     const emailSubject = 'Réinitialisation de mot de passe - GoSOTRAL';
     const emailText = `Votre code de réinitialisation est : ${otp}`;
     const emailHtml = `
@@ -329,7 +329,74 @@ export class AuthService {
       </div>
     `;
     
-    await sendEmail(user.email, emailSubject, emailText, emailHtml);
+    // Envoi d'email complètement asynchrone (non-bloquant) pour éviter les timeouts
+    setImmediate(async () => {
+      try {
+        const emailSubject = 'Réinitialisation de mot de passe - GoSOTRAL';
+        const emailText = `Votre code de réinitialisation est : ${otp}`;
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px;">
+            <div style="background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <!-- Header -->
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #4F46E5; margin: 0; font-size: 24px;">GoSOTRAL</h1>
+                <p style="color: #6B7280; margin: 5px 0 0 0; font-size: 14px;">Système de transport public</p>
+              </div>
+              
+              <!-- Content -->
+              <div style="text-align: center;">
+                <h2 style="color: #1F2937; margin-bottom: 15px;">🔐 Réinitialisation de mot de passe</h2>
+                <p style="color: #4B5563; font-size: 16px; margin-bottom: 25px;">
+                  Utilisez ce code pour réinitialiser votre mot de passe :
+                </p>
+                
+                <!-- Code OTP mis en évidence -->
+                <div style="background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%); 
+                            border-radius: 12px; 
+                            padding: 25px; 
+                            margin: 25px 0; 
+                            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);">
+                  <div style="color: white; 
+                              font-size: 32px; 
+                              font-weight: bold; 
+                              letter-spacing: 8px; 
+                              font-family: 'Courier New', monospace;
+                              text-shadow: 0 2px 4px rgba(0,0,0,0.3);">${otp}</div>
+                </div>
+                
+                <!-- Instructions -->
+                <div style="background-color: #FEE2E2; 
+                            border-left: 4px solid #EF4444; 
+                            padding: 15px; 
+                            margin: 20px 0; 
+                            border-radius: 5px;">
+                  <p style="color: #DC2626; margin: 0; font-size: 14px;">
+                    🔒 Code de sécurité - Expire dans 10 minutes
+                  </p>
+                </div>
+                
+                <p style="color: #6B7280; font-size: 14px; margin-top: 25px;">
+                  Si vous n'avez pas demandé cette réinitialisation, ignorez cet email et contactez-nous.
+                </p>
+              </div>
+              
+              <!-- Footer -->
+              <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #E5E7EB;">
+                <p style="color: #9CA3AF; font-size: 12px; margin: 0;">
+                  © 2025 GoSOTRAL - Transport public du Togo
+                </p>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        await sendEmail(user.email, emailSubject, emailText, emailHtml);
+        console.log(`[AuthService.forgotPassword] Email envoyé avec succès à ${user.email}`);
+      } catch (error) {
+        console.error(`[AuthService.forgotPassword] Erreur envoi email pour ${user.email}:`, error);
+      }
+    });
+    
     return { message: 'OTP envoyé pour réinitialisation' };
   }
 
