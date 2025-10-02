@@ -6,33 +6,61 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { theme } from '../src/styles/theme';
 import { useAuth } from '../src/contexts/AuthContext';
+import { useFirstLaunch } from '../src/hooks/useFirstLaunch';
 
 export default function WelcomeScreen() {
-  // Removed auto-redirect, only button click will navigate.
   const { isAuthenticated, isLoading } = useAuth();
+  const { isFirstLaunch, isLoading: firstLaunchLoading, markAsLaunched } = useFirstLaunch();
 
-  // If an unauthenticated user somehow reaches the landing screen (index), redirect immediately
-  // to the login page to avoid flashing the landing during auth transitions.
+  // Logique de redirection améliorée
   React.useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      try {
-        router.replace('/login');
-      } catch (e) {
-        // ignore
-      }
-    }
-  }, [isLoading, isAuthenticated]);
+    // Attendre que les deux chargements soient terminés
+    if (firstLaunchLoading || isLoading) return;
 
-  const handleGetStarted = () => {
-    // If still checking auth, do nothing (or show loader in future)
-    if (isLoading) return;
-
+    // Si l'utilisateur est authentifié, aller directement aux onglets
     if (isAuthenticated) {
       router.replace('/(tabs)');
-    } else {
-      // Force login when the user is not authenticated
-      router.replace('/login');
+      return;
     }
+
+    // Si l'utilisateur n'est pas authentifié
+    if (!isAuthenticated) {
+      // Si c'est la première ouverture, afficher la landing (ne rien faire)
+      if (isFirstLaunch) {
+        return;
+      }
+      // Si ce n'est pas la première ouverture, aller à login
+      else {
+        router.replace('/login');
+        return;
+      }
+    }
+  }, [firstLaunchLoading, isFirstLaunch, isLoading, isAuthenticated]);
+
+  // Afficher un loader pendant la vérification
+  if (firstLaunchLoading || isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="bus" size={48} color={theme.colors.primary[600]} />
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Si l'utilisateur est authentifié ou que ce n'est pas la première ouverture, ne rien afficher
+  // (la redirection se fait dans useEffect)
+  if (isAuthenticated || !isFirstLaunch) {
+    return null;
+  }
+
+  const handleGetStarted = async () => {
+    // Marquer que l'application a été lancée
+    await markAsLaunched();
+
+    // Rediriger vers la page de connexion
+    router.replace('/login');
   };
 
   return (
@@ -106,6 +134,18 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary[500],
+  },
+  loadingText: {
+    fontSize: theme.typography.fontSize.lg,
+    color: theme.colors.white,
+    fontWeight: theme.typography.fontWeight.medium,
+    marginTop: theme.spacing.md,
   },
   gradient: {
     flex: 1,

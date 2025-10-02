@@ -13,16 +13,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../src/styles/theme';
-import { sotralUnifiedService, UnifiedSotralLine } from '../src/services/sotralUnifiedService';
+import { sotralUnifiedService, UnifiedSotralLine, UnifiedSotralTicket } from '../src/services/sotralUnifiedService';
 
 export default function LineDetailsScreen() {
   const { lineId } = useLocalSearchParams<{ lineId: string }>();
   const router = useRouter();
 
   const [line, setLine] = useState<UnifiedSotralLine | null>(null);
+  const [tickets, setTickets] = useState<UnifiedSotralTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (lineId) {
@@ -37,12 +39,30 @@ export default function LineDetailsScreen() {
       }
       setError(null);
 
-      // Pour l'instant, nous simulons le chargement des détails de la ligne
-      // Dans un vrai scénario, nous aurions une API pour récupérer les détails complets
+      // Charger les détails de la ligne
       const lineData = await sotralUnifiedService.getLineById(id);
 
       if (lineData) {
         setLine(lineData);
+        console.log('[LineDetails] Ligne chargée:', lineData.name, '- ID:', lineData.id);
+        
+        // Charger les tickets disponibles pour cette ligne
+        try {
+          console.log('[LineDetails] Chargement des tickets pour la ligne ID:', id);
+          const ticketsData = await sotralUnifiedService.getTicketsByLine(id);
+          setTickets(ticketsData);
+          console.log(`[LineDetails] ✅ ${ticketsData.length} tickets chargés pour la ligne ${lineData.name}`);
+          
+          if (ticketsData.length > 0) {
+            console.log('[LineDetails] Premier ticket:', ticketsData[0].ticket_code, '- Prix:', ticketsData[0].price_paid_fcfa, 'FCFA');
+          } else {
+            console.warn('[LineDetails] ⚠️ Aucun ticket disponible pour cette ligne');
+          }
+        } catch (ticketsErr) {
+          console.error('[LineDetails] ❌ Erreur chargement tickets:', ticketsErr);
+          // Ne pas bloquer l'affichage de la ligne si les tickets ne se chargent pas
+          setTickets([]);
+        }
       } else {
         setError('Ligne non trouvée');
       }
@@ -71,10 +91,27 @@ export default function LineDetailsScreen() {
   const handleContinueToPayment = () => {
     if (!line) return;
 
-    // Naviguer vers l'écran de confirmation de paiement
+    // Vérifier s'il y a des tickets disponibles
+    if (tickets.length === 0) {
+      Alert.alert(
+        'Aucun ticket disponible',
+        'Il n\'y a actuellement aucun ticket disponible pour cette ligne. Veuillez réessayer plus tard.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Utiliser le premier ticket disponible
+    const firstTicket = tickets[0];
+
+    // Naviguer vers l'écran de sélection de moyen de paiement
     router.push({
-      pathname: '/payment-confirmation',
-      params: { lineId: line.id.toString() }
+      pathname: '/payment-method',
+      params: { 
+        lineId: line.id.toString(),
+        ticketId: firstTicket.id.toString(),
+        quantity: quantity.toString()
+      }
     });
   };
 
@@ -204,16 +241,63 @@ export default function LineDetailsScreen() {
               </Text>
             )}
           </View>
+
+          {/* Price Info */}
+          <View style={styles.priceSection}>
+            <Text style={styles.sectionTitle}>Tarif</Text>
+            <View style={styles.priceCard}>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Prix par ticket</Text>
+                <Text style={styles.priceValue}>{line.price_fcfa || 0} FCFA</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Quantity Selector & Total */}
+        <View style={styles.quantityContainer}>
+          <Text style={styles.sectionTitle}>Quantité</Text>
+          <View style={styles.quantitySelector}>
+            <TouchableOpacity
+              style={[styles.quantityButton, quantity <= 1 && styles.quantityButtonDisabled]}
+              onPress={() => setQuantity(Math.max(1, quantity - 1))}
+              disabled={quantity <= 1}
+            >
+              <Ionicons name="remove" size={24} color={quantity <= 1 ? theme.colors.secondary[300] : theme.colors.primary[600]} />
+            </TouchableOpacity>
+            <View style={styles.quantityDisplay}>
+              <Text style={styles.quantityText}>{quantity}</Text>
+              <Text style={styles.quantityLabel}>ticket{quantity > 1 ? 's' : ''}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.quantityButton, quantity >= 10 && styles.quantityButtonDisabled]}
+              onPress={() => setQuantity(Math.min(10, quantity + 1))}
+              disabled={quantity >= 10}
+            >
+              <Ionicons name="add" size={24} color={quantity >= 10 ? theme.colors.secondary[300] : theme.colors.primary[600]} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Total Price */}
+          <View style={styles.totalCard}>
+            <Text style={styles.totalLabel}>Total à payer</Text>
+            <Text style={styles.totalPrice}>{(line.price_fcfa || 0) * quantity} FCFA</Text>
+          </View>
         </View>
 
         {/* Action Button */}
         <View style={styles.actionContainer}>
           <TouchableOpacity
-            style={styles.continueButton}
+            style={[styles.continueButton, tickets.length === 0 && styles.disabledButton]}
             onPress={handleContinueToPayment}
+            disabled={tickets.length === 0}
           >
-            <Text style={styles.continueButtonText}>Continuer vers le paiement</Text>
-            <Ionicons name="arrow-forward" size={20} color={theme.colors.white} />
+            <Text style={styles.continueButtonText}>
+              {tickets.length === 0 ? 'Aucun ticket disponible' : 'Continuer vers le paiement'}
+            </Text>
+            {tickets.length > 0 && (
+              <Ionicons name="arrow-forward" size={20} color={theme.colors.white} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -421,6 +505,85 @@ const styles = StyleSheet.create({
     color: theme.colors.secondary[600],
     lineHeight: 20,
   },
+  priceSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  priceCard: {
+    backgroundColor: theme.colors.primary[50],
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.primary[700],
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  priceValue: {
+    fontSize: theme.typography.fontSize.xl,
+    color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  quantityContainer: {
+    backgroundColor: theme.colors.white,
+    margin: theme.spacing.lg,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.lg,
+    ...theme.shadows.md,
+  },
+  quantitySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  quantityButton: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quantityButtonDisabled: {
+    backgroundColor: theme.colors.secondary[100],
+  },
+  quantityDisplay: {
+    marginHorizontal: theme.spacing.xl,
+    alignItems: 'center',
+  },
+  quantityText: {
+    fontSize: theme.typography.fontSize['3xl'],
+    color: theme.colors.secondary[900],
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  quantityLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.secondary[600],
+    marginTop: theme.spacing.xs,
+  },
+  totalCard: {
+    backgroundColor: theme.colors.primary[600],
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: theme.typography.fontSize.lg,
+    color: theme.colors.white,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  totalPrice: {
+    fontSize: theme.typography.fontSize['2xl'],
+    color: theme.colors.white,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
   actionContainer: {
     paddingHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.lg,
@@ -433,6 +596,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.lg,
     borderRadius: theme.borderRadius.lg,
     ...theme.shadows.sm,
+  },
+  disabledButton: {
+    backgroundColor: theme.colors.secondary[300],
   },
   continueButtonText: {
     fontSize: theme.typography.fontSize.lg,

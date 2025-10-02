@@ -22,6 +22,7 @@ router.post('/calculate-price', sotralController.calculatePrice.bind(sotralContr
 
 // Achat de tickets (authentification optionnelle pour l'instant)
 router.post('/purchase', sotralController.purchaseTicket.bind(sotralController));
+router.post('/assign-ticket', sotralController.assignTicketToUser.bind(sotralController));
 router.get('/my-tickets', authMiddleware as any, sotralController.getMyTickets);
 router.delete('/my-tickets/:id', authMiddleware as any, sotralController.cancelUserTicket);
 

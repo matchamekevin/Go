@@ -17,6 +17,19 @@ config.resolver.sourceExts.push(
   "json",
 );
 
+// Configuration pour résoudre les conflits de dépendances
+config.resolver = {
+  ...config.resolver,
+  // Désactiver les exports problématiques pour éviter les conflits
+  unstable_enablePackageExports: false,
+  // Configuration des alias pour résoudre les modules problématiques
+  alias: {
+    'whatwg-url-without-unicode': require.resolve('whatwg-url-without-unicode'),
+  },
+  // Ignorer les exports conditionnels problématiques
+  unstable_conditionNames: ['require', 'default'],
+};
+
 // Configuration pour résoudre les modules natifs
 config.resolver.platforms = ["ios", "android", "native", "web"];
 
@@ -25,5 +38,20 @@ config.resolver.resolverMainFields = ["react-native", "browser", "main"];
 
 // Configuration pour les modules node
 config.resolver.nodeModulesPaths = ["node_modules"];
+
+// Configuration du transformer pour éviter les problèmes de cache
+config.transformer = {
+  ...config.transformer,
+  unstable_allowRequireContext: true,
+  allowOptionalDependencies: true,
+  // Désactiver les optimisations problématiques
+  minifierConfig: {
+    ...config.transformer.minifierConfig,
+    compress: {
+      ...config.transformer.minifierConfig?.compress,
+      drop_console: false,
+    },
+  },
+};
 
 module.exports = config;

@@ -154,45 +154,76 @@ class SotralUnifiedService {
 
   /**
    * Récupérer les tickets pour une ligne spécifique
+   * Note: Filtre les tickets depuis tous les tickets générés
    */
   async getTicketsByLine(lineId: number): Promise<UnifiedSotralTicket[]> {
     try {
       console.log(`[SotralUnifiedService] Récupération des tickets pour la ligne ${lineId}...`);
-      const response: ApiResponse<SotralTicket[]> = await this.apiClient.get(`/sotral/lines/${lineId}/tickets`);
-
-      if (!response.success || !response.data) {
-        console.error('[SotralUnifiedService] Erreur récupération tickets ligne:', response);
-        return [];
-      }
-
-      const tickets: UnifiedSotralTicket[] = response.data;
-      console.log(`[SotralUnifiedService] ${tickets.length} tickets récupérés pour la ligne ${lineId}`);
-
-      return tickets;
-    } catch (error: any) {
-      // Vérifier si c'est une erreur 404 (endpoint non déployé)
-      if (error.status === 404) {
-        console.warn(`[SotralUnifiedService] Endpoint /sotral/lines/${lineId}/tickets non disponible sur ce serveur (404). Retour de tableau vide.`);
-        return [];
-      }
       
-      console.error('[SotralUnifiedService] Erreur réseau tickets ligne:', error);
+      // Récupérer tous les tickets générés (l'API filtre déjà pour status='active', trips_remaining > 0, user_id IS NULL)
+      const allTickets = await this.getGeneratedTickets();
+      
+      // Filtrer uniquement les tickets de cette ligne spécifique
+      const lineTickets = allTickets.filter(ticket => ticket.line_id === lineId);
+      
+      console.log(`[SotralUnifiedService] ${lineTickets.length} tickets disponibles trouvés pour la ligne ${lineId} sur ${allTickets.length} tickets totaux`);
+
+      // Afficher les détails de chaque ticket pour debug
+      if (lineTickets.length > 0) {
+        console.log('[SotralUnifiedService] Détails des tickets:');
+        lineTickets.forEach(t => {
+          console.log(`  - Ticket ${t.ticket_code}: ${t.price_paid_fcfa} FCFA, status: ${t.status}, trips: ${t.trips_remaining}`);
+        });
+      }
+
+      return lineTickets;
+    } catch (error: any) {
+      console.error('[SotralUnifiedService] Erreur récupération tickets ligne:', error);
       return [];
+    }
+  }
+
+  /**
+   * Récupérer un ticket spécifique par son ID
+   */
+  async getTicketById(ticketId: number): Promise<UnifiedSotralTicket | null> {
+    try {
+      console.log(`[SotralUnifiedService] Récupération du ticket ID ${ticketId}...`);
+
+      // Récupérer tous les tickets générés
+      const allTickets = await this.getGeneratedTickets();
+
+      // Trouver le ticket spécifique
+      const ticket = allTickets.find(ticket => ticket.id === ticketId);
+
+      if (ticket) {
+        console.log(`[SotralUnifiedService] Ticket trouvé: ${ticket.ticket_code} - ${ticket.price_paid_fcfa} FCFA`);
+        return ticket;
+      } else {
+        console.warn(`[SotralUnifiedService] Ticket ID ${ticketId} non trouvé`);
+        return null;
+      }
+    } catch (error: any) {
+      console.error('[SotralUnifiedService] Erreur récupération ticket par ID:', error);
+      return null;
     }
   }
   private async enrichLinesWithPricing(lines: UnifiedSotralLine[]): Promise<UnifiedSotralLine[]> {
     try {
       // Récupérer tous les tickets générés pour calculer les prix
       const tickets = await this.getGeneratedTickets();
+      console.log(`[SotralUnifiedService] ${tickets.length} tickets générés récupérés pour enrichissement`);
 
       // Récupérer les types de tickets pour les prix par défaut
       const ticketTypesResponse: ApiResponse<SotralTicketType[]> = await this.apiClient.get('/sotral/ticket-types');
       const ticketTypes = ticketTypesResponse.success ? ticketTypesResponse.data || [] : [];
+      console.log(`[SotralUnifiedService] ${ticketTypes.length} types de tickets récupérés`);
 
       return lines.map(line => {
         // Chercher les tickets pour cette ligne
         const lineTickets = tickets.filter(ticket => ticket.line_id === line.id);
         const ticketCount = lineTickets.length;
+        console.log(`[SotralUnifiedService] Ligne ${line.id} (${line.name}): ${ticketCount} tickets trouvés`);
 
         // Calculer le prix moyen ou prendre le premier ticket disponible
         let price = undefined;
@@ -201,12 +232,20 @@ class SotralUnifiedService {
           const availableTickets = lineTickets.filter(t => t.status === 'active');
           if (availableTickets.length > 0) {
             price = Math.min(...availableTickets.map(t => t.price_paid_fcfa));
+            console.log(`[SotralUnifiedService] Ligne ${line.id}: prix calculé ${price} FCFA depuis ${availableTickets.length} tickets actifs`);
+          } else {
+            console.log(`[SotralUnifiedService] Ligne ${line.id}: ${lineTickets.length} tickets trouvés mais aucun actif`);
           }
         } else {
-          // Prix par défaut basé sur le type SIMPLE
+          // Prix par défaut basé sur le type SIMPLE ou prix fixe par défaut
           const simpleType = ticketTypes.find((t: SotralTicketType) => t.code === 'SIMPLE');
-          if (simpleType) {
+          if (simpleType && simpleType.price_fcfa) {
             price = simpleType.price_fcfa;
+            console.log(`[SotralUnifiedService] Ligne ${line.id}: prix par défaut depuis type SIMPLE: ${price} FCFA`);
+          } else {
+            // Prix par défaut fixe si aucun type de ticket n'est disponible
+            price = 500; // Prix par défaut de 500 FCFA
+            console.log(`[SotralUnifiedService] Ligne ${line.id}: prix fixe par défaut: ${price} FCFA`);
           }
         }
 
@@ -218,7 +257,12 @@ class SotralUnifiedService {
       });
     } catch (error) {
       console.error('[SotralUnifiedService] Erreur enrichissement lignes:', error);
-      return lines; // Retourner les lignes sans enrichissement en cas d'erreur
+      // En cas d'erreur, définir un prix par défaut pour toutes les lignes
+      return lines.map(line => ({
+        ...line,
+        price_fcfa: 500, // Prix par défaut en cas d'erreur
+        ticket_count: 0
+      }));
     }
   }
 
@@ -391,42 +435,38 @@ class SotralUnifiedService {
   }
 
   /**
-   * Vérifier le statut d'un paiement
+   * Attribuer un ticket généré par l'admin à un utilisateur après paiement
    */
-  async checkPaymentStatus(paymentRef: string): Promise<{
-    success: boolean;
-    status: 'pending' | 'completed' | 'failed' | 'cancelled';
-    ticket?: UnifiedSotralTicket;
-    error?: string;
-  }> {
+  async assignTicketToUser(assignData: {
+    ticketId: number;
+    paymentMethod: string;
+    paymentReference: string;
+    phoneNumber?: string;
+  }): Promise<{ success: boolean; ticket?: UnifiedSotralTicket; error?: string }> {
     try {
-      console.log(`[SotralUnifiedService] Vérification statut paiement ${paymentRef}`);
+      console.log(`[SotralUnifiedService] Attribution du ticket ${assignData.ticketId} à l'utilisateur...`);
+      console.log('[SotralUnifiedService] Données:', assignData);
 
-      const response: ApiResponse<{
-        status: 'pending' | 'completed' | 'failed' | 'cancelled';
-        ticket?: UnifiedSotralTicket;
-      }> = await this.apiClient.get(`/sotral/payments/status/${paymentRef}`);
+      const response: ApiResponse<UnifiedSotralTicket> = await this.apiClient.post('/sotral/assign-ticket', assignData);
 
       if (!response.success || !response.data) {
-        console.error('[SotralUnifiedService] Erreur vérification paiement:', response);
+        console.error('[SotralUnifiedService] Erreur attribution ticket:', response);
         return {
           success: false,
-          status: 'failed',
-          error: response.error || 'Erreur lors de la vérification du paiement'
+          error: response.error || 'Erreur lors de l\'attribution du ticket'
         };
       }
 
+      console.log(`[SotralUnifiedService] ✅ Ticket attribué avec succès: ${response.data.ticket_code}`);
       return {
         success: true,
-        status: response.data.status,
-        ticket: response.data.ticket
+        ticket: response.data
       };
     } catch (error: any) {
-      console.error('[SotralUnifiedService] Erreur réseau vérification:', error);
+      console.error('[SotralUnifiedService] Erreur réseau attribution ticket:', error);
       return {
         success: false,
-        status: 'failed',
-        error: error?.message || 'Erreur réseau lors de la vérification'
+        error: error?.message || 'Erreur réseau lors de l\'attribution'
       };
     }
   }

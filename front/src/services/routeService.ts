@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient';
 import type { ApiResponse, Route, SotralLine } from '../types/api';
+import { sotralUnifiedService, type UnifiedSotralLine } from './sotralUnifiedService';
 
 export interface PopularRoute {
   id: string;
@@ -24,13 +25,14 @@ export class RouteService {
   // Récupérer les lignes populaires (transformés pour l'affichage)
   static async getPopularRoutes(limit: number = 10): Promise<PopularRoute[]> {
     try {
-      const lines = await this.getAllRoutes();
+      // Utiliser le service unifié pour récupérer les lignes avec les prix enrichis
+      const enrichedLines = await sotralUnifiedService.getLines();
 
       // Transformer les données backend en format d'affichage
-      return lines
-        .filter(line => line.is_active)
+      return enrichedLines
+        .filter((line: UnifiedSotralLine) => line.is_active)
         .slice(0, limit)
-        .map(line => this.transformToPopularRoute(line));
+        .map((line: UnifiedSotralLine) => this.transformToPopularRoute(line));
     } catch (error) {
       console.error('Erreur lors de la récupération des lignes populaires:', error);
       // Plus de fallback - utiliser uniquement les données de l'admin via l'API
@@ -48,7 +50,7 @@ export class RouteService {
   }
 
   // Transformer une ligne SOTRAL en PopularRoute pour l'affichage
-  private static transformToPopularRoute(line: SotralLine): PopularRoute {
+  private static transformToPopularRoute(line: UnifiedSotralLine): PopularRoute {
     // Déterminer le type basé sur la catégorie
     let type = 'Bus urbain';
     if (line.category?.name?.toLowerCase().includes('rapide') || line.category?.name?.toLowerCase().includes('express')) {
@@ -58,15 +60,18 @@ export class RouteService {
     }
 
     // Calculer la durée d'affichage basée sur la distance (estimation)
-    const duration = line.distance_km 
+    const duration = line.distance_km
       ? `${Math.round(line.distance_km * 2)} min` // ~30 km/h moyenne
       : '-- min';
+
+    // Utiliser le prix enrichi ou afficher "Prix sur demande"
+    const price = line.price_fcfa ? `${line.price_fcfa} FCFA` : 'Prix sur demande';
 
     return {
       id: line.id.toString(),
       from: line.route_from,
       to: line.route_to,
-      price: '-- FCFA', // Prix déterminé par l'admin lors de la génération des tickets
+      price,
       duration,
       type: `Ligne ${line.line_number}`,
       popularity_score: Math.random() * 100 // Simulation score popularité

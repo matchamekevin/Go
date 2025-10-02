@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { theme } from '../../src/styles/theme';
 import HelpFAB from '../../src/components/HelpFAB';
 import MobilePaymentModal from '../../src/components/MobilePaymentModal';
 import { sotralUnifiedService, UnifiedSotralLine, UnifiedSotralTicket, UnifiedSearchData } from '../../src/services/sotralUnifiedService';
+import { useAutoRefresh } from '../../src/hooks/useAutoRefresh';
 
 export default function SearchTab() {
   // Capturer le paramètre focus envoyé depuis Home
@@ -20,10 +21,9 @@ export default function SearchTab() {
   const [selectedDate, setSelectedDate] = useState('Aujourd\'hui');
   const [passengerCount, setPassengerCount] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResultsState, setSearchResultsState] = useState<any[]>([]);
+  const [allLines, setAllLines] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const requestIdRef = useRef(0);
   const MIN_QUERY_LENGTH = 1; // déclencher dès 1 caractère
 
@@ -39,58 +39,66 @@ export default function SearchTab() {
     setToLocation(temp);
   };
 
-  const handleSearch = async () => {
-    const q = (searchQuery || `${fromLocation} → ${toLocation}`).trim();
-    if (!q) return;
-    await performSearch(q);
+  const handleSearch = () => {
+    // Le filtrage se fait automatiquement via getFilteredLines
+    console.log('[SearchTab] Recherche:', searchQuery);
   };
 
-  // Fonction réutilisable pour effectuer la recherche et gérer l'état
-  const performSearch = React.useCallback(async (q: string) => {
-    const myRequestId = ++requestIdRef.current;
+  // Fonction pour charger toutes les lignes SOTRAL disponibles
+  const loadAllLines = React.useCallback(async (silent = false) => {
     try {
-      setSearchError(null);
-      setSearchLoading(true);
-      // don't clear results immediately to avoid flicker
+      if (!silent) {
+        setSearchError(null);
+        setSearchLoading(true);
+      }
+      console.log('[SearchTab] Chargement de toutes les lignes SOTRAL...');
 
-      const searchData: UnifiedSearchData = await sotralUnifiedService.search(q);
-      // ignore if a newer request started
-      if (myRequestId !== requestIdRef.current) return;
+      const searchData: UnifiedSearchData = await sotralUnifiedService.search('');
       const results = searchData.searchResults;
 
-      // Prioritize items whose 'from', 'to' or 'company' start with the query (prefix-match)
-      const qStart = q.split(/→|-/)[0].trim().toLowerCase();
-      const isPrefix = (it: any) => {
-        if (!qStart) return false;
-        const f = (it.from || '').toString().toLowerCase();
-        const t = (it.to || '').toString().toLowerCase();
-        const c = (it.company || '').toString().toLowerCase();
-        return f.startsWith(qStart) || t.startsWith(qStart) || c.startsWith(qStart);
-      };
-
-      const prefixMatches = results.filter(isPrefix);
-      const otherMatches = results.filter((r) => !isPrefix(r));
-
-      let finalResults: any[] = [...prefixMatches, ...otherMatches];
-
-      // If no API results, try local popularLocations that start with the query
-      if (finalResults.length === 0) {
-        // Plus de données locales hardcodées - utiliser uniquement l'API admin
-        finalResults = [];
-      }
-
-      if (myRequestId === requestIdRef.current) {
-        setSearchResultsState(finalResults);
+      console.log('[SearchTab] Lignes SOTRAL chargées:', results.length);
+      setAllLines(results);
+      
+      // Effacer l'erreur si le chargement réussit
+      if (searchError && !silent) {
+        setSearchError(null);
       }
     } catch (e: any) {
-      // if stale request, ignore
-      if (myRequestId !== requestIdRef.current) return;
-      console.error('[SearchTab] Erreur recherche:', e);
-      setSearchError(e?.message || 'Erreur lors de la recherche');
+      console.error('[SearchTab] Erreur chargement lignes:', e);
+      // N'afficher l'erreur que si ce n'est pas un refresh silencieux
+      if (!silent) {
+        setSearchError(e?.message || 'Erreur lors du chargement');
+        setAllLines([]);
+      }
     } finally {
-      if (myRequestId === requestIdRef.current) setSearchLoading(false);
+      if (!silent) {
+        setSearchLoading(false);
+      }
     }
-  }, [popularLocations]);
+  }, [searchError]);
+
+  // Fonction pour filtrer les lignes localement
+  const getFilteredLines = React.useCallback(() => {
+    const query = searchQuery.trim().toLowerCase();
+    
+    if (!query) {
+      // Pas de recherche, retourner toutes les lignes
+      return allLines;
+    }
+
+    // Filtrer les lignes en fonction de la recherche
+    return allLines.filter((line) => {
+      const from = (line.from || '').toString().toLowerCase();
+      const to = (line.to || '').toString().toLowerCase();
+      const company = (line.company || '').toString().toLowerCase();
+      const type = (line.type || '').toString().toLowerCase();
+      
+      return from.includes(query) || 
+             to.includes(query) || 
+             company.includes(query) ||
+             type.includes(query);
+    });
+  }, [allLines, searchQuery]);
 
   // Focus le champ de recherche si on a reçu focus=true depuis Home
   useEffect(() => {
@@ -104,49 +112,22 @@ export default function SearchTab() {
     }
   }, [focus, focusTs]);
 
-  // Debounced live search: lance la recherche automatiquement quand l'utilisateur tape
-  useEffect(() => {
-    const q = (searchQuery || `${fromLocation} → ${toLocation}`).trim();
-    if (searchQuery.length < MIN_QUERY_LENGTH) {
-      // clear results when too short
-      requestIdRef.current += 1; // cancel any pending
-      setSearchResultsState([]);
-      setSearchError(null);
-      setSearchLoading(false);
-      return;
-    }
-
-    const handle = setTimeout(() => {
-      performSearch(q);
-    }, 300);
-
-    return () => clearTimeout(handle);
-  }, [searchQuery, fromLocation, toLocation, performSearch]);
-
-  const [availableTickets, setAvailableTickets] = useState<UnifiedSotralTicket[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
+  // Calculer les lignes filtrées (se met à jour automatiquement quand searchQuery change)
+  const filteredLines = getFilteredLines();
 
   const [selectedLine, setSelectedLine] = useState<UnifiedSotralLine | null>(null);
   const [lineTickets, setLineTickets] = useState<UnifiedSotralTicket[]>([]);
   const [lineTicketsLoading, setLineTicketsLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'search' | 'line-tickets'>('search');
-
+  
   // État pour le modal de paiement
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [selectedTicketForPayment, setSelectedTicketForPayment] = useState<UnifiedSotralTicket | null>(null);
-
-  // Gérer l'achat d'un ticket
-  const handlePurchaseTicket = (ticket: UnifiedSotralTicket) => {
-    setSelectedTicketForPayment(ticket);
-    setPaymentModalVisible(true);
-  };
 
   // Gérer le succès du paiement
   const handlePaymentSuccess = (purchasedTicket: UnifiedSotralTicket) => {
     console.log('[SearchTab] Paiement réussi pour ticket:', purchasedTicket.ticket_code);
 
-    // Mettre à jour la liste des tickets disponibles (retirer le ticket acheté)
-    setAvailableTickets(prev => prev.filter(t => t.id !== purchasedTicket.id));
+    // Mettre à jour la liste des tickets
     setLineTickets(prev => prev.filter(t => t.id !== purchasedTicket.id));
 
     // Afficher un message de succès
@@ -157,150 +138,31 @@ export default function SearchTab() {
     );
   };
 
-  // Charger les tickets pour une ligne spécifique
-  const loadLineTickets = async (lineId: number) => {
-    try {
-      setLineTicketsLoading(true);
-      console.log(`[SearchTab] Chargement des tickets pour la ligne ${lineId}...`);
-
-      // Filtrer les tickets disponibles pour cette ligne
-      const lineSpecificTickets = availableTickets.filter(ticket => ticket.line_id === lineId);
-      setLineTickets(lineSpecificTickets);
-
-      console.log(`[SearchTab] ${lineSpecificTickets.length} tickets trouvés pour la ligne ${lineId}`);
-    } catch (error) {
-      console.error('[SearchTab] Erreur chargement tickets ligne:', error);
-      setLineTickets([]);
-    } finally {
-      setLineTicketsLoading(false);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    // Recharger les tickets disponibles
-    const loadTickets = async () => {
-      try {
-        console.log('[SearchTab] Rechargement des tickets disponibles...');
-        const tickets = await sotralUnifiedService.getGeneratedTickets();
-        console.log('[SearchTab] Tickets rechargés:', tickets.length);
-        setAvailableTickets(tickets);
-      } catch (error) {
-        console.error('[SearchTab] Erreur rechargement tickets:', error);
-        setAvailableTickets([]);
-      } finally {
-        setRefreshing(false);
-      }
-    };
-    loadTickets();
-  };
-
-  // Charger les tickets depuis l'API
+  // Charger toutes les lignes au démarrage
   useEffect(() => {
-    const loadTickets = async () => {
-      try {
-        setTicketsLoading(true);
-        console.log('[SearchTab] Chargement des tickets disponibles...');
+    loadAllLines();
+  }, [loadAllLines]);
 
-        // Charger les tickets générés par l'admin
-        const tickets = await sotralUnifiedService.getGeneratedTickets();
-        console.log('[SearchTab] Tickets récupérés:', tickets.length);
 
-        setAvailableTickets(tickets);
-      } catch (error) {
-        console.error('[SearchTab] Erreur générale chargement tickets:', error);
-        // Ne pas afficher d'erreur à l'utilisateur, juste logger
-        setAvailableTickets([]);
-      } finally {
-        setTicketsLoading(false);
-      }
-    };
 
-    loadTickets();
-  }, []);
+  // Rafraîchissement automatique des données (en arrière-plan, sans indicateur visuel)
+  useAutoRefresh({
+    refreshInterval: 30000, // Rafraîchir toutes les 30 secondes
+    onRefresh: async () => {
+      console.log('[SearchTab] Rafraîchissement automatique en arrière-plan...');
+      // Mode silencieux : pas d'indicateur de chargement
+      await loadAllLines(true);
+    },
+    enabled: true,
+  });
 
-  const renderAvailableTicket = (ticket: UnifiedSotralTicket) => (
-    <View key={ticket.id} style={styles.ticketCard}>
-      {/* Ticket Header */}
-      <View style={styles.ticketHeader}>
-        <View style={styles.ticketInfo}>
-          <View style={styles.transportBadge}>
-            <Text style={styles.transportBadgeText}>SOTRAL</Text>
-          </View>
-          <Text style={styles.routeText}>
-            {(ticket as any).line_name || `Ligne ${ticket.line_id}`}
-          </Text>
-        </View>
-        <View style={styles.statusBadge}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Disponible</Text>
-        </View>
-      </View>
-      {/* Ticket Body */}
-      <View style={styles.ticketBody}>
-        <View style={styles.ticketDetails}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="pricetag" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Code</Text>
-              <Text style={styles.detailValue}>{ticket.ticket_code}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="refresh" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Trajets</Text>
-              <Text style={styles.detailValue}>{ticket.trips_remaining}</Text>
-            </View>
-          </View>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="cash" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Prix</Text>
-              <Text style={styles.detailValue}>{ticket.price_paid_fcfa} FCFA</Text>
-            </View>
-            {ticket.expires_at && (
-              <View style={styles.detailItem}>
-                <Ionicons name="time" size={16} color={theme.colors.secondary[500]} />
-                <Text style={styles.detailLabel}>Expire</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(ticket.expires_at).toLocaleDateString('fr-FR')}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-        {/* QR Code */}
-        <View style={styles.qrContainer}>
-          <QRCode
-            value={ticket.qr_code}
-            size={100}
-            color={theme.colors.secondary[900]}
-            backgroundColor={theme.colors.white}
-          />
-        </View>
-      </View>
-      {/* Ticket Footer */}
-      <View style={styles.ticketFooter}>
-        <View style={styles.expiryInfo}>
-          <Ionicons name="time-outline" size={16} color={theme.colors.warning[600]} />
-          <Text style={styles.expiryText}>Généré par l'admin</Text>
-        </View>
-        <TouchableOpacity style={styles.showButton} onPress={() => handlePurchaseTicket(ticket)}>
-          <Text style={styles.showButtonText}>Acheter</Text>
-          <Ionicons name="card" size={16} color={theme.colors.primary[600]} />
-        </TouchableOpacity>
-      </View>
-      {/* Ticket perforation */}
-      <View style={styles.perforation}>
-        {Array.from({ length: 15 }).map((_, index) => (
-          <View key={index} style={styles.perforationDot} />
-        ))}
-      </View>
-    </View>
-  );
+
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Rechercher un trajet</Text>
@@ -325,22 +187,30 @@ export default function SearchTab() {
               <Ionicons name="arrow-forward" size={18} color={theme.colors.white} />
             </TouchableOpacity>
           </View>
-          {/* Search results panel */}
-          <View style={styles.searchResultsCard}>
+        </View>
+        {/* Search Results */}
+        <>
+          {/* Popular Locations */}
+          {/* ...existing code... */}
+          {/* Search Results */}
+          {/* ...existing code... */}
+
+          {/* Lignes SOTRAL disponibles */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {searchQuery.trim() ? `Résultats de recherche (${filteredLines.length})` : 'Lignes SOTRAL disponibles'}
+            </Text>
             {searchLoading ? (
               <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Recherche en cours...</Text>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Chargement des lignes...</Text>
               </View>
             ) : searchError ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>Erreur: {searchError}</Text>
               </View>
-            ) : searchResultsState.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Aucun résultat. Essayez une autre requête</Text>
-              </View>
-            ) : (
-              searchResultsState.map((r) => (
+            ) : filteredLines.length > 0 ? (
+              filteredLines.map((r) => (
                 <TouchableOpacity key={r.id} style={styles.resultCard} onPress={() => {
                   // Naviguer vers les détails de la ligne selon le nouveau flux MVC
                   if (r.line) {
@@ -380,66 +250,15 @@ export default function SearchTab() {
                   </View>
                 </TouchableOpacity>
               ))
-            )}
-          </View>
-        </View>
-        {/* Search Results */}
-        {viewMode === 'search' && (
-          <>
-            {/* Popular Locations */}
-            {/* ...existing code... */}
-            {/* Search Results */}
-            {/* ...existing code... */}
-
-            {/* Tickets disponibles (générés par admin) */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Billets disponibles SOTRAL</Text>
-              {ticketsLoading ? (
-                <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>Chargement des tickets disponibles...</Text>
-                </View>
-              ) : availableTickets.length > 0 ? (
-                availableTickets.map(renderAvailableTicket)
-              ) : (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
-                  <Text style={styles.emptyText}>Aucun ticket disponible</Text>
-                  <Text style={styles.emptySubtext}>Les tickets générés par l'admin apparaîtront ici</Text>
-                </View>
-              )}
-            </View>
-          </>
-        )}
-
-        {/* Line Tickets View */}
-        {viewMode === 'line-tickets' && selectedLine && (
-          <View style={styles.section}>
-            <View style={styles.lineHeader}>
-              <TouchableOpacity onPress={() => setViewMode('search')} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={20} color={theme.colors.primary[600]} />
-                <Text style={styles.backButtonText}>Retour</Text>
-              </TouchableOpacity>
-              <View style={styles.lineInfo}>
-                <Text style={styles.lineTitle}>{selectedLine.name}</Text>
-                <Text style={styles.lineSubtitle}>Ligne {selectedLine.line_number}</Text>
-              </View>
-            </View>
-
-            {lineTicketsLoading ? (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>Chargement des tickets...</Text>
-              </View>
-            ) : lineTickets.length > 0 ? (
-              lineTickets.map(renderAvailableTicket)
             ) : (
               <View style={styles.emptyContainer}>
-                <Ionicons name="ticket" size={48} color={theme.colors.secondary[300]} />
-                <Text style={styles.emptyText}>Aucun ticket disponible</Text>
-                <Text style={styles.emptySubtext}>pour cette ligne actuellement</Text>
+                <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
+                <Text style={styles.emptyText}>Aucune ligne disponible</Text>
+                <Text style={styles.emptySubtext}>Les lignes SOTRAL apparaîtront ici</Text>
               </View>
             )}
           </View>
-        )}
+        </>
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
@@ -481,9 +300,9 @@ const styles = StyleSheet.create({
   },
   searchCard: {
     backgroundColor: theme.colors.white,
-    margin: theme.spacing.lg,
+    margin: theme.spacing.sm,
     borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.sm,
     ...theme.shadows.md,
   },
   locationInputs: {
@@ -600,8 +419,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
   },
   section: {
-    paddingHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
   },
   sectionTitle: {
     fontSize: theme.typography.fontSize.lg,
@@ -744,193 +563,6 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: theme.spacing.xxl,
   },
-  /* Styles importés depuis tickets.tsx pour l'affichage des billets */
-  ticketCard: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.borderRadius.xl,
-    marginBottom: theme.spacing.lg,
-    overflow: 'hidden',
-    position: 'relative',
-    ...theme.shadows.md,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.secondary[100],
-  },
-  ticketInfo: {},
-  transportBadge: {
-    backgroundColor: theme.colors.primary[50],
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
-    borderRadius: theme.borderRadius.md,
-    alignSelf: 'flex-start',
-    marginBottom: theme.spacing.xs,
-  },
-  transportBadgeText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.primary[600],
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  routeText: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.secondary[900],
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.success[500],
-    marginRight: theme.spacing.xs,
-  },
-  statusText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.success[600],
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  ticketBody: {
-    flexDirection: 'row',
-    padding: theme.spacing.md,
-  },
-  ticketDetails: {
-    flex: 1,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    marginBottom: theme.spacing.md,
-  },
-  detailItem: {
-    flex: 1,
-    marginRight: theme.spacing.md,
-  },
-  detailLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.secondary[500],
-    marginTop: 2,
-    marginLeft: 20,
-  },
-  detailValue: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.secondary[900],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginLeft: 20,
-  },
-  qrContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.secondary[50],
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-  },
-  ticketFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.secondary[100],
-  },
-  expiryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  expiryText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.warning[600],
-    fontWeight: theme.typography.fontWeight.medium,
-    marginLeft: theme.spacing.xs,
-  },
-  showButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.primary[50],
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.lg,
-  },
-  showButtonText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.primary[600],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginRight: theme.spacing.xs,
-  },
-  perforation: {
-    position: 'absolute',
-    top: '50%',
-    left: -5,
-    right: -5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    transform: [{ translateY: -5 }],
-  },
-  perforationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.secondary[50],
-  },
-  historyTicketCard: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    ...theme.shadows.sm,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  historyInfo: {
-    flex: 1,
-  },
-  historyRoute: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.secondary[900],
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  historyType: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.secondary[500],
-    marginTop: 2,
-  },
-  historyStatus: {
-    alignItems: 'flex-end',
-  },
-  historyPrice: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.secondary[900],
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  historyDate: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.secondary[400],
-    marginTop: 2,
-  },
-  usedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: theme.colors.success[50],
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 2,
-    borderRadius: theme.borderRadius.md,
-  },
-  usedText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.success[600],
-    fontWeight: theme.typography.fontWeight.medium,
-    marginLeft: 2,
-  },
   loadingContainer: {
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.xl,
@@ -964,44 +596,8 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   searchResultsCard: {
-    marginTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: 0,
     paddingBottom: theme.spacing.sm,
-  },
-  lineHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: theme.spacing.lg,
-    paddingBottom: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.secondary[200],
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.primary[50],
-    borderRadius: theme.borderRadius.lg,
-    marginRight: theme.spacing.md,
-  },
-  backButtonText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.primary[600],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginLeft: theme.spacing.xs,
-  },
-  lineInfo: {
-    flex: 1,
-  },
-  lineTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    color: theme.colors.secondary[900],
-    fontWeight: theme.typography.fontWeight.bold,
-  },
-  lineSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.secondary[500],
-    marginTop: theme.spacing.xs,
   },
 });

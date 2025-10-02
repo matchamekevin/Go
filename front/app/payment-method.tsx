@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -24,37 +23,28 @@ export default function PaymentMethodScreen() {
   const router = useRouter();
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const paymentMethods = [
-    {
-      id: 'mixx' as PaymentMethod,
-      name: 'Mixx by Afriland First Bank',
-      description: 'Paiement mobile via Mixx',
-      icon: 'phone-portrait',
-      color: '#FF6B35',
-      logo: '🏦',
-    },
-    {
-      id: 'flooz' as PaymentMethod,
-      name: 'Flooz',
-      description: 'Paiement mobile via Flooz',
-      icon: 'phone-portrait',
-      color: '#00AEEF',
-      logo: '💰',
-    },
-  ];
-
-  const handleMethodSelect = (method: PaymentMethod) => {
-    setSelectedMethod(method);
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    // Simuler un rafraîchissement
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+const paymentMethods = [
+  {
+    id: 'mixx',
+    name: 'Mixx by YAS',
+    icon: 'wallet',
+    color: '#1E40AF',
+    logoUrl: 'https://cb2mixx.yas.tg/assets/logo%20Mixx%20by%20yas-pLAT.svg',
+    logo: 'M',
+    description: 'Paiement mobile via Mixx by YAS',
+  },
+  {
+    id: 'flooz',
+    name: 'Flooz',
+    icon: 'cash',
+    color: '#059669',
+    logoUrl: 'https://moov-africa.tg/wp-content/uploads/2020/01/flooz-logo.png',
+    logo: 'F',
+    description: 'Paiement mobile via Flooz',
+  },
+];  const handleMethodSelect = (method: string) => {
+    setSelectedMethod(method as PaymentMethod);
   };
 
   const handleContinue = () => {
@@ -77,7 +67,7 @@ export default function PaymentMethodScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -95,24 +85,17 @@ export default function PaymentMethodScreen() {
         </View>
 
         {/* Instructions */}
-        <View style={styles.instructionCard}>
-          <Ionicons name="information-circle" size={24} color={theme.colors.primary[600]} />
-          <View style={styles.instructionContent}>
-            <Text style={styles.instructionTitle}>Choisissez votre moyen de paiement</Text>
-            <Text style={styles.instructionText}>
-              Sélectionnez l'application mobile de paiement que vous souhaitez utiliser pour effectuer votre achat.
-            </Text>
-          </View>
-        </View>
+        {/* Supprimé selon la demande utilisateur */}
 
         {/* Payment Methods */}
         <View style={styles.methodsContainer}>
-          {paymentMethods.map((method) => (
+          {paymentMethods.map((method, index) => (
             <TouchableOpacity
               key={method.id}
               style={[
                 styles.methodCard,
                 selectedMethod === method.id && styles.selectedMethodCard,
+                index === 0 && styles.firstMethodCard, // Espace supplémentaire pour Mixx by YAS
               ]}
               onPress={() => handleMethodSelect(method.id)}
             >
@@ -149,15 +132,7 @@ export default function PaymentMethodScreen() {
         </View>
 
         {/* Security Notice */}
-        <View style={styles.securityCard}>
-          <Ionicons name="lock-closed" size={20} color={theme.colors.success[600]} />
-          <View style={styles.securityContent}>
-            <Text style={styles.securityTitle}>Paiement 100% sécurisé</Text>
-            <Text style={styles.securityText}>
-              Vos informations de paiement sont chiffrées et ne sont jamais stockées sur nos serveurs.
-            </Text>
-          </View>
-        </View>
+        {/* Supprimé selon la demande utilisateur */}
 
         {/* Continue Button */}
         <View style={styles.actionContainer}>
@@ -227,27 +202,16 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   instructionCard: {
-    backgroundColor: theme.colors.primary[50],
-    margin: theme.spacing.lg,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    // Supprimé
   },
   instructionContent: {
-    flex: 1,
-    marginLeft: theme.spacing.md,
+    // Supprimé
   },
   instructionTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    color: theme.colors.primary[700],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginBottom: theme.spacing.xs,
+    // Supprimé
   },
   instructionText: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.primary[600],
-    lineHeight: 20,
+    // Supprimé
   },
   methodsContainer: {
     paddingHorizontal: theme.spacing.lg,
@@ -260,6 +224,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
     ...theme.shadows.sm,
+  },
+  firstMethodCard: {
+    marginTop: theme.spacing.lg, // Espace supplémentaire en haut pour Mixx by YAS
   },
   selectedMethodCard: {
     borderColor: theme.colors.primary[600],
@@ -321,27 +288,16 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   securityCard: {
-    backgroundColor: theme.colors.success[50],
-    margin: theme.spacing.lg,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    // Supprimé
   },
   securityContent: {
-    flex: 1,
-    marginLeft: theme.spacing.md,
+    // Supprimé
   },
   securityTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    color: theme.colors.success[600],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginBottom: theme.spacing.xs,
+    // Supprimé
   },
   securityText: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.success[600],
-    lineHeight: 20,
+    // Supprimé
   },
   actionContainer: {
     paddingHorizontal: theme.spacing.lg,

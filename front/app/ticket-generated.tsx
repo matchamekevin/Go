@@ -8,6 +8,7 @@ import {
   Alert,
   Share,
   RefreshControl,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -16,6 +17,15 @@ import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../src/styles/theme';
 import { sotralUnifiedService, UnifiedSotralTicket } from '../src/services/sotralUnifiedService';
 
+/**
+ * Écran de ticket généré après paiement réussi
+ * 
+ * IMPORTANT : Cette page est une fin de parcours
+ * - Le retour arrière est BLOQUÉ (navigation via router.replace)
+ * - Le bouton retour physique Android est intercepté
+ * - L'utilisateur doit utiliser "Nouveau ticket" ou "Mes tickets" pour continuer
+ * - Le ticket est déjà attribué à l'utilisateur et dans son historique
+ */
 export default function TicketGeneratedScreen() {
   const {
     lineId,
@@ -42,33 +52,49 @@ export default function TicketGeneratedScreen() {
     generateTicket();
   }, []);
 
+  // Bloquer le bouton retour physique (Android)
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Empêcher le retour arrière - afficher un message informatif
+      Alert.alert(
+        'Paiement terminé',
+        'Votre ticket a été généré avec succès. Le processus de paiement est terminé.\n\nUtilisez "Nouveau ticket" pour effectuer un nouvel achat ou "Voir mes tickets" pour consulter votre historique.',
+        [
+          { text: 'Nouveau ticket', onPress: handleNewPurchase },
+          { text: 'Mes tickets', onPress: handleViewMyTickets },
+          { text: 'Rester ici', style: 'cancel' }
+        ]
+      );
+      return true; // Bloquer le retour
+    });
+
+    return () => backHandler.remove();
+  }, []);
+
   const generateTicket = async () => {
     try {
       setLoading(true);
 
-      // Simuler la génération du ticket après paiement réussi
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log('[TicketGenerated] Attribution du ticket existant à l\'utilisateur...');
+      console.log('[TicketGenerated] Paramètres:', { lineId, ticketId, quantity, paymentMethod, phoneNumber, transactionId });
 
-      // Créer un ticket fictif pour la démonstration
-      const mockTicket: UnifiedSotralTicket = {
-        id: parseInt(ticketId || '1'),
-        ticket_code: `SOTRAL_${Date.now()}`,
-        qr_code: `QR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        user_id: 1,
-        ticket_type_id: 1,
-        line_id: parseInt(lineId || '1'),
-        price_paid_fcfa: 500,
-        status: 'active',
-        purchased_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
-        trips_remaining: 1,
-        payment_method: paymentMethod as 'mixx' | 'flooz',
-        payment_reference: transactionId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // Attribuer le ticket généré par l'admin à l'utilisateur
+      const assignResult = await sotralUnifiedService.assignTicketToUser({
+        ticketId: parseInt(ticketId || '0'),
+        paymentMethod: paymentMethod,
+        paymentReference: transactionId,
+        phoneNumber: phoneNumber
+      });
 
-      setGeneratedTicket(mockTicket);
+      if (!assignResult.success || !assignResult.ticket) {
+        console.error('[TicketGenerated] Erreur attribution ticket:', assignResult.error);
+        throw new Error(assignResult.error || 'Impossible d\'attribuer le ticket');
+      }
+
+      console.log('[TicketGenerated] ✅ Ticket attribué avec succès:', assignResult.ticket.ticket_code);
+
+      // Le ticket est maintenant dans l'historique de l'utilisateur
+      setGeneratedTicket(assignResult.ticket);
     } catch (error) {
       console.error('Erreur génération ticket:', error);
       Alert.alert('Erreur', 'Impossible de générer le ticket');
@@ -102,12 +128,12 @@ export default function TicketGeneratedScreen() {
   };
 
   const handleViewMyTickets = () => {
-    // Naviguer vers l'écran des tickets de l'utilisateur
+    // Naviguer vers l'écran des tickets de l'utilisateur (replace pour vider la pile)
     router.replace('/(tabs)/history');
   };
 
   const handleNewPurchase = () => {
-    // Retourner à la recherche pour un nouvel achat
+    // Retourner à la recherche pour un nouvel achat (replace pour vider la pile)
     router.replace('/(tabs)/search');
   };
 
@@ -142,15 +168,15 @@ export default function TicketGeneratedScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        {/* Success Header */}
-        <View style={styles.successHeader}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={48} color={theme.colors.success[500]} />
-          </View>
-          <Text style={styles.successTitle}>Paiement réussi !</Text>
-          <Text style={styles.successSubtitle}>Votre ticket a été généré</Text>
-        </View>
+      <View style={styles.overlay}>
+        <View style={styles.popup}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Success Header */}
+            <View style={styles.successHeader}>
+              <Ionicons name="checkmark-circle" size={64} color={theme.colors.success[500]} />
+              <Text style={styles.successTitle}>Paiement réussi !</Text>
+              <Text style={styles.successSubtitle}>Votre ticket est prêt</Text>
+            </View>
 
         {/* Ticket Card */}
         <View style={styles.ticketCard}>
@@ -245,50 +271,44 @@ export default function TicketGeneratedScreen() {
           </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionContainer}>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleViewMyTickets}
-          >
-            <Ionicons name="ticket" size={20} color={theme.colors.white} />
-            <Text style={styles.primaryButtonText}>Voir mes tickets</Text>
-          </TouchableOpacity>
+            {/* Action Buttons - Seulement Partager et Télécharger */}
+            <View style={styles.popupActions}>
+              <TouchableOpacity
+                style={styles.popupButton}
+                onPress={handleShareTicket}
+              >
+                <Ionicons name="share-social" size={24} color={theme.colors.white} />
+                <Text style={styles.popupButtonText}>Partager</Text>
+              </TouchableOpacity>
 
-          <View style={styles.secondaryButtons}>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleShareTicket}
-            >
-              <Ionicons name="share" size={18} color={theme.colors.primary[600]} />
-              <Text style={styles.secondaryButtonText}>Partager</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.popupButton, styles.downloadButton]}
+                onPress={() => Alert.alert('Téléchargement', 'Fonctionnalité bientôt disponible')}
+              >
+                <Ionicons name="download" size={24} color={theme.colors.white} />
+                <Text style={styles.popupButtonText}>Télécharger</Text>
+              </TouchableOpacity>
+            </View>
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={handleNewPurchase}
-            >
-              <Ionicons name="add" size={18} color={theme.colors.primary[600]} />
-              <Text style={styles.secondaryButtonText}>Nouveau ticket</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Fermer et Aller à l'historique */}
+            <View style={styles.popupFooter}>
+              <TouchableOpacity
+                style={styles.footerButton}
+                onPress={handleViewMyTickets}
+              >
+                <Text style={styles.footerButtonText}>Voir mes tickets</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.footerButton}
+                onPress={handleNewPurchase}
+              >
+                <Text style={styles.footerButtonText}>Nouveau ticket</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
-
-        {/* Instructions */}
-        <View style={styles.instructionCard}>
-          <Ionicons name="information-circle" size={20} color={theme.colors.primary[600]} />
-          <View style={styles.instructionContent}>
-            <Text style={styles.instructionTitle}>Comment utiliser votre ticket</Text>
-            <Text style={styles.instructionText}>
-              • Présentez ce QR code aux contrôleurs SOTRAL{'\n'}
-              • Le ticket est valable pour {generatedTicket.trips_remaining} trajet{generatedTicket.trips_remaining > 1 ? 's' : ''}{'\n'}
-              • Ne partagez pas ce code avec des tiers
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -296,7 +316,21 @@ export default function TicketGeneratedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.secondary[50],
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Fond semi-transparent
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+  },
+  popup: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.xl,
+    maxWidth: 450,
+    width: '100%',
+    maxHeight: '90%',
+    ...theme.shadows.lg,
   },
   centerContainer: {
     flex: 1,
@@ -548,5 +582,49 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: theme.spacing.xxl,
+  },
+  popupActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
+  },
+  popupButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary[600],
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    marginHorizontal: theme.spacing.xs,
+  },
+  downloadButton: {
+    backgroundColor: theme.colors.secondary[600],
+  },
+  popupButtonText: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.white,
+    fontWeight: theme.typography.fontWeight.semibold,
+    marginLeft: theme.spacing.sm,
+  },
+  popupFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.secondary[100],
+  },
+  footerButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+  },
+  footerButtonText: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.medium,
   },
 });

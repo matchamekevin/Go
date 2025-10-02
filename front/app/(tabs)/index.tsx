@@ -65,9 +65,11 @@ export default function HomeTab() {
               <Text style={styles.greetingText}>Bonjour</Text>
               <Text style={styles.userName}>{user?.name || 'Utilisateur'}</Text>
             </View>
-            <TouchableOpacity style={styles.notificationButton}>
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => router.push('/map')}
+            >
               <Ionicons name="bus" size={24} color={theme.colors.white} />
-              <View style={styles.notificationBadge} />
             </TouchableOpacity>
           </View>
           
@@ -145,40 +147,27 @@ export default function HomeTab() {
         {/* Modal Trajets populaires - Design moderne */}
         <Modal
           visible={isVoirToutOpen}
-          animationType="fade"
-          transparent={true}
+          animationType="slide"
+          presentationStyle="pageSheet"
           onRequestClose={() => setVoirToutOpen(false)}
         >
-          <View style={modalStyles.overlay}>
-            <View style={modalStyles.modalContainer}>
-              {/* Header avec dégradé */}
+          <SafeAreaView style={modalStyles.modalContainer}>
+            <ScrollView showsVerticalScrollIndicator={false}>
               <View style={modalStyles.modalHeader}>
-                <View style={modalStyles.headerContent}>
-                  <View style={modalStyles.headerIcon}>
-                    <Ionicons name="trending-up" size={24} color={theme.colors.white} />
-                  </View>
-                  <View style={modalStyles.headerText}>
-                    <Text style={modalStyles.modalTitle}>Trajets populaires</Text>
-                    <Text style={modalStyles.modalSubtitle}>10 destinations les plus demandées</Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  onPress={() => setVoirToutOpen(false)} 
-                  style={modalStyles.closeButton}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="close" size={24} color={theme.colors.white} />
+                <TouchableOpacity onPress={() => setVoirToutOpen(false)} style={modalStyles.backButton}>
+                  <Ionicons name="close" size={24} color={theme.colors.primary[600]} />
+                  <Text style={modalStyles.backButtonText}>Fermer</Text>
                 </TouchableOpacity>
+                <View style={modalStyles.lineInfo}>
+                  <Text style={modalStyles.modalTitle}>Trajets populaires</Text>
+                  <Text style={modalStyles.modalSubtitle}>10 destinations les plus demandées</Text>
+                </View>
               </View>
 
               {/* Liste avec scroll */}
               {/* Modal list */}
 
-              <ScrollView 
-                showsVerticalScrollIndicator={false} 
-                style={modalStyles.scrollContainer}
-                contentContainerStyle={modalStyles.scrollContent}
-              >
+              <View style={modalStyles.scrollContent}>
                 {loading ? (
                   <View style={modalStyles.emptyState}>
                     <Text style={modalStyles.emptyText}>Chargement des trajets...</Text>
@@ -247,14 +236,14 @@ export default function HomeTab() {
                     <Text style={modalStyles.emptyText}>Aucun trajet disponible pour le moment</Text>
                   </View>
                 )}
-              </ScrollView>
+              </View>
               
               {/* Footer avec action */}
               <View style={modalStyles.modalFooter}>
                 <Text style={modalStyles.footerText}>Appuyez sur un trajet pour commencer votre recherche</Text>
               </View>
-            </View>
-          </View>
+            </ScrollView>
+          </SafeAreaView>
         </Modal>
 
   {/* Section activité récente supprimée */}
@@ -299,15 +288,6 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    backgroundColor: theme.colors.error[500],
-    borderRadius: theme.borderRadius.full,
   },
   walletCard: {
     backgroundColor: theme.colors.white,
@@ -524,85 +504,60 @@ const styles = StyleSheet.create({
 });
 
 const modalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  // debug styles were removed per user request
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  headerText: {
-    flex: 1,
-  },
   modalContainer: {
-    width: '100%',
-    maxWidth: 720,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.primary[600],
+    flex: 1,
+    backgroundColor: theme.colors.secondary[50],
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.primary[600],
+    padding: theme.spacing.xl,
+    backgroundColor: theme.colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.secondary[200],
+    ...theme.shadows.sm,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.primary[50],
+    borderRadius: theme.borderRadius.lg,
+    marginRight: theme.spacing.md,
+  },
+  backButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.semibold,
+    marginLeft: theme.spacing.xs,
+  },
+  lineInfo: {
+    flex: 1,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.white,
-    marginBottom: 2,
+    fontSize: theme.typography.fontSize.lg,
+    color: theme.colors.secondary[900],
+    fontWeight: theme.typography.fontWeight.bold,
   },
   modalSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  scrollContainer: {
-    // Use a fixed maxHeight so the ScrollView always has visible space inside the modal
-    maxHeight: '65%',
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.secondary[500],
+    marginTop: theme.spacing.xs,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: theme.spacing.lg,
   },
   routeItem: {
     backgroundColor: theme.colors.white,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.secondary[100],
-    overflow: 'hidden',
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     ...theme.shadows.sm,
   },
   routeContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
   },
   transportIconContainer: {
     width: 40,
@@ -611,10 +566,7 @@ const modalStyles = StyleSheet.create({
     backgroundColor: theme.colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  routeDetails: {
-    flex: 1,
+    marginRight: theme.spacing.md,
   },
   routeDetailsModal: {
     flex: 1,
@@ -623,138 +575,74 @@ const modalStyles = StyleSheet.create({
   routePath: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: theme.spacing.xs,
   },
   routeFromTo: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: theme.typography.fontSize.base,
     color: theme.colors.secondary[900],
+    fontWeight: theme.typography.fontWeight.semibold,
     flexShrink: 1,
-    maxWidth: '70%',
+    maxWidth: '40%',
   },
   arrowContainer: {
-    marginHorizontal: 8,
-    paddingHorizontal: 4,
-  },
-  routeInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    marginHorizontal: theme.spacing.sm,
   },
   routeInfoModal: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   typeTag: {
     backgroundColor: theme.colors.primary[50],
-    borderRadius: 12,
-    paddingHorizontal: 8,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: 2,
   },
   typeText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: theme.typography.fontSize.xs,
     color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.medium,
   },
   durationText: {
-    fontSize: 12,
+    fontSize: theme.typography.fontSize.sm,
     color: theme.colors.secondary[500],
-    fontWeight: '500',
   },
   priceContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
   },
   priceText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: theme.typography.fontSize.base,
     color: theme.colors.primary[600],
-    marginBottom: 2,
+    fontWeight: theme.typography.fontWeight.bold,
+    marginBottom: theme.spacing.xs,
   },
   chevronContainer: {
     opacity: 0.6,
   },
   modalFooter: {
-    backgroundColor: theme.colors.secondary[50],
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.secondary[100],
+    borderTopColor: theme.colors.secondary[200],
   },
   footerText: {
-    fontSize: 12,
+    fontSize: theme.typography.fontSize.sm,
     color: theme.colors.secondary[500],
     textAlign: 'center',
     fontStyle: 'italic',
   },
   retryButton: {
-    marginTop: 12,
+    marginTop: theme.spacing.md,
     backgroundColor: theme.colors.primary[600],
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.lg,
+    alignSelf: 'center',
   },
   retryText: {
     color: theme.colors.white,
     fontWeight: theme.typography.fontWeight.semibold,
-  },
-  // debug styles removed
-  // Styles legacy pour compatibilité
-  card: {
-    width: '100%',
-    maxWidth: 700,
-    maxHeight: '80%',
-    backgroundColor: theme.colors.white,
-    borderRadius: 16,
-    padding: 16,
-  },
-  cardLarge: {
-    width: '100%',
-    maxWidth: 740,
-    maxHeight: '85%',
-    backgroundColor: theme.colors.white,
-    borderRadius: 16,
-    padding: 12,
-    overflow: 'hidden',
-  },
-  list: {
-    marginTop: 8,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.secondary[100],
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  routeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 6,
-    backgroundColor: theme.colors.primary[600],
-    marginRight: 12,
-  },
-  itemTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.secondary[900],
-  },
-  itemMeta: {
-    fontSize: 12,
-    color: theme.colors.secondary[500],
-    marginTop: 2,
-  },
-  itemPrice: {
-    fontSize: 13,
-    color: theme.colors.primary[600],
-    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',
@@ -762,7 +650,7 @@ const modalStyles = StyleSheet.create({
     padding: theme.spacing.xl,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: theme.typography.fontSize.base,
     color: theme.colors.secondary[500],
     textAlign: 'center',
     fontStyle: 'italic',

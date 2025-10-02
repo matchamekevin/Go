@@ -47,14 +47,36 @@ export default function PaymentCodeScreen() {
 
   const loadTicketDetails = async () => {
     try {
-      // Pour l'instant, on simule le chargement des détails
-      // Dans un vrai scénario, nous aurions une API pour récupérer les détails du ticket
-      setTicketDetails({
-        price: 500, // Prix par défaut
-        code: 'TICKET-001',
-      });
+      if (!ticketId) {
+        console.warn('Aucun ticketId fourni');
+        return;
+      }
+
+      console.log('Chargement des détails pour le ticket ID:', ticketId);
+
+      // Récupérer les détails du ticket spécifique depuis l'API
+      const ticket = await sotralUnifiedService.getTicketById(parseInt(ticketId));
+
+      if (ticket) {
+        setTicketDetails({
+          price: ticket.price_paid_fcfa,
+          code: ticket.ticket_code,
+        });
+        console.log(`Prix du ticket chargé: ${ticket.price_paid_fcfa} FCFA`);
+      } else {
+        console.warn('Ticket non trouvé, utilisation du prix par défaut');
+        setTicketDetails({
+          price: 500, // Prix par défaut si ticket non trouvé
+          code: 'TICKET-UNKNOWN',
+        });
+      }
     } catch (error) {
       console.error('Erreur chargement ticket:', error);
+      // En cas d'erreur, utiliser un prix par défaut
+      setTicketDetails({
+        price: 500,
+        code: 'TICKET-ERROR',
+      });
     }
   };
 
@@ -72,13 +94,13 @@ export default function PaymentCodeScreen() {
     // Ne garder que les chiffres
     const cleaned = text.replace(/\D/g, '');
 
-    // Formatter pour le Cameroun (ex: 6XX XXX XXX)
-    if (cleaned.length <= 3) {
+    // Formatter pour le Togo (ex: 9X XXX XXX)
+    if (cleaned.length <= 2) {
       return cleaned;
-    } else if (cleaned.length <= 6) {
-      return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+    } else if (cleaned.length <= 5) {
+      return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
     } else {
-      return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6, 9)}`;
+      return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 8)}`;
     }
   };
 
@@ -89,7 +111,7 @@ export default function PaymentCodeScreen() {
 
   const validatePhoneNumber = (phone: string) => {
     const digitsOnly = phone.replace(/\s/g, '');
-    return digitsOnly.length === 9 && (digitsOnly.startsWith('6') || digitsOnly.startsWith('2'));
+    return digitsOnly.length === 8 && (digitsOnly.startsWith('9') || digitsOnly.startsWith('7') || digitsOnly.startsWith('2'));
   };
 
   const handlePayment = async () => {
@@ -98,7 +120,7 @@ export default function PaymentCodeScreen() {
     if (!validatePhoneNumber(phoneNumber)) {
       Alert.alert(
         'Numéro invalide',
-        'Veuillez saisir un numéro de téléphone camerounais valide (ex: 6XX XXX XXX)'
+        'Veuillez saisir un numéro de téléphone togolais valide (ex: 9X XXX XXX)'
       );
       return;
     }
@@ -123,8 +145,8 @@ export default function PaymentCodeScreen() {
       const success = Math.random() > 0.2; // 80% de succès
 
       if (success) {
-        // Naviguer vers l'écran de ticket généré
-        router.push({
+        // Naviguer vers l'écran de ticket généré (replace pour empêcher retour arrière)
+        router.replace({
           pathname: '/ticket-generated',
           params: {
             lineId,
@@ -216,20 +238,21 @@ export default function PaymentCodeScreen() {
           <Text style={styles.inputLabel}>Numéro de téléphone</Text>
           <View style={styles.inputContainer}>
             <View style={styles.countryCode}>
-              <Text style={styles.countryCodeText}>+237</Text>
+              <Text style={styles.countryCodeText}>+228</Text>
             </View>
             <TextInput
               style={styles.phoneInput}
               value={phoneNumber}
               onChangeText={handlePhoneChange}
-              placeholder="6XX XXX XXX"
+              placeholder="9X XXX XXX"
+              placeholderTextColor={theme.colors.secondary[600]}
               keyboardType="phone-pad"
-              maxLength={11} // 3 + 1 + 3 + 1 + 3 = 11 caractères avec espaces
+              maxLength={11} // 2 + 1 + 3 + 1 + 3 = 10 caractères avec espaces
               editable={!isProcessing}
             />
           </View>
           <Text style={styles.inputHelper}>
-            Numéro {methodInfo.name} valide au Cameroun
+            Numéro {methodInfo.name} valide au Togo
           </Text>
         </View>
 
@@ -243,6 +266,7 @@ export default function PaymentCodeScreen() {
               value={paymentCode}
               onChangeText={setPaymentCode}
               placeholder="••••"
+              placeholderTextColor={theme.colors.secondary[600]}
               secureTextEntry
               keyboardType="numeric"
               maxLength={6}
@@ -261,17 +285,6 @@ export default function PaymentCodeScreen() {
           <Text style={styles.amountDetails}>
             {quantity} ticket{parseInt(quantity || '1') > 1 ? 's' : ''} × {ticketDetails?.price || 0} FCFA
           </Text>
-        </View>
-
-        {/* Security Notice */}
-        <View style={styles.securityCard}>
-          <Ionicons name="shield-checkmark" size={20} color={theme.colors.success[600]} />
-          <View style={styles.securityContent}>
-            <Text style={styles.securityTitle}>Transaction sécurisée</Text>
-            <Text style={styles.securityText}>
-              Vos informations sont chiffrées et ne sont pas stockées.
-            </Text>
-          </View>
         </View>
 
         {/* Action Button */}
@@ -446,27 +459,16 @@ const styles = StyleSheet.create({
     color: theme.colors.primary[600],
   },
   securityCard: {
-    backgroundColor: theme.colors.success[50],
-    marginHorizontal: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
-    borderRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    // Supprimé
   },
   securityContent: {
-    flex: 1,
-    marginLeft: theme.spacing.md,
+    // Supprimé
   },
   securityTitle: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.success[600],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginBottom: theme.spacing.xs,
+    // Supprimé
   },
   securityText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.success[600],
+    // Supprimé
   },
   actionContainer: {
     paddingHorizontal: theme.spacing.lg,

@@ -495,6 +495,69 @@ export class SotralRepository {
     }
   }
 
+  /**
+   * Attribuer un ticket généré par l'admin à un utilisateur après paiement
+   */
+  async assignGeneratedTicketToUser(
+    ticketId: number,
+    userId: number | null,
+    paymentDetails: {
+      payment_method: string;
+      payment_reference: string;
+      phone_number?: string;
+    }
+  ): Promise<SotralTicketWithDetails> {
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Vérifier que le ticket existe et n'est pas déjà attribué
+      const checkQuery = `
+        SELECT * FROM sotral_tickets 
+        WHERE id = $1 AND user_id IS NULL AND status = 'active' AND trips_remaining > 0
+      `;
+      const checkResult = await client.query(checkQuery, [ticketId]);
+      
+      if (checkResult.rows.length === 0) {
+        throw new Error('Ticket non disponible ou déjà attribué');
+      }
+
+      // Attribuer le ticket à l'utilisateur
+      const updateQuery = `
+        UPDATE sotral_tickets 
+        SET 
+          user_id = $1,
+          payment_method = $2,
+          payment_reference = $3,
+          purchased_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $4
+        RETURNING *
+      `;
+
+      const values = [
+        userId,
+        paymentDetails.payment_method,
+        paymentDetails.payment_reference,
+        ticketId
+      ];
+
+      await client.query(updateQuery, values);
+
+      await client.query('COMMIT');
+
+      // Retourner le ticket avec les détails
+      return await this.getTicketById(ticketId) as SotralTicketWithDetails;
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   // ==========================================
   // VALIDATION DE TICKETS
   // ==========================================

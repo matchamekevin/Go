@@ -228,6 +228,55 @@ export class SotralController {
   }
 
   /**
+   * POST /api/sotral/assign-ticket
+   * Attribuer un ticket généré par l'admin à un utilisateur après paiement
+   */
+  async assignTicketToUser(req: Request, res: Response): Promise<void> {
+    try {
+      const { ticketId, paymentMethod, paymentReference, phoneNumber } = req.body;
+      
+      if (!ticketId || !paymentMethod || !paymentReference) {
+        res.status(400).json({
+          success: false,
+          error: 'Paramètres manquants: ticketId, paymentMethod, paymentReference requis'
+        });
+        return;
+      }
+
+      const userId = (req as any).user?.id || null;
+
+      const ticket = await sotralRepository.assignGeneratedTicketToUser(
+        parseInt(ticketId),
+        userId,
+        {
+          payment_method: paymentMethod,
+          payment_reference: paymentReference,
+          phone_number: phoneNumber
+        }
+      );
+      
+      // Diffuser l'événement temps réel
+      realtimeService.broadcast('sotral_ticket_assigned', {
+        user_id: userId,
+        ticket_id: ticket.id,
+        line_id: ticket.line_id
+      });
+      
+      res.status(200).json({
+        success: true,
+        data: ticket,
+        message: 'Ticket attribué avec succès'
+      });
+    } catch (error) {
+      console.error('Erreur assignTicketToUser:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur lors de l\'attribution du ticket'
+      });
+    }
+  }
+
+  /**
    * GET /api/sotral/my-tickets
    * Récupérer les tickets de l'utilisateur connecté
    */
