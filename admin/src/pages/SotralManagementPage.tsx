@@ -22,6 +22,7 @@ import ErrorDisplay from '../components/ErrorDisplay';
 import { useSotralLines } from '../hooks/useSotralLines';
 import { useSotralStops } from '../hooks/useSotralStops';
 import { useSotralStats } from '../hooks/useSotralStats';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 
 // Le type SotralStop et LineStats ne sont pas utilisés directement ici;
 // les hooks fournissent déjà les données typées.
@@ -155,6 +156,12 @@ const SotralManagementPage: React.FC = () => {
   const refreshData = async () => {
     await Promise.all([loadLines(), loadStops(), loadStats()]);
   };
+
+  // Rafraîchissement automatique toutes les 30 secondes
+  const { autoRefresh, setAutoRefresh } = useAutoRefresh(refreshData, {
+    interval: 30000, // 30 secondes
+    enabled: true // Activé par défaut
+  });
 
   const [togglingLines, setTogglingLines] = useState<Set<number>>(new Set());
 
@@ -543,10 +550,29 @@ const SotralManagementPage: React.FC = () => {
           </button>
           <button
             onClick={refreshData}
-            className="flex items-center px-6 py-3 bg-green-500 text-white font-semibold rounded-full transition-all duration-200 shadow-lg"
+            className="flex items-center px-6 py-3 bg-green-500 text-white font-semibold rounded-full transition-all duration-200 shadow-lg hover:bg-green-600"
           >
             <RefreshCw className="h-5 w-5 mr-2" />
             Actualiser
+          </button>
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`flex items-center px-4 py-3 font-semibold rounded-full transition-all duration-200 shadow-lg ${
+              autoRefresh 
+                ? 'bg-blue-500 text-white hover:bg-blue-600' 
+                : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+            }`}
+            title={autoRefresh ? 'Rafraîchissement auto activé (30s)' : 'Rafraîchissement auto désactivé'}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin-slow' : ''}`} />
+            <span className="text-sm">
+              Auto {autoRefresh ? 'ON' : 'OFF'}
+            </span>
+            {autoRefresh && (
+              <span className="ml-2 text-xs opacity-75">
+                (30s)
+              </span>
+            )}
           </button>
         </div>
       </div>

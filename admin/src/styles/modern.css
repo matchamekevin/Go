@@ -417,6 +417,10 @@ body {
   animation: spin 1s linear infinite;
 }
 
+.animate-spin-slow {
+  animation: spin 3s linear infinite;
+}
+
 /* États */
 .opacity-0 { opacity: 0; }
 .opacity-50 { opacity: 0.5; }

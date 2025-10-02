@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient';
-import type { ApiResponse, Ticket } from '../types/api';
+import type { ApiResponse } from '../types/api';
+import type { UnifiedSotralTicket } from './sotralUnifiedService';
 import { DEV_CONFIG, devLog, devError } from '../config/devConfig';
 
 export interface UserTicket {
@@ -28,7 +29,7 @@ export interface UserTicketHistory {
 
 export class UserTicketService {
   // Récupérer tous les tickets de l'utilisateur connecté
-  static async getMyTickets(): Promise<Ticket[]> {
+  static async getMyTickets(): Promise<UnifiedSotralTicket[]> {
     // Force fallback en mode debug
     if (DEV_CONFIG.FORCE_FALLBACK) {
       devLog('UserTicketService', 'Mode fallback forcé activé');
@@ -37,11 +38,12 @@ export class UserTicketService {
     
     try {
       devLog('UserTicketService', 'Récupération des tickets utilisateur...');
-      const response = await apiClient.get<ApiResponse<Ticket[]>>('/tickets/my-tickets');
+      const response = await apiClient.get<ApiResponse<UnifiedSotralTicket[]>>('/sotral/my-tickets');
       
       devLog('UserTicketService', 'Réponse API reçue', {
         success: response.success,
-        dataLength: response.data?.length || 0
+        dataLength: response.data?.length || 0,
+        tickets: response.data
       });
       
       if (!response.success) {
@@ -65,7 +67,7 @@ export class UserTicketService {
       const tickets = await this.getMyTickets();
       
       const activeTickets = tickets
-        .filter(ticket => ticket.status === 'unused')
+        .filter(ticket => ticket.status === 'active' && ticket.trips_remaining > 0)
         .map(ticket => this.transformToUserTicket(ticket));
         
       devLog('UserTicketService', `Tickets actifs trouvés: ${activeTickets.length}`);
@@ -82,14 +84,17 @@ export class UserTicketService {
     }
   }
 
-  // Récupérer l'historique des tickets (utilisés ou expirés)
+  // Récupérer l'historique des tickets (TOUS les tickets achetés)
   static async getTicketHistory(): Promise<UserTicketHistory[]> {
     try {
       devLog('UserTicketService', 'Récupération de l\'historique des tickets...');
       const tickets = await this.getMyTickets();
       
+      devLog('UserTicketService', `Tickets récupérés de l'API:`, tickets);
+      
+      // Afficher TOUS les tickets qui ont été payés (ont purchased_at)
       const historyTickets = tickets
-        .filter(ticket => ticket.status === 'used' || ticket.status === 'expired')
+        .filter(ticket => ticket.purchased_at) // Tous les tickets achetés
         .map(ticket => this.transformToUserTicketHistory(ticket))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Tri par date décroissante
         
@@ -97,7 +102,6 @@ export class UserTicketService {
       
       if (historyTickets.length === 0) {
         devLog('UserTicketService', 'Aucun historique trouvé via API');
-        return [];
       }
       
       return historyTickets;
@@ -108,18 +112,17 @@ export class UserTicketService {
   }
 
   // Transformer un ticket backend en UserTicket pour l'affichage
-  private static transformToUserTicket(ticket: Ticket): UserTicket {
-    const route = `${ticket.route_start_point || 'Départ'} → ${ticket.route_end_point || 'Arrivée'}`;
-    const type = this.getTicketTypeDisplay(ticket.product_name || '');
+  private static transformToUserTicket(ticket: UnifiedSotralTicket): UserTicket {
+    const route = ticket.line_name || `Ligne ${ticket.line_id || '?'}`;
+    const type = ticket.ticket_type_name || 'Ticket SOTRAL';
     const date = ticket.purchased_at ? new Date(ticket.purchased_at).toLocaleDateString('fr-FR') : '';
     const time = ticket.purchased_at ? new Date(ticket.purchased_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-    const price = ticket.product_price ? `${ticket.product_price} FCFA` : '-- FCFA';
+    const price = `${ticket.price_paid_fcfa} FCFA`;
 
-    // Calculer l'expiration (exemple: 24h après achat)
+    // Calculer l'expiration basé sur expires_at
     let expiresIn = '';
-    if (ticket.purchased_at) {
-      const purchaseDate = new Date(ticket.purchased_at);
-      const expiryDate = new Date(purchaseDate.getTime() + 24 * 60 * 60 * 1000); // +24h
+    if (ticket.expires_at) {
+      const expiryDate = new Date(ticket.expires_at);
       const now = new Date();
       const timeDiff = expiryDate.getTime() - now.getTime();
       
@@ -130,54 +133,56 @@ export class UserTicketService {
       } else {
         expiresIn = 'Expiré';
       }
+    } else {
+      expiresIn = `${ticket.trips_remaining} trajet(s) restant(s)`;
     }
 
     return {
-      id: ticket.id || `ticket-${Date.now()}`,
+      id: String(ticket.id),
       type,
       route,
       date,
       time,
       price,
       seat: this.generateSeat(),
-      qrCode: ticket.code || `QR_${ticket.id}`,
+      qrCode: ticket.qr_code,
       status: 'valid',
       expiresIn
     };
   }
 
   // Transformer un ticket backend en UserTicketHistory pour l'historique
-  private static transformToUserTicketHistory(ticket: Ticket): UserTicketHistory {
-    const route = `${ticket.route_start_point || 'Départ'} → ${ticket.route_end_point || 'Arrivée'}`;
-    const type = this.getTicketTypeDisplay(ticket.product_name || '');
-    const date = ticket.used_at || ticket.purchased_at ? 
-      new Date(ticket.used_at || ticket.purchased_at!).toLocaleDateString('fr-FR') : '';
-    const time = ticket.used_at || ticket.purchased_at ? 
-      new Date(ticket.used_at || ticket.purchased_at!).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-    const price = ticket.product_price ? `${ticket.product_price} FCFA` : '-- FCFA';
+  private static transformToUserTicketHistory(ticket: UnifiedSotralTicket): UserTicketHistory {
+    const route = ticket.line_name || `Ligne ${ticket.line_id || '?'}`;
+    const type = ticket.ticket_type_name || 'Ticket SOTRAL';
+    const date = ticket.purchased_at ? 
+      new Date(ticket.purchased_at).toLocaleDateString('fr-FR') : '';
+    const time = ticket.purchased_at ? 
+      new Date(ticket.purchased_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const price = `${ticket.price_paid_fcfa} FCFA`;
+
+    // Déterminer le statut basé sur les trajets restants et la date d'expiration
+    let status: 'used' | 'expired' = 'used';
+    if (ticket.status === 'expired') {
+      status = 'expired';
+    } else if (ticket.status === 'used') {
+      status = 'used';
+    } else if (ticket.trips_remaining === 0) {
+      status = 'used';
+    } else if (ticket.expires_at && new Date(ticket.expires_at) < new Date()) {
+      status = 'expired';
+    }
 
     return {
-      id: ticket.id || `history-${Date.now()}`,
+      id: String(ticket.id),
       type,
       route,
       date,
       time,
       price,
       seat: this.generateSeat(),
-      status: ticket.status === 'used' ? 'used' : 'expired'
+      status
     };
-  }
-
-  // Déterminer le type d'affichage basé sur le nom du produit
-  private static getTicketTypeDisplay(productName: string): string {
-    const name = productName.toLowerCase();
-    if (name.includes('rapide') || name.includes('express')) {
-      return 'Bus rapide';
-    } else if (name.includes('métro') || name.includes('metro')) {
-      return 'Métro';
-    } else {
-      return 'Bus urbain';
-    }
   }
 
   // Générer un numéro de siège fictif

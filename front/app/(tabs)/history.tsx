@@ -1,24 +1,54 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  SafeAreaView
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { UserTicketService } from '../../src/services/userTicketService';
+import type { UserTicketHistory } from '../../src/services/userTicketService';
 import { theme } from '../../src/styles/theme';
-import HelpFAB from '../../src/components/HelpFAB';
-import { UserTicketService, type UserTicketHistory } from '../../src/services/userTicketService';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 export default function HistoryTab() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [historyTickets, setHistoryTickets] = useState<UserTicketHistory[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   // Charger l'historique des tickets
   const loadHistoryTickets = async () => {
     try {
       setTicketsLoading(true);
-      const historyData = await UserTicketService.getTicketHistory().catch(() => []);
+      console.log('[History] 🔍 Début du chargement de l\'historique...');
+      console.log('[History] 🔐 État auth:', { isAuthenticated, user: user?.email });
+      
+      if (!isAuthenticated) {
+        console.log('[History] ⚠️ Utilisateur non authentifié - arrêt du chargement');
+        setHistoryTickets([]);
+        return;
+      }
+      
+      const historyData = await UserTicketService.getTicketHistory().catch((err: any) => {
+        console.error('[History] ❌ Erreur catch:', err);
+        return [];
+      });
+      console.log('[History] ✅ Données reçues:', {
+        count: historyData.length,
+        tickets: historyData
+      });
       setHistoryTickets(historyData);
     } catch (error) {
-      console.error('Erreur lors du chargement de l\'historique:', error);
+      console.error('[History] ❌ Erreur lors du chargement de l\'historique:', error);
     } finally {
       setTicketsLoading(false);
       setRefreshing(false);
@@ -26,12 +56,29 @@ export default function HistoryTab() {
   };
 
   useEffect(() => {
-    loadHistoryTickets();
-  }, []);
+    if (!authLoading) {
+      loadHistoryTickets();
+    }
+  }, [authLoading, isAuthenticated]);
 
   const onRefresh = () => {
     setRefreshing(true);
     loadHistoryTickets();
+  };
+
+  const checkAuth = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      const user = await AsyncStorage.getItem('user');
+      console.log('[History] 🔐 Auth Check:', {
+        hasToken: !!token,
+        token: token?.substring(0, 20) + '...',
+        user: user ? JSON.parse(user) : null
+      });
+      setDebugInfo(`Token: ${token ? 'Oui' : 'Non'}\nUser: ${user ? JSON.parse(user).email : 'Aucun'}`);
+    } catch (error) {
+      console.error('[History] Erreur vérification auth:', error);
+    }
   };
 
   const renderHistoryTicket = (ticket: UserTicketHistory) => (
@@ -62,29 +109,75 @@ export default function HistoryTab() {
     </View>
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[theme.colors.primary[600]]}
-            tintColor={theme.colors.primary[600]}
-          />
-        }
-      >
-        {/* Header */}
+  // Écran de connexion requise si non authentifié
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Historique des billets</Text>
           <Text style={styles.headerSubtitle}>Vos voyages passés</Text>
         </View>
+        
+        <View style={styles.authRequiredContainer}>
+          <Ionicons name="lock-closed-outline" size={64} color={theme.colors.primary[600]} />
+          <Text style={styles.authRequiredTitle}>Connexion requise</Text>
+          <Text style={styles.authRequiredText}>
+            Vous devez être connecté pour consulter l'historique de vos achats.
+          </Text>
+          
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => router.push('/login')}
+          >
+            <Ionicons name="log-in-outline" size={20} color={theme.colors.white} />
+            <Text style={styles.loginButtonText}>Se connecter</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.registerButton}
+            onPress={() => router.push('/register')}
+          >
+            <Text style={styles.registerButtonText}>Créer un compte</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.scrollContainer}>
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.colors.primary[600]]}
+          tintColor={theme.colors.primary[600]}
+        />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Historique des billets</Text>
+          <Text style={styles.headerSubtitle}>Vos voyages passés</Text>
+          {user && (
+            <Text style={styles.userInfo}>Connecté : {user.email}</Text>
+          )}
+          {/* Bouton debug temporaire */}
+          <TouchableOpacity 
+            style={styles.debugButton}
+            onPress={checkAuth}
+          >
+            <Text style={styles.debugButtonText}>🔍 Vérifier Auth</Text>
+          </TouchableOpacity>
+          {debugInfo ? (
+            <Text style={styles.debugInfo}>{debugInfo}</Text>
+          ) : null}
+        </View>
 
         {/* Historique des billets */}
         <View style={styles.section}>
-          {ticketsLoading ? (
+          {ticketsLoading || authLoading ? (
             <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary[600]} />
               <Text style={styles.loadingText}>Chargement de l'historique...</Text>
             </View>
           ) : historyTickets.length > 0 ? (
@@ -94,13 +187,18 @@ export default function HistoryTab() {
               <Ionicons name="archive-outline" size={48} color={theme.colors.secondary[300]} />
               <Text style={styles.emptyText}>Aucun historique</Text>
               <Text style={styles.emptySubtext}>Vos voyages passés apparaîtront ici</Text>
+              <Text style={styles.debugText}>
+                Pour diagnostiquer : {'\n'}
+                1. Cliquez sur "Vérifier Auth" ci-dessus{'\n'}
+                2. Regardez les logs console{'\n'}
+                3. Tirez vers le bas pour rafraîchir
+              </Text>
             </View>
           )}
         </View>
 
         <View style={styles.bottomSpacing} />
-      </ScrollView>
-      <HelpFAB />
+      </View>
     </SafeAreaView>
   );
 }
@@ -220,5 +318,90 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: theme.spacing.xxl,
+  },
+  debugButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  debugButtonText: {
+    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  debugInfo: {
+    color: theme.colors.white,
+    fontSize: theme.typography.fontSize.xs,
+    marginTop: theme.spacing.xs,
+    fontFamily: 'monospace',
+  },
+  debugText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.secondary[500],
+    marginTop: theme.spacing.md,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  // Styles pour l'écran de connexion requise
+  authRequiredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.xl,
+  },
+  authRequiredTitle: {
+    fontSize: theme.typography.fontSize['2xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.secondary[900],
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+  },
+  authRequiredText: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.secondary[600],
+    textAlign: 'center',
+    marginBottom: theme.spacing.xl,
+    lineHeight: 22,
+  },
+  loginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary[600],
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    gap: theme.spacing.sm,
+    width: '100%',
+    marginBottom: theme.spacing.md,
+  },
+  loginButtonText: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.white,
+  },
+  registerButton: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.primary[600],
+    width: '100%',
+  },
+  registerButtonText: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.primary[600],
+    textAlign: 'center',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  userInfo: {
+    fontSize: theme.typography.fontSize.sm,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: theme.spacing.xs,
   },
 });

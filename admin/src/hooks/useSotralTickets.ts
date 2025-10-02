@@ -183,7 +183,12 @@ export const useSotralTickets = (initialFilters: TicketFilters = {}): UseSotralT
       const response = await adminSotralService.updateTicketStatus(id, status);
 
       if (response.success && response.data) {
+        // Mettre à jour l'état local immédiatement
         setTickets(prev => prev.map(ticket => ticket.id === id ? response.data! : ticket));
+        
+        // Rafraîchir les données depuis le serveur pour être sûr d'avoir l'état à jour
+        setTimeout(() => loadTickets(), 500);
+        
         return response;
       } else {
         const apiError = handleApiError(response);
@@ -200,7 +205,7 @@ export const useSotralTickets = (initialFilters: TicketFilters = {}): UseSotralT
       setError(networkError);
       return { success: false, error: networkError.message };
     }
-  }, [handleApiError]);
+  }, [handleApiError, loadTickets]);
 
   const deleteTicket = useCallback(async (id: number): Promise<ApiResponse<void>> => {
     try {
@@ -208,6 +213,7 @@ export const useSotralTickets = (initialFilters: TicketFilters = {}): UseSotralT
       const response = await adminSotralService.deleteTicket(id);
 
       if (response.success) {
+        // Mettre à jour l'état local immédiatement
         setTickets(prev => prev.filter(ticket => ticket.id !== id));
         // Update pagination
         if (pagination) {
@@ -217,6 +223,10 @@ export const useSotralTickets = (initialFilters: TicketFilters = {}): UseSotralT
             pages: Math.ceil((prev.total - 1) / prev.limit)
           } : null);
         }
+        
+        // Rafraîchir les données depuis le serveur pour être sûr d'avoir l'état à jour
+        setTimeout(() => loadTickets(), 500);
+        
         return response;
       } else {
         const apiError = handleApiError(response);
@@ -233,7 +243,7 @@ export const useSotralTickets = (initialFilters: TicketFilters = {}): UseSotralT
       setError(networkError);
       return { success: false, error: networkError.message };
     }
-  }, [handleApiError, pagination]);
+  }, [handleApiError, pagination, loadTickets]);
 
   const setFilters = useCallback((newFilters: Partial<TicketFilters>) => {
     setFiltersState(prev => ({ ...prev, ...newFilters, page: 1 })); // Reset to page 1 when filters change

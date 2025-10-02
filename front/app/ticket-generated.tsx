@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
+import { captureRef } from 'react-native-view-shot';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { theme } from '../src/styles/theme';
 import { sotralUnifiedService, UnifiedSotralTicket } from '../src/services/sotralUnifiedService';
+import { useToast } from '../src/contexts/ToastContext';
 
 /**
  * Écran de ticket généré après paiement réussi
@@ -45,8 +49,11 @@ export default function TicketGeneratedScreen() {
   const router = useRouter();
 
   const [generatedTicket, setGeneratedTicket] = useState<UnifiedSotralTicket | null>(null);
+  const [lineDetails, setLineDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const ticketCardRef = useRef<View>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     generateTicket();
@@ -95,6 +102,22 @@ export default function TicketGeneratedScreen() {
 
       // Le ticket est maintenant dans l'historique de l'utilisateur
       setGeneratedTicket(assignResult.ticket);
+      
+      // Récupérer les détails de la ligne pour afficher le trajet complet
+      if (assignResult.ticket?.line_id) {
+        try {
+          const lines = await sotralUnifiedService.getLines();
+          const line = lines.find(l => l.id === assignResult.ticket?.line_id);
+          if (line) {
+            setLineDetails(line);
+          }
+        } catch (error) {
+          console.error('[TicketGenerated] Erreur récupération ligne:', error);
+        }
+      }
+      
+      // Afficher le toast de succès
+      showToast('Paiement réussi ! Votre ticket est prêt', 'success', 3000, 'top');
     } catch (error) {
       console.error('Erreur génération ticket:', error);
       Alert.alert('Erreur', 'Impossible de générer le ticket');
@@ -114,16 +137,97 @@ export default function TicketGeneratedScreen() {
   };
 
   const handleShareTicket = async () => {
-    if (!generatedTicket) return;
+    if (!generatedTicket || !ticketCardRef.current) return;
 
     try {
-      const message = `🎫 Ticket SOTRAL\nCode: ${generatedTicket.ticket_code}\nLigne: ${generatedTicket.line_id}\nPrix: ${generatedTicket.price_paid_fcfa} FCFA\nValable jusqu'au: ${new Date(generatedTicket.expires_at || '').toLocaleDateString('fr-FR')}`;
+      // Attendre que le rendu soit complet
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Capturer le ticket en image avec result: 'tmpfile' pour éviter les coupures
+      const uri = await captureRef(ticketCardRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
 
       await Share.share({
-        message,
+        url: uri,
+        message: `🎫 Ticket SOTRAL - Ligne ${generatedTicket.line_id}`,
       });
     } catch (error) {
       console.error('Erreur partage:', error);
+      showToast('Erreur lors du partage', 'error', 3000, 'top');
+    }
+  };
+
+  const handleDownloadTicket = async () => {
+    if (!generatedTicket || !ticketCardRef.current) return;
+
+    try {
+      // Vérifier d'abord les permissions existantes
+      const { status: existingStatus } = await MediaLibrary.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      
+      // Si pas de permission, la demander
+      if (existingStatus !== 'granted') {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== 'granted') {
+        Alert.alert(
+          'Permission requise',
+          'L\'accès à la galerie est nécessaire pour enregistrer votre ticket. Veuillez autoriser l\'accès dans les paramètres de l\'application.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Attendre que le rendu soit complet
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Capturer le ticket en image avec result: 'tmpfile' pour la qualité complète
+      const uri = await captureRef(ticketCardRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+
+      // Sauvegarder dans la galerie
+      const asset = await MediaLibrary.createAssetAsync(uri);
+      
+      // Essayer de créer/récupérer l'album SOTRAL Tickets
+      try {
+        const album = await MediaLibrary.getAlbumAsync('SOTRAL Tickets');
+        if (album) {
+          await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+        } else {
+          await MediaLibrary.createAlbumAsync('SOTRAL Tickets', asset, false);
+        }
+      } catch (albumError) {
+        // Si erreur avec l'album, le fichier est quand même sauvegardé dans la galerie principale
+        console.log('[TicketGenerated] Image sauvegardée dans la galerie principale');
+      }
+      
+      showToast('Ticket enregistré dans la galerie', 'success', 3000, 'top');
+    } catch (error) {
+      console.error('[TicketGenerated] Erreur téléchargement complète:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      console.error('[TicketGenerated] Message d\'erreur:', errorMessage);
+      
+      if (errorMessage.includes('permission') || errorMessage.includes('denied') || errorMessage.includes('3301')) {
+        Alert.alert(
+          'Permission requise',
+          'Impossible d\'enregistrer le ticket dans la galerie.\n\nVeuillez autoriser l\'accès à la galerie dans les paramètres de votre téléphone :\nParamètres > Applications > GoSOTRAL > Autorisations > Photos',
+          [{ text: 'Compris' }]
+        );
+      } else {
+        Alert.alert(
+          'Erreur',
+          'Impossible d\'enregistrer le ticket. Vous pouvez utiliser le bouton "Partager" pour sauvegarder votre ticket.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
@@ -171,15 +275,9 @@ export default function TicketGeneratedScreen() {
       <View style={styles.overlay}>
         <View style={styles.popup}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Success Header */}
-            <View style={styles.successHeader}>
-              <Ionicons name="checkmark-circle" size={64} color={theme.colors.success[500]} />
-              <Text style={styles.successTitle}>Paiement réussi !</Text>
-              <Text style={styles.successSubtitle}>Votre ticket est prêt</Text>
-            </View>
-
-        {/* Ticket Card */}
-        <View style={styles.ticketCard}>
+        {/* Ticket Card - avec ref pour capture - Wrapper avec backgroundColor pour capture complète */}
+        <View style={styles.captureWrapper}>
+          <View ref={ticketCardRef} style={styles.ticketCard} collapsable={false}>
           {/* Ticket Header */}
           <View style={styles.ticketHeader}>
             <View style={styles.ticketInfo}>
@@ -189,52 +287,66 @@ export default function TicketGeneratedScreen() {
               <Text style={styles.routeText}>
                 Ligne {generatedTicket.line_id}
               </Text>
-            </View>
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Actif</Text>
+              {lineDetails && (
+                <Text style={styles.routeDetails}>
+                  {lineDetails.route_from} → {lineDetails.route_to}
+                </Text>
+              )}
             </View>
           </View>
 
-          {/* Ticket Body */}
-          <View style={styles.ticketBody}>
-            <View style={styles.ticketDetails}>
-              <View style={styles.detailRow}>
-                <View style={styles.detailItem}>
-                  <Ionicons name="pricetag" size={16} color={theme.colors.secondary[500]} />
-                  <Text style={styles.detailLabel}>Code</Text>
-                  <Text style={styles.detailValue}>{generatedTicket.ticket_code}</Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Ionicons name="refresh" size={16} color={theme.colors.secondary[500]} />
-                  <Text style={styles.detailLabel}>Trajets</Text>
-                  <Text style={styles.detailValue}>{generatedTicket.trips_remaining}</Text>
+          {/* QR Code en haut */}
+          <View style={styles.qrSection}>
+            <QRCode
+              value={generatedTicket.qr_code}
+              size={180}
+              color={theme.colors.secondary[900]}
+              backgroundColor={theme.colors.white}
+            />
+          </View>
+
+          {/* Informations du ticket */}
+          <View style={styles.ticketInfoSection}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Ionicons name="pricetag" size={20} color={theme.colors.primary[600]} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Code</Text>
+                  <Text style={styles.infoValue}>{generatedTicket.ticket_code}</Text>
                 </View>
               </View>
-              <View style={styles.detailRow}>
-                <View style={styles.detailItem}>
-                  <Ionicons name="cash" size={16} color={theme.colors.secondary[500]} />
-                  <Text style={styles.detailLabel}>Prix</Text>
-                  <Text style={styles.detailValue}>{generatedTicket.price_paid_fcfa} FCFA</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Ionicons name="refresh" size={20} color={theme.colors.primary[600]} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Trajets restants</Text>
+                  <Text style={styles.infoValue}>{generatedTicket.trips_remaining}</Text>
                 </View>
-                <View style={styles.detailItem}>
-                  <Ionicons name="time" size={16} color={theme.colors.secondary[500]} />
-                  <Text style={styles.detailLabel}>Expire</Text>
-                  <Text style={styles.detailValue}>
+              </View>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Ionicons name="cash" size={20} color={theme.colors.primary[600]} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Prix payé</Text>
+                  <Text style={styles.infoValue}>{generatedTicket.price_paid_fcfa} FCFA</Text>
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Ionicons name="time" size={20} color={theme.colors.primary[600]} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Valable jusqu'au</Text>
+                  <Text style={styles.infoValue}>
                     {new Date(generatedTicket.expires_at || '').toLocaleDateString('fr-FR')}
                   </Text>
                 </View>
               </View>
-            </View>
-
-            {/* QR Code */}
-            <View style={styles.qrContainer}>
-              <QRCode
-                value={generatedTicket.qr_code}
-                size={120}
-                color={theme.colors.secondary[900]}
-                backgroundColor={theme.colors.white}
-              />
             </View>
           </View>
 
@@ -263,11 +375,6 @@ export default function TicketGeneratedScreen() {
             </View>
           </View>
 
-          {/* Ticket perforation */}
-          <View style={styles.perforation}>
-            {Array.from({ length: 15 }).map((_, index) => (
-              <View key={index} style={styles.perforationDot} />
-            ))}
           </View>
         </View>
 
@@ -283,7 +390,7 @@ export default function TicketGeneratedScreen() {
 
               <TouchableOpacity
                 style={[styles.popupButton, styles.downloadButton]}
-                onPress={() => Alert.alert('Téléchargement', 'Fonctionnalité bientôt disponible')}
+                onPress={handleDownloadTicket}
               >
                 <Ionicons name="download" size={24} color={theme.colors.white} />
                 <Text style={styles.popupButtonText}>Télécharger</Text>
@@ -303,7 +410,7 @@ export default function TicketGeneratedScreen() {
                 style={styles.footerButton}
                 onPress={handleNewPurchase}
               >
-                <Text style={styles.footerButtonText}>Nouveau ticket</Text>
+                <Text style={styles.footerButtonText}>Acheter un ticket</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -331,6 +438,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxHeight: '90%',
     ...theme.shadows.lg,
+  },
+  captureWrapper: {
+    backgroundColor: 'transparent',
+    padding: theme.spacing.xs,
   },
   centerContainer: {
     flex: 1,
@@ -368,31 +479,12 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     fontWeight: theme.typography.fontWeight.semibold,
   },
-  successHeader: {
-    backgroundColor: theme.colors.success[50],
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.xl,
-    alignItems: 'center',
-  },
-  successIcon: {
-    marginBottom: theme.spacing.md,
-  },
-  successTitle: {
-    fontSize: theme.typography.fontSize.xl,
-    color: theme.colors.success[600],
-    fontWeight: theme.typography.fontWeight.bold,
-    marginBottom: theme.spacing.xs,
-  },
-  successSubtitle: {
-    fontSize: theme.typography.fontSize.base,
-    color: theme.colors.success[600],
-  },
+
   ticketCard: {
     backgroundColor: theme.colors.white,
     margin: theme.spacing.lg,
     borderRadius: theme.borderRadius.xl,
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: 'visible', // Important pour la capture complète
     ...theme.shadows.md,
   },
   ticketHeader: {
@@ -422,55 +514,43 @@ const styles = StyleSheet.create({
     color: theme.colors.secondary[900],
     fontWeight: theme.typography.fontWeight.semibold,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.success[500],
-    marginRight: theme.spacing.xs,
-  },
-  statusText: {
+  routeDetails: {
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.success[600],
-    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.secondary[600],
+    marginTop: 4,
   },
-  ticketBody: {
-    flexDirection: 'row',
-    padding: theme.spacing.md,
-  },
-  ticketDetails: {
-    flex: 1,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    marginBottom: theme.spacing.md,
-  },
-  detailItem: {
-    flex: 1,
-    marginRight: theme.spacing.md,
-  },
-  detailLabel: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.secondary[500],
-    marginTop: 2,
-    marginLeft: 20,
-  },
-  detailValue: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.secondary[900],
-    fontWeight: theme.typography.fontWeight.semibold,
-    marginLeft: 20,
-  },
-  qrContainer: {
+
+  qrSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.secondary[50],
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
+    backgroundColor: theme.colors.white,
+    paddingVertical: theme.spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.secondary[100],
+  },
+  ticketInfoSection: {
+    padding: theme.spacing.lg,
+  },
+  infoRow: {
+    marginBottom: theme.spacing.md,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoContent: {
+    marginLeft: theme.spacing.md,
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.secondary[600],
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.secondary[900],
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   transactionInfo: {
     backgroundColor: theme.colors.secondary[50],
@@ -498,21 +578,7 @@ const styles = StyleSheet.create({
     color: theme.colors.secondary[900],
     fontWeight: theme.typography.fontWeight.medium,
   },
-  perforation: {
-    position: 'absolute',
-    top: '50%',
-    left: -5,
-    right: -5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    transform: [{ translateY: -5 }],
-  },
-  perforationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.secondary[50],
-  },
+
   actionContainer: {
     paddingHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.lg,

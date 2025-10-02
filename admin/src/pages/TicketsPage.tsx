@@ -204,75 +204,78 @@ const SotralTicketManagementPage: React.FC = () => {
     });
   }, [tickets, ticketFilters]);
 
-  useEffect(() => {
-    // Charger les tickets initialement
-    const loadInitialTickets = async () => {
-      try {
-        const token = localStorage.getItem('admin_token');
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/tickets?limit=1000`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const ticketsData = await response.json();
-          const ticketsArray = ticketsData.data || [];
-          setTickets(ticketsArray);
-          
-          // Calculer les stats des tickets
-          const ticketStats: TicketStats = {
-            total_tickets: ticketsArray.length,
-            total_revenue: ticketsArray.reduce((sum: number, ticket: any) => sum + ticket.price_paid_fcfa, 0),
-            active_tickets: ticketsArray.filter((t: any) => t.status === 'active').length,
-            used_tickets: ticketsArray.filter((t: any) => t.status === 'used').length
-          };
-          setTicketStats(ticketStats);
+  // Fonction de chargement des tickets (réutilisable)
+  const loadTickets = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('admin_token');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/tickets?limit=1000`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (error) {
-        console.error('Erreur lors du chargement des tickets:', error);
+      });
+      
+      if (response.ok) {
+        const ticketsData = await response.json();
+        const ticketsArray = ticketsData.data || [];
+        setTickets(ticketsArray);
+        
+        // Calculer les stats des tickets
+        const ticketStats: TicketStats = {
+          total_tickets: ticketsArray.length,
+          total_revenue: ticketsArray.reduce((sum: number, ticket: any) => sum + ticket.price_paid_fcfa, 0),
+          active_tickets: ticketsArray.filter((t: any) => t.status === 'active').length,
+          used_tickets: ticketsArray.filter((t: any) => t.status === 'used').length
+        };
+        setTicketStats(ticketStats);
+        
+        console.log('✅ Tickets rechargés:', ticketsArray.length);
       }
-    };
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des tickets:', error);
+    }
+  }, []);
 
-    // Charger les types de tickets
-    const loadTicketTypes = async () => {
-      try {
-        const token = localStorage.getItem('admin_token');
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/ticket-types`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const ticketTypesData = await response.json();
-          const ticketTypesArray = ticketTypesData.data || ticketTypesData || [];
-          setTicketTypes(ticketTypesArray);
-        } else {
-          console.warn('Impossible de charger les types de tickets, utilisation des valeurs par défaut');
-          // Valeurs par défaut si l'API ne fonctionne pas
-          setTicketTypes([
-            { id: 1, name: 'Simple', code: 'SIMPLE', price_fcfa: 150, validity_duration_hours: 24, max_trips: 1, is_student_discount: false, is_active: true },
-            { id: 2, name: 'Aller-retour', code: 'ROUND_TRIP', price_fcfa: 250, validity_duration_hours: 48, max_trips: 2, is_student_discount: false, is_active: true },
-            { id: 3, name: 'Étudiant', code: 'STUDENT', price_fcfa: 100, validity_duration_hours: 24, max_trips: 1, is_student_discount: true, is_active: true }
-          ]);
+  // Fonction de chargement des types de tickets (réutilisable)
+  const loadTicketTypes = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('admin_token');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/ticket-types`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (error) {
-        console.error('Erreur lors du chargement des types de tickets:', error);
-        // Valeurs par défaut en cas d'erreur
+      });
+      
+      if (response.ok) {
+        const ticketTypesData = await response.json();
+        const ticketTypesArray = ticketTypesData.data || ticketTypesData || [];
+        setTicketTypes(ticketTypesArray);
+      } else {
+        console.warn('Impossible de charger les types de tickets, utilisation des valeurs par défaut');
+        // Valeurs par défaut si l'API ne fonctionne pas
         setTicketTypes([
           { id: 1, name: 'Simple', code: 'SIMPLE', price_fcfa: 150, validity_duration_hours: 24, max_trips: 1, is_student_discount: false, is_active: true },
           { id: 2, name: 'Aller-retour', code: 'ROUND_TRIP', price_fcfa: 250, validity_duration_hours: 48, max_trips: 2, is_student_discount: false, is_active: true },
           { id: 3, name: 'Étudiant', code: 'STUDENT', price_fcfa: 100, validity_duration_hours: 24, max_trips: 1, is_student_discount: true, is_active: true }
         ]);
       }
-    };
-
-    loadInitialTickets();
-    loadTicketTypes();
+    } catch (error) {
+      console.error('Erreur lors du chargement des types de tickets:', error);
+      // Valeurs par défaut en cas d'erreur
+      setTicketTypes([
+        { id: 1, name: 'Simple', code: 'SIMPLE', price_fcfa: 150, validity_duration_hours: 24, max_trips: 1, is_student_discount: false, is_active: true },
+        { id: 2, name: 'Aller-retour', code: 'ROUND_TRIP', price_fcfa: 250, validity_duration_hours: 48, max_trips: 2, is_student_discount: false, is_active: true },
+        { id: 3, name: 'Étudiant', code: 'STUDENT', price_fcfa: 100, validity_duration_hours: 24, max_trips: 1, is_student_discount: true, is_active: true }
+      ]);
+    }
   }, []);
+
+  useEffect(() => {
+    // Charger les données initialement
+    loadTickets();
+    loadTicketTypes();
+  }, [loadTickets, loadTicketTypes]);
 
   // Génération de tickets pour une ligne
   const generateTicketsForLine = async () => {
@@ -301,7 +304,8 @@ const SotralTicketManagementPage: React.FC = () => {
         const result = await response.json();
         toast.success(result.message);
         setIsTicketGenerationModalOpen(false);
-        // Plus besoin de recharger manuellement, les données sont temps réel
+        // Rafraîchir automatiquement les tickets après génération
+        setTimeout(() => loadTickets(), 500);
       } else {
         const error = await response.json();
         showErrorToast(error.error || 'Erreur lors de la génération des tickets');
@@ -344,7 +348,8 @@ const SotralTicketManagementPage: React.FC = () => {
       if (successful > 0) {
         toast.success(`${successful} générations réussies${failed > 0 ? `, ${failed} échecs` : ''}`);
         setIsBulkGenerationModalOpen(false);
-        // Plus besoin de recharger manuellement, les données sont temps réel
+        // Rafraîchir automatiquement les tickets après génération en masse
+        setTimeout(() => loadTickets(), 500);
       } else {
         showErrorToast('Toutes les générations ont échoué');
       }
@@ -356,6 +361,8 @@ const SotralTicketManagementPage: React.FC = () => {
 
   const refreshData = () => {
     refreshAll();
+    loadTickets();
+    loadTicketTypes();
     toast.success('Données actualisées avec succès');
   };
 
@@ -370,6 +377,10 @@ const SotralTicketManagementPage: React.FC = () => {
         await deleteTicketMutation.mutateAsync(id);
       }
       toast.success(`${ids.length} ticket(s) supprimé(s) avec succès`);
+      // Rafraîchir automatiquement les tickets après suppression
+      setTimeout(() => loadTickets(), 500);
+      // Réinitialiser la sélection
+      setSelectedTicketIds([]);
     } catch (error) {
       console.error('🗑️ Error in deleteTickets:', error);
       showErrorToast('Erreur lors de la suppression des tickets');

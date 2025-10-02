@@ -156,7 +156,12 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       const response = await adminSotralService.createLine(lineData);
 
       if (response.success && response.data) {
+        // Mettre à jour l'état local immédiatement
         setLines(prev => [...prev, response.data!]);
+        
+        // Rafraîchir les données depuis le serveur pour être sûr d'avoir l'état à jour
+        setTimeout(() => loadLines(), 500);
+        
         return response;
       } else {
         const apiError = handleApiError(response);
@@ -173,7 +178,7 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       setError(networkError);
       return { success: false, error: networkError.message };
     }
-  }, [handleApiError]);
+  }, [handleApiError, loadLines]);
 
   const updateLine = useCallback(async (id: number, lineData: Partial<SotralLine>): Promise<ApiResponse<SotralLine>> => {
     try {
@@ -181,7 +186,12 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       const response = await adminSotralService.updateLine(id, lineData);
 
       if (response.success && response.data) {
+        // Mettre à jour l'état local immédiatement
         setLines(prev => prev.map(line => line.id === id ? response.data! : line));
+        
+        // Rafraîchir les données depuis le serveur pour être sûr d'avoir l'état à jour
+        setTimeout(() => loadLines(), 500);
+        
         return response;
       } else {
         const apiError = handleApiError(response);
@@ -198,7 +208,7 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       setError(networkError);
       return { success: false, error: networkError.message };
     }
-  }, [handleApiError]);
+  }, [handleApiError, loadLines]);
 
   const deleteLine = useCallback(async (id: number): Promise<ApiResponse<void>> => {
     try {
@@ -206,7 +216,12 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       const response = await adminSotralService.deleteLine(id);
 
       if (response.success) {
+        // Mettre à jour l'état local immédiatement
         setLines(prev => prev.filter(line => line.id !== id));
+        
+        // Rafraîchir les données depuis le serveur pour être sûr d'avoir l'état à jour
+        setTimeout(() => loadLines(), 500);
+        
         return response;
       } else {
         const apiError = handleApiError(response);
@@ -223,7 +238,7 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       setError(networkError);
       return { success: false, error: networkError.message };
     }
-  }, [handleApiError]);
+  }, [handleApiError, loadLines]);
 
   const toggleLineStatus = useCallback(async (id: number): Promise<ApiResponse<SotralLine>> => {
     try {
@@ -231,7 +246,12 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       const response = await adminSotralService.toggleLineStatus(id);
 
       if (response.success && response.data) {
+        // Mettre à jour l'état local immédiatement
         setLines(prev => prev.map(line => line.id === id ? response.data! : line));
+        
+        // Rafraîchir les données depuis le serveur pour être sûr d'avoir l'état à jour
+        setTimeout(() => loadLines(), 500);
+        
         return response;
       } else {
         const apiError = handleApiError(response);
@@ -248,7 +268,7 @@ export const useSotralLines = (): UseSotralLinesReturn => {
       setError(networkError);
       return { success: false, error: networkError.message };
     }
-  }, [handleApiError]);
+  }, [handleApiError, loadLines]);
 
   const refresh = useCallback(async () => {
     await loadLines();
