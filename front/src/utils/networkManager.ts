@@ -13,16 +13,11 @@ const DEFAULT_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
 class NetworkManager {
   private config: NetworkConfig = {
     endpoints: [
-  // Développement local prioritaire pour les tests
-  'http://localhost:7000',               // ✅ Localhost first for development (priorité 1)
-  'http://127.0.0.1:7000',               // iOS simulator (priorité 2)
-  'http://10.0.2.2:7000',                // Android emulator (priorité 3)
-  'http://192.168.1.184:7000',           // IP réseau local (priorité 4)
-  // Production cloud
-  'https://go-j2rr.onrender.com',        // Render production (priorité 5)
-  // Autres clouds (placeholders / futurs)
-  'https://backend-api-production.up.railway.app',  // Railway (à venir)
-  // Tu peux ajouter d'autres URLs via l'interface Configuration Réseau
+      // Production Render - endpoint principal
+      'https://go-j2rr.onrender.com',
+      // Développement local (seulement si nécessaire)
+      'http://localhost:7000',
+      'http://127.0.0.1:7000',
     ],
     current: null,
     lastChecked: 0,
@@ -101,9 +96,8 @@ class NetworkManager {
         try {
           const startTime = Date.now();
           
-          // Timeout plus court pour les endpoints locaux en développement
-          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1') || 
-                         endpoint.includes('10.0.2.2') || endpoint.includes('192.168.');
+          // Timeout adapté selon le type d'endpoint
+          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
           const timeout = isLocal ? 2000 : (endpoint.startsWith('https://') ? 8000 : 4000);
           
           const controller = new AbortController();
@@ -122,8 +116,7 @@ class NetworkManager {
           }
         } catch (error) {
           // Réduire le log pour les endpoints locaux en production
-          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1') || 
-                         endpoint.includes('10.0.2.2') || endpoint.includes('192.168.');
+          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1');
           if (!isProduction || !isLocal) {
             console.log(`[NetworkManager] ${endpoint} non disponible:`, error instanceof Error ? error.message : error);
           }

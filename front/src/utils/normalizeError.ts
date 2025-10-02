@@ -1,7 +1,19 @@
 // Normalise différentes formes d'erreurs réseau/API pour affichage utilisateur
 export function normalizeErrorMessage(raw: any): string {
   if (!raw) return 'Une erreur est survenue';
-  let msg = typeof raw === 'string' ? raw : (raw.message || raw.error || JSON.stringify(raw));
+  
+  // IMPORTANT: Pour les erreurs Axios, extraire d'abord le message de la réponse API
+  let msg = '';
+  if (raw.response?.data) {
+    // Priorité: error > message > msg
+    msg = raw.response.data.error || raw.response.data.message || raw.response.data.msg || '';
+  }
+  
+  // Si pas de message dans la réponse, prendre le message de l'erreur Axios
+  if (!msg) {
+    msg = typeof raw === 'string' ? raw : (raw.message || raw.error || JSON.stringify(raw));
+  }
+  
   let parsedJson: any = null;
 
   // Retirer préfixes de logs internes
@@ -102,7 +114,7 @@ export function mapAuthErrorToFriendly(msg: string): string {
   const raw = String(msg || '');
   const upper = raw.toUpperCase();
 
-  // Codes d'erreur renvoyés par les services
+  // Codes d'erreur renvoyés par les services - TRAITER EN PREMIER
   if (upper.includes('USER_NOT_FOUND') || upper.includes('USER NOT FOUND') || upper.includes('USER_NOT_FOUND')) {
     return 'Utilisateur introuvable.';
   }
@@ -112,9 +124,17 @@ export function mapAuthErrorToFriendly(msg: string): string {
   if (upper.includes('ACCOUNT_NOT_VERIFIED') || upper.includes('ACCOUNT NOT VERIFIED')) {
     return 'Compte non vérifié. Vérifiez votre email.';
   }
-  if (upper.includes('EMAIL_ALREADY_EXISTS') || upper.includes('EMAIL_ALREADY_EXIST') || upper.includes('EMAIL_ALREADY') ) {
+  if (upper.includes('EMAIL_ALREADY_EXISTS') || upper.includes('EMAIL_ALREADY_EXIST') || upper.includes('EMAIL_ALREADY')) {
     return 'Email déjà utilisé.';
   }
+  if (upper.includes('INVALID_EMAIL')) {
+    return 'Adresse email invalide.';
+  }
+  if (upper.includes('INVALID_PASSWORD')) {
+    return 'Mot de passe invalide.';
+  }
+
+  // Messages textuels - TRAITER ENSUITE
   if (lower.includes('compte non vérifié') || lower.includes('not verified')) {
     return 'Compte non vérifié. Vérifiez votre email.';
   }

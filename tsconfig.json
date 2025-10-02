@@ -10,5 +10,6 @@
     "**/build/**",
     "front/node_modules/**",
     "back/dist/**"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }
