@@ -27,6 +27,12 @@ export function normalizeErrorMessage(raw: any): string {
     } catch {}
   }
 
+  // IMPORTANT: Garder les messages spécifiques avant la transformation générique
+  // Cas spécifique: "Email déjà utilisé" - ne pas transformer en "requête invalide"
+  if (msg.toLowerCase().includes('email déjà') || msg.toLowerCase().includes('already exist')) {
+    return 'Email déjà utilisé.';
+  }
+
   // Cas spécifique: endpoint de vérification OTP -> message explicite
   try {
     const p = parsedJson || (typeof raw === 'object' ? raw : null);

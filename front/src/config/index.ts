@@ -60,7 +60,7 @@ export const getApiBaseUrl = (): string => {
 export const Config = {
   apiBaseUrl: getApiBaseUrl(),
   // Timeout pour les requêtes API : augmenté à 30s pour les réseaux lents
-  apiTimeout: 30000,
+  apiTimeout: 15000, // Réduit de 30s à 15s pour éviter les timeouts trop longs
   
   // Clés de stockage local
   storageKeys: {

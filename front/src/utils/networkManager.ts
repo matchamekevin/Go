@@ -84,13 +84,28 @@ class NetworkManager {
     console.log('[NetworkManager] Recherche du meilleur endpoint...');
 
     try {
+      // En production, prioriser Render pour éviter les tests locaux inutiles
+      const isProduction = __DEV__ === false;
+      let endpointsToTest = [...this.config.endpoints];
+      
+      if (isProduction) {
+        // En production, tester Render en premier
+        const renderEndpoint = 'https://go-j2rr.onrender.com';
+        if (this.config.endpoints.includes(renderEndpoint)) {
+          endpointsToTest = [renderEndpoint, ...this.config.endpoints.filter(e => e !== renderEndpoint)];
+        }
+      }
+
       // Tester les endpoints en parallèle pour la vitesse
-      const tests = this.config.endpoints.map(async (endpoint) => {
+      const tests = endpointsToTest.map(async (endpoint) => {
         try {
           const startTime = Date.now();
           
-          // Créer un controller pour annuler la requête après timeout
-          const timeout = endpoint.startsWith('https://') ? 15000 : 5000; // 15s pour HTTPS, 5s pour HTTP
+          // Timeout plus court pour les endpoints locaux en développement
+          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1') || 
+                         endpoint.includes('10.0.2.2') || endpoint.includes('192.168.');
+          const timeout = isLocal ? 2000 : (endpoint.startsWith('https://') ? 8000 : 4000);
+          
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), timeout);
           
@@ -106,7 +121,12 @@ class NetworkManager {
             return { endpoint, responseTime, success: true };
           }
         } catch (error) {
-          console.log(`[NetworkManager] ${endpoint} non disponible:`, error instanceof Error ? error.message : error);
+          // Réduire le log pour les endpoints locaux en production
+          const isLocal = endpoint.includes('localhost') || endpoint.includes('127.0.0.1') || 
+                         endpoint.includes('10.0.2.2') || endpoint.includes('192.168.');
+          if (!isProduction || !isLocal) {
+            console.log(`[NetworkManager] ${endpoint} non disponible:`, error instanceof Error ? error.message : error);
+          }
         }
         return { endpoint, responseTime: Infinity, success: false };
       });
