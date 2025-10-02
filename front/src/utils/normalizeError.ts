@@ -29,7 +29,7 @@ export function normalizeErrorMessage(raw: any): string {
 
   // IMPORTANT: Garder les messages spécifiques avant la transformation générique
   // Cas spécifique: "Email déjà utilisé" - ne pas transformer en "requête invalide"
-  if (msg.toLowerCase().includes('email déjà') || msg.toLowerCase().includes('already exist')) {
+  if (msg.toLowerCase().includes('email déjà') || msg.toLowerCase().includes('already exist') || msg.toLowerCase().includes('already used')) {
     return 'Email déjà utilisé.';
   }
 
@@ -53,7 +53,7 @@ export function normalizeErrorMessage(raw: any): string {
     }
   } catch {}
 
-  // Cas fréquents de statut Axios
+  // Cas fréquents de statut Axios - NE PAS transformer si c'est déjà un message spécifique
   if (/request failed with status code/i.test(msg)) {
     // Vérifier le code de statut pour un message plus spécifique
     const statusMatch = msg.match(/status code (\d+)/i);
@@ -72,6 +72,14 @@ export function normalizeErrorMessage(raw: any): string {
         case 503:
         case 504:
           return 'Service indisponible. Réessayez dans quelques instants.';
+        case 400:
+          // Pour 400, ne pas transformer automatiquement - laisser le message original
+          // sauf si c'est vraiment générique
+          if (msg.toLowerCase().includes('bad request') || msg.toLowerCase().includes('invalid request')) {
+            return 'Requête invalide. Vérifiez vos informations et réessayez.';
+          }
+          // Sinon, retourner le message tel quel
+          return msg;
         default:
           return 'Requête invalide. Vérifiez vos informations et réessayez.';
       }
