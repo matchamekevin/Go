@@ -13,10 +13,15 @@ export const UserRepository = {
   },
 
   async findByPhone(phone: string): Promise<User | null> {
+    console.log('[UserRepository.findByPhone] Searching for phone:', phone);
     const res = await pool.query(
       'SELECT id, email, name, phone, password, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE phone = $1 LIMIT 1',
       [phone]
     );
+    console.log('[UserRepository.findByPhone] Query result:', res.rowCount, 'rows found');
+    if (res.rows.length > 0) {
+      console.log('[UserRepository.findByPhone] Found user:', { id: res.rows[0].id, email: res.rows[0].email, phone: res.rows[0].phone });
+    }
     if (!res.rows[0]) return null;
     // Ajout du rôle par défaut si absent
     return { ...res.rows[0], role: res.rows[0].role || 'user' };
