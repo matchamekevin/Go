@@ -37,8 +37,22 @@ export class AuthController {
       console.log('[AuthController.login] body:', req.body);
       const { email, phone, password } = req.body;
       
-      // Accepter soit email soit phone
-      const result = await AuthService.login(email || phone, password, !!phone);
+      // Déterminer si c'est un login par téléphone ou email
+      let identifier = email || phone;
+      let isPhone = false;
+      
+      if (phone && !email) {
+        isPhone = true;
+      } else if (!phone && email) {
+        isPhone = false;
+      } else if (identifier) {
+        // Auto-détection basée sur le format
+        isPhone = /^[\+]?[0-9\-\s\(\)]{8,15}$/.test(identifier) && !identifier.includes('@');
+      }
+      
+      console.log('[AuthController.login] identifier:', identifier, 'isPhone:', isPhone);
+      
+      const result = await AuthService.login(identifier, password, isPhone);
       // Structure standardisée pour le frontend
       res.json({
         success: true,
