@@ -390,6 +390,12 @@ export class SotralRepository {
         purchaseData.payment_details?.reference || null
       ];
 
+      // Log de débogage
+      console.log('=== DEBUG REPOSITORY ===');
+      console.log('userId reçu dans repository:', userId);
+      console.log('values[2] (user_id):', values[2]);
+      console.log('=======================');
+
       const result = await client.query(insertQuery, values);
       const ticket = result.rows[0];
 
