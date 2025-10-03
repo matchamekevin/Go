@@ -3,7 +3,7 @@ import cors from 'cors';
 import pool from './shared/database/client'; // Adjust the import path as necessary
 import usersRoutes from './features/users/users.routes';
 import paymentRoutes from './features/payment/payment.routes';
-import ticketsRoutesSimple from './features/tickets/tickets.routes.simple';
+import ticketsRoutes from './features/tickets/tickets.routes';
 import adminRoutes from './features/admin/admin.routes';
 import adminTicketsRoutes from './features/admin/admin.tickets.routes';
 import supportRoutes from './features/support/support.controller';
@@ -201,7 +201,7 @@ app.get('/register', (req: Request, res: Response) => {
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
-app.use('/tickets', ticketsRoutesSimple);
+app.use('/tickets', ticketsRoutes);
 app.use('/sotral', sotralRoutes); // SOTRAL routes for mobile app - updated 2025-09-29
 app.use('/realtime', realtimeRoutes); // Real-time events routes
 

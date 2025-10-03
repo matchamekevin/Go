@@ -1,11 +1,3 @@
-// Version minimale avec validation API pour scanner QR
-import { registerRootComponent } from 'expo';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
-import axios from 'axios';
-
 // Version minimale avec validation API pour scanner QR et historique
 import { registerRootComponent } from 'expo';
 import React, { useState, useEffect } from 'react';
