@@ -13,6 +13,7 @@ import { UserRepository } from './features/users/User.repository';
 import { EmailOTPRepository } from './features/auth/EmailOTP.repository';
 import { PasswordResetOTPRepository } from './features/auth/PasswordResetOTP.repository';
 import authRoutes from './features/auth/auth.routes';
+import debugRoutes from './features/debug/debug.routes';
 import { AuthController } from './features/auth/Auth.controller';
 import realtimeRoutes from './routes/realtime.routes';
 
@@ -199,6 +200,7 @@ app.get('/register', (req: Request, res: Response) => {
 
 // Mount feature routes
 app.use('/auth', authRoutes);
+app.use('/debug', debugRoutes);
 app.use('/users', usersRoutes);
 app.use('/payment', paymentRoutes);
 app.use('/tickets', ticketsRoutes);
