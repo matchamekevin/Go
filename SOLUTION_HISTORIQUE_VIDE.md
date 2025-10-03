@@ -257,3 +257,4 @@ Si après connexion l'historique reste vide :
 **Date de résolution** : 2 octobre 2025  
 **Cause** : Utilisateur non authentifié  
 **Solution** : Protection de l'écran + message clair + redirection vers connexion
+

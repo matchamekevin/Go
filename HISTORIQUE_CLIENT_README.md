@@ -7,6 +7,7 @@
 L'onglet "Historique" de l'application mobile affiche maintenant :
 
 #### 🎫 **Informations sur les Tickets**
+
 - **Type de ticket** : T100, T150, T200, etc.
 - **Ligne/Route** : Nom de la ligne de transport
 - **Date et heure d'achat**
@@ -14,7 +15,8 @@ L'onglet "Historique" de l'application mobile affiche maintenant :
 - **Code QR** : Affiché partiellement pour identification
 - **Statut** : Non utilisé, Utilisé, Expiré
 
-#### 📊 **Informations de Validation** 
+#### 📊 **Informations de Validation**
+
 - **Date/heure de validation** : Quand le ticket a été scanné
 - **Validateur** : Nom de la personne qui a validé le ticket
 - **Lieu de validation** : Information du contrôleur/conducteur
@@ -23,12 +25,14 @@ L'onglet "Historique" de l'application mobile affiche maintenant :
 ### 🔧 **Intégration Backend**
 
 #### **Nouveaux Endpoints Utilisés**
+
 ```typescript
 GET /tickets/my-tickets              // Tickets de l'utilisateur
 GET /tickets/my-ticket-validations   // Historique de validation de ses tickets
 ```
 
 #### **Service Amélioré** (`userTicketService.ts`)
+
 ```typescript
 interface UserTicketHistory {
   id: string;
@@ -50,10 +54,11 @@ interface UserTicketHistory {
 ### 🎨 **Interface Utilisateur**
 
 #### **Carte de Ticket Enrichie**
+
 Chaque ticket dans l'historique affiche :
 
 1. **En-tête** : Type, ligne, prix, date d'achat
-2. **Code QR** : Partiellement affiché pour identification  
+2. **Code QR** : Partiellement affiché pour identification
 3. **Section Validation** (si validé) :
    - Icône de scan
    - "Validé le [date/heure]"
@@ -63,11 +68,13 @@ Chaque ticket dans l'historique affiche :
 ## 🧪 **Données de Test Créées**
 
 ### **Utilisateur Client** : `client@test.com`
+
 - **ID** : 74
 - **Rôle** : `user` (client normal)
 - **Tickets créés** : 3 tickets avec différents statuts
 
 ### **Tickets Test**
+
 ```sql
 SOT1759488665001 | unused | T100 | Non utilisé
 SOT1759488665002 | used   | T150 | Utilisé + Validé
@@ -75,39 +82,46 @@ SOT1759488665003 | unused | T100 | Non utilisé
 ```
 
 ### **Historique de Validation**
-- **Ticket `SOT1759488665002`** : Validé par "Validator Test" 
+
+- **Ticket `SOT1759488665002`** : Validé par "Validator Test"
 - **Note** : "Ticket validé dans le bus ligne 12"
 
 ## 🔄 **Flux Utilisateur**
 
 ### **1. Achat de Ticket**
-```
+
+```text
 Client achète ticket → Ticket créé (status: unused)
 ```
 
 ### **2. Validation par Scanner**
-```
+
+```text
 Contrôleur scanne QR → Ticket marqué (status: used) → Historique créé
 ```
 
 ### **3. Consultation Historique**
-```
+
+```text
 Client ouvre app → Onglet Historique → Voit tous ses tickets + validations
 ```
 
 ## 📱 **Pour Tester l'Application**
 
 ### **1. Démarrer l'App**
+
 ```bash
 cd /home/connect/kev/Go/front
 npm start
 ```
 
 ### **2. Se Connecter**
+
 - **Email** : `client@test.com`
 - **Mot de passe** : `admin123` (à configurer dans l'auth)
 
 ### **3. Consulter l'Historique**
+
 - Aller dans l'onglet "Historique"
 - Voir les 3 tickets créés
 - Observer les informations de validation pour le ticket utilisé
@@ -115,6 +129,7 @@ npm start
 ## 🔧 **Configuration Nécessaire**
 
 ### **Résoudre l'Authentification**
+
 Pour que l'app fonctionne complètement, il faut :
 
 1. **Corriger le hashage des mots de passe** dans le service d'auth
@@ -122,6 +137,7 @@ Pour que l'app fonctionne complètement, il faut :
 3. **Ou utiliser un token de test** temporaire
 
 ### **Variables d'Environnement**
+
 ```javascript
 // Dans l'app front
 const API_BASE_URL = 'https://go-j2rr.onrender.com';
@@ -130,17 +146,20 @@ const API_BASE_URL = 'https://go-j2rr.onrender.com';
 ## 🎯 **Avantages pour l'Utilisateur**
 
 ### **📊 Traçabilité Complète**
+
 - Voir tous les tickets achetés
 - Savoir lesquels ont été utilisés et quand
 - Identifier qui a validé chaque ticket
 - Historique chronologique complet
 
 ### **🔍 Transparence**
+
 - Contrôle total sur l'utilisation des tickets
 - Preuves en cas de litige
 - Suivi des dépenses transport
 
 ### **📱 Expérience Utilisateur**
+
 - Interface claire et intuitive
 - Information en temps réel
 - Actualisation par geste (pull-to-refresh)

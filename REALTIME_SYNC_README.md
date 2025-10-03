@@ -5,6 +5,7 @@
 Le système de synchronisation automatique entre l'application mobile et l'interface web admin a été restauré et amélioré.
 
 ### Backend (Express.js)
+
 - **Service temps réel** : `back/src/services/realtime.service.ts`
   - Server-Sent Events (SSE) pour pousser les mises à jour
   - Gestion des connexions clients
@@ -22,6 +23,7 @@ Le système de synchronisation automatique entre l'application mobile et l'inter
     - Suppression de tickets
 
 ### Interface Admin (React)
+
 - **Hook temps réel** : `admin/src/hooks/useRealtime.ts`
   - Connexion automatique SSE
   - Gestion des reconnexions
@@ -37,6 +39,7 @@ Le système de synchronisation automatique entre l'application mobile et l'inter
   - Bouton de reconnexion manuelle
 
 ### Application Mobile (React Native)
+
 - **Service temps réel** : `front/src/services/realtime.service.ts`
   - Client SSE adapté pour React Native
   - Gestion des callbacks d'événements
@@ -53,24 +56,28 @@ Le système de synchronisation automatique entre l'application mobile et l'inter
 ## 🚀 Comment Tester
 
 ### 1. Démarrer le Backend
+
 ```bash
 cd back
 npm run dev
 ```
 
 ### 2. Configurer l'App Mobile
+
 ```bash
 # Configurer l'adresse IP réseau pour la synchronisation
 ./configure-mobile-realtime.sh
 ```
 
 ### 3. Tester les Routes Temps Réel
+
 ```bash
 ./test-realtime-sync.sh      # Test général
 ./test-mobile-realtime.sh    # Test mobile spécifique
 ```
 
 ### 4. Intégrer dans l'Interface Admin
+
 Ajouter le composant `RealtimeStatus` dans `SotralManagementPage.tsx` :
 
 ```tsx
@@ -81,6 +88,7 @@ import { RealtimeStatus } from '../components/RealtimeStatus';
 ```
 
 ### 5. Tester la Synchronisation Complète
+
 1. Ouvrir l'interface admin dans un navigateur
 2. Lancer l'app mobile sur votre téléphone
 3. Vérifier les indicateurs "Synchronisation active" (point vert)
@@ -100,22 +108,27 @@ Le système diffuse automatiquement ces événements :
 ## 🔧 Configuration
 
 ### Variables d'Environnement
+
 Aucune configuration supplémentaire requise. Le système utilise les routes existantes.
 
 ### CORS
+
 Les routes temps réel supportent CORS pour les connexions cross-origin.
 
 ## 🐛 Dépannage
 
 ### Le serveur ne démarre pas
+
 - Vérifier les erreurs TypeScript : `npm run build`
 - Vérifier les dépendances : `npm install`
 
 ### Pas de connexion SSE
+
 - Vérifier que le serveur fonctionne : `curl http://localhost:3000/health`
 - Vérifier les logs du navigateur (Console > Network > EventSource)
 
 ### Événements non reçus
+
 - Vérifier la connexion dans le composant `RealtimeStatus`
 - Vérifier les logs du backend pour les appels broadcast
 - Tester manuellement : `curl -X POST http://localhost:3000/realtime/test-broadcast -d '{"eventType":"test"}' -H "Content-Type: application/json"`
