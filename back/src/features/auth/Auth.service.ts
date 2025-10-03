@@ -248,7 +248,9 @@ export class AuthService {
       };
       
       const normalizedPhone = normalizePhone(emailOrPhone);
+      console.log('[AuthService.login] Phone login attempt. Raw:', emailOrPhone, 'Normalized:', normalizedPhone);
       user = await UserRepository.findByPhone(normalizedPhone);
+      console.log('[AuthService.login] User found by phone:', !!user);
     } else {
       user = await UserRepository.findByEmail(emailOrPhone);
     }
