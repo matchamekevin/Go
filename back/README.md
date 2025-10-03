@@ -438,6 +438,7 @@ docker compose up -d --build --force-recreate --remove-orphans api
 
 ## Auteur
 - [matchamekevin](https://github.com/matchamekevin)
+Force redeploy: 2025-01-27T12:05:00Z
 
 ## Licence
 ISC
