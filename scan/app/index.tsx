@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
@@ -9,11 +9,6 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Image 
-          source={require('../assets/icon.png')} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
         <Text style={styles.title}>GoSOTRAL Scan</Text>
         <Text style={styles.subtitle}>Contrôle des Tickets</Text>
       </View>
@@ -84,11 +79,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 15,
   },
   title: {
     fontSize: 28,

@@ -3,6 +3,7 @@
 ## 🎯 Objectif
 
 L'application **GoSOTRAL Scan** permet aux contrôleurs et validateurs SOTRAL de :
+
 1. **Scanner les QR codes** des tickets des passagers
 2. **Valider en temps réel** via l'API backend
 3. **Afficher le résultat** : ticket valide ✅ ou invalide ❌
@@ -14,6 +15,7 @@ L'application **GoSOTRAL Scan** permet aux contrôleurs et validateurs SOTRAL de
 ### Connexion Obligatoire
 
 Pour utiliser l'app scan, l'utilisateur DOIT :
+
 - Avoir un compte avec le rôle `validator` ou `admin`
 - Se connecter pour obtenir un **token JWT**
 - Le token est stocké dans AsyncStorage et envoyé automatiquement avec chaque requête
@@ -45,12 +47,14 @@ Données extraites: { ticket_code: "XXXXXXXX" }
 **Endpoint** : `POST /tickets/validate`
 
 **Headers** :
+
 ```http
 Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 ```
 
 **Body** :
+
 ```json
 {
   "ticket_code": "XXXXXXXX"
@@ -60,6 +64,17 @@ Content-Type: application/json
 ### 3️⃣ Vérifications Backend
 
 Le backend vérifie :
+
+1. ✅ Token JWT valide
+2. ✅ Rôle = `validator` ou `admin`
+3. ✅ Ticket existe dans la base de données
+4. ✅ Statut du ticket = `unused` (non utilisé)
+5. ✅ Ticket non expiré
+
+### 3️⃣ Vérifications Backend
+
+Le backend vérifie :
+
 1. ✅ Token JWT valide
 2. ✅ Rôle = `validator` ou `admin`
 3. ✅ Ticket existe dans la base de données
@@ -87,6 +102,7 @@ Le backend vérifie :
 ```
 
 **Affichage App** :
+
 ```
 ✅ TICKET VALIDE
 
@@ -101,7 +117,8 @@ Le backend vérifie :
 
 #### ❌ Ticket Invalide
 
-**Cas 1 : Ticket déjà utilisé**
+##### Cas 1 : Ticket déjà utilisé
+
 ```json
 {
   "success": false,
@@ -110,7 +127,8 @@ Le backend vérifie :
 }
 ```
 
-**Cas 2 : Ticket expiré**
+##### Cas 2 : Ticket expiré
+
 ```json
 {
   "success": false,
@@ -119,7 +137,8 @@ Le backend vérifie :
 }
 ```
 
-**Cas 3 : Ticket introuvable**
+##### Cas 3 : Ticket introuvable
+
 ```json
 {
   "success": false,
@@ -127,7 +146,8 @@ Le backend vérifie :
 }
 ```
 
-**Cas 4 : Non autorisé**
+##### Cas 4 : Non autorisé
+
 ```json
 {
   "success": false,
@@ -136,6 +156,7 @@ Le backend vérifie :
 ```
 
 **Affichage App** :
+
 ```
 ❌ TICKET INVALIDE
 
@@ -283,6 +304,7 @@ npx expo start --clear --port 8083 --go
 **Cause** : Token manquant ou rôle incorrect
 
 **Solution** :
+
 1. Vérifier que l'utilisateur est connecté
 2. Vérifier le rôle de l'utilisateur (doit être `validator` ou `admin`)
 3. Se reconnecter si le token a expiré
@@ -296,6 +318,7 @@ npx expo start --clear --port 8083 --go
 ### Erreur: "Ticket non trouvé"
 
 **Causes possibles** :
+
 - Le QR code ne contient pas un code ticket valide
 - Le ticket n'existe pas dans la base de données
 - Le QR code est corrompu
@@ -314,7 +337,7 @@ export const DEBUG_MODE = __DEV__ || false
 
 ### Types de logs
 
-```
+```typescript
 🔧 Initialisation ApiClient avec: https://go-j2rr.onrender.com
 🔍 [SCAN API] Requête: POST /tickets/validate
 📥 Réponse validation: { success: true, data: {...} }
@@ -338,7 +361,8 @@ export const DEBUG_MODE = __DEV__ || false
 ## 👥 Support
 
 Pour toute question ou problème :
-- **Email** : support@gosotral.tg
+
+- **Email** : <support@gosotral.tg>
 - **Documentation** : `/home/connect/kev/Go/scan/README.md`
 - **Logs** : Vérifier le terminal Expo
 

@@ -87,23 +87,59 @@ export default function HistoryTab() {
         <View style={styles.historyInfo}>
           <Text style={styles.historyRoute}>{ticket.route}</Text>
           <Text style={styles.historyType}>{ticket.type}</Text>
+          {ticket.qrCode && (
+            <Text style={styles.historyQrCode}>Code: {ticket.qrCode.substring(0, 12)}...</Text>
+          )}
         </View>
         <View style={styles.historyStatus}>
           <Text style={styles.historyPrice}>{ticket.price}</Text>
           <Text style={styles.historyDate}>{ticket.date} • {ticket.time}</Text>
         </View>
       </View>
+
+      {/* Informations de validation si disponibles */}
+      {ticket.validatedAt && (
+        <View style={styles.validationInfo}>
+          <View style={styles.validationHeader}>
+            <Ionicons name="scan-outline" size={16} color={theme.colors.primary[600]} />
+            <Text style={styles.validationTitle}>Validation</Text>
+          </View>
+          <Text style={styles.validationText}>
+            Validé le {ticket.validatedAt}
+          </Text>
+          {ticket.validatedBy && (
+            <Text style={styles.validationText}>
+              Par: {ticket.validatedBy}
+            </Text>
+          )}
+        </View>
+      )}
+      
       <View style={styles.usedBadge}>
         <Ionicons
-          name={ticket.status === 'expired' ? "time-outline" : "checkmark-circle"}
+          name={
+            ticket.status === 'expired' ? "time-outline" : 
+            ticket.status === 'used' ? "checkmark-circle" : 
+            "ellipse-outline"
+          }
           size={14}
-          color={ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600]}
+          color={
+            ticket.status === 'expired' ? theme.colors.warning[600] : 
+            ticket.status === 'used' ? theme.colors.success[600] : 
+            theme.colors.primary[400]
+          }
         />
         <Text style={[
           styles.usedText,
-          { color: ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600] }
+          { 
+            color: ticket.status === 'expired' ? theme.colors.warning[600] : 
+                   ticket.status === 'used' ? theme.colors.success[600] : 
+                   theme.colors.primary[400]
+          }
         ]}>
-          {ticket.status === 'expired' ? 'Expiré' : 'Utilisé'}
+          {ticket.status === 'expired' ? 'Expiré' : 
+           ticket.status === 'used' ? 'Utilisé' : 
+           'Non utilisé'}
         </Text>
       </View>
     </View>
@@ -403,5 +439,37 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     color: 'rgba(255, 255, 255, 0.9)',
     marginTop: theme.spacing.xs,
+  },
+  // Nouveaux styles pour les informations de validation
+  historyQrCode: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.secondary[400],
+    fontFamily: 'monospace',
+    marginTop: 2,
+  },
+  validationInfo: {
+    backgroundColor: theme.colors.secondary[50],
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.primary[400],
+  },
+  validationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  validationTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.primary[600],
+    marginLeft: theme.spacing.xs,
+  },
+  validationText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.secondary[600],
+    lineHeight: 16,
   },
 });

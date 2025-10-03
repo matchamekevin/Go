@@ -24,7 +24,11 @@ export interface UserTicketHistory {
   time: string;
   price: string;
   seat?: string;
-  status: 'used' | 'expired';
+  status: 'used' | 'expired' | 'unused';
+  validatedAt?: string;
+  validatedBy?: string;
+  validationStatus?: string;
+  qrCode?: string;
 }
 
 export class UserTicketService {
@@ -84,18 +88,35 @@ export class UserTicketService {
     }
   }
 
-  // Récupérer l'historique des tickets (TOUS les tickets achetés)
+  // Récupérer l'historique des tickets (TOUS les tickets achetés ET leur historique de validation)
   static async getTicketHistory(): Promise<UserTicketHistory[]> {
     try {
       devLog('UserTicketService', 'Récupération de l\'historique des tickets...');
-      const tickets = await this.getMyTickets();
       
+      // Récupérer les tickets de l'utilisateur
+      const tickets = await this.getMyTickets();
       devLog('UserTicketService', `Tickets récupérés de l'API:`, tickets);
       
-      // Afficher TOUS les tickets qui ont été payés (ont purchased_at)
+      // Récupérer l'historique des validations pour les tickets de cet utilisateur
+      let validationHistory: any[] = [];
+      try {
+        const validationResponse = await apiClient.get<ApiResponse<any[]>>('/tickets/my-ticket-validations');
+        if (validationResponse.success) {
+          validationHistory = validationResponse.data || [];
+          devLog('UserTicketService', `Historique de validation récupéré:`, validationHistory);
+        }
+      } catch (validationError) {
+        devLog('UserTicketService', 'Pas d\'historique de validation disponible');
+      }
+      
+      // Combiner les données des tickets avec leur historique de validation
       const historyTickets = tickets
         .filter(ticket => ticket.purchased_at) // Tous les tickets achetés
-        .map(ticket => this.transformToUserTicketHistory(ticket))
+        .map(ticket => {
+          // Chercher l'historique de validation pour ce ticket
+          const ticketValidation = validationHistory.find(v => v.ticket_code === ticket.qr_code);
+          return this.transformToUserTicketHistory(ticket, ticketValidation);
+        })
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Tri par date décroissante
         
       devLog('UserTicketService', `Tickets historiques trouvés: ${historyTickets.length}`);
@@ -152,7 +173,7 @@ export class UserTicketService {
   }
 
   // Transformer un ticket backend en UserTicketHistory pour l'historique
-  private static transformToUserTicketHistory(ticket: UnifiedSotralTicket): UserTicketHistory {
+  private static transformToUserTicketHistory(ticket: UnifiedSotralTicket, validation?: any): UserTicketHistory {
     const route = ticket.line_name || `Ligne ${ticket.line_id || '?'}`;
     const type = ticket.ticket_type_name || 'Ticket SOTRAL';
     const date = ticket.purchased_at ? 
@@ -161,9 +182,12 @@ export class UserTicketService {
       new Date(ticket.purchased_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
     const price = `${ticket.price_paid_fcfa} FCFA`;
 
-    // Déterminer le statut basé sur les trajets restants et la date d'expiration
-    let status: 'used' | 'expired' = 'used';
-    if (ticket.status === 'expired') {
+    // Déterminer le statut basé sur les trajets restants, la date d'expiration et la validation
+    let status: 'used' | 'expired' | 'unused' = 'unused';
+    if (validation) {
+      // Si le ticket a été validé (scanné), utiliser le statut de validation
+      status = validation.validation_status === 'valid' ? 'used' : 'expired';
+    } else if (ticket.status === 'expired') {
       status = 'expired';
     } else if (ticket.status === 'used') {
       status = 'used';
@@ -173,6 +197,14 @@ export class UserTicketService {
       status = 'expired';
     }
 
+    // Informations de validation si disponibles
+    const validatedAt = validation?.validated_at ? 
+      new Date(validation.validated_at).toLocaleDateString('fr-FR') + ' ' + 
+      new Date(validation.validated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : 
+      undefined;
+    const validatedBy = validation?.validator_name;
+    const validationStatus = validation?.validation_status;
+
     return {
       id: String(ticket.id),
       type,
@@ -181,7 +213,11 @@ export class UserTicketService {
       time,
       price,
       seat: this.generateSeat(),
-      status
+      status,
+      validatedAt,
+      validatedBy,
+      validationStatus,
+      qrCode: ticket.qr_code
     };
   }
 

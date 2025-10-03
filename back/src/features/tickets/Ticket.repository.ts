@@ -402,4 +402,126 @@ export class TicketRepository {
     );
     return result.rowCount || 0;
   }
+
+  // =====================
+  // MÉTHODES HISTORIQUE DE VALIDATION
+  // =====================
+
+  /**
+   * Créer un enregistrement dans l'historique de validation
+   */
+  static async createValidationHistory(data: {
+    ticket_id: string;
+    ticket_code: string;
+    validator_id: number;
+    validation_status: string;
+    validator_name?: string;
+    validator_email?: string;
+    device_info?: any;
+    location_info?: any;
+    notes?: string;
+  }): Promise<any> {
+    const result = await pool.query(
+      `INSERT INTO validation_history 
+       (ticket_id, ticket_code, validator_id, validation_status, validator_name, validator_email, device_info, location_info, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        data.ticket_id,
+        data.ticket_code,
+        data.validator_id,
+        data.validation_status,
+        data.validator_name || null,
+        data.validator_email || null,
+        data.device_info ? JSON.stringify(data.device_info) : null,
+        data.location_info ? JSON.stringify(data.location_info) : null,
+        data.notes || null
+      ]
+    );
+    return result.rows[0];
+  }
+
+  /**
+   * Récupérer l'historique de validation d'un ticket
+   */
+  static async getValidationHistoryByTicketCode(ticketCode: string): Promise<any[]> {
+    const result = await pool.query(
+      `SELECT vh.*, u.name as validator_name, u.email as validator_email
+       FROM validation_history vh
+       LEFT JOIN users u ON vh.validator_id = u.id
+       WHERE vh.ticket_code = $1
+       ORDER BY vh.validated_at DESC`,
+      [ticketCode]
+    );
+    return result.rows;
+  }
+
+  /**
+   * Récupérer l'historique de validation d'un utilisateur (tickets qu'il a validés)
+   */
+  static async getValidationHistoryByValidator(validatorId: number, limit: number = 50): Promise<any[]> {
+    const result = await pool.query(
+      `SELECT vh.*, t.product_code, t.route_code, t.user_id as ticket_owner_id,
+              u.name as ticket_owner_name, u.email as ticket_owner_email,
+              tp.name as product_name, r.name as route_name
+       FROM validation_history vh
+       LEFT JOIN tickets t ON vh.ticket_id = t.id
+       LEFT JOIN users u ON t.user_id = u.id
+       LEFT JOIN ticket_products tp ON t.product_code = tp.code
+       LEFT JOIN routes r ON t.route_code = r.code
+       WHERE vh.validator_id = $1
+       ORDER BY vh.validated_at DESC
+       LIMIT $2`,
+      [validatorId, limit]
+    );
+    return result.rows;
+  }
+
+  /**
+   * Récupérer l'historique des tickets validés pour un utilisateur (propriétaire des tickets)
+   */
+  static async getValidationHistoryByTicketOwner(userId: number, limit: number = 50): Promise<any[]> {
+    const result = await pool.query(
+      `SELECT vh.*, vh.validator_name, vh.validator_email,
+              t.product_code, t.route_code, t.code as ticket_code,
+              tp.name as product_name, r.name as route_name
+       FROM tickets t
+       JOIN validation_history vh ON t.id = vh.ticket_id
+       LEFT JOIN ticket_products tp ON t.product_code = tp.code
+       LEFT JOIN routes r ON t.route_code = r.code
+       WHERE t.user_id = $1
+       ORDER BY vh.validated_at DESC
+       LIMIT $2`,
+      [userId, limit]
+    );
+    return result.rows;
+  }
+
+  /**
+   * Compter les validations effectuées par un validateur
+   */
+  static async countValidationsByValidator(validatorId: number): Promise<number> {
+    const result = await pool.query(
+      'SELECT COUNT(*) FROM validation_history WHERE validator_id = $1',
+      [validatorId]
+    );
+    return parseInt(result.rows[0].count);
+  }
+
+  /**
+   * Obtenir les statistiques de validation (admin uniquement)
+   */
+  static async getValidationStats(): Promise<any> {
+    const result = await pool.query(`
+      SELECT 
+        vh.validation_status,
+        COUNT(*) as total_validations,
+        COUNT(DISTINCT vh.validator_id) as unique_validators,
+        COUNT(DISTINCT vh.ticket_code) as unique_tickets
+      FROM validation_history vh
+      GROUP BY vh.validation_status
+      ORDER BY total_validations DESC
+    `);
+    return result.rows;
+  }
 }

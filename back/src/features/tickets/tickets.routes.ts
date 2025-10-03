@@ -40,10 +40,16 @@ router.use(authMiddleware as any);
 router.post('/purchase', TicketController.purchaseTicket);
 router.get('/my-tickets', TicketController.getUserTickets);
 
+// Routes pour l'historique de validation
+router.get('/my-validation-history', TicketController.getMyValidationHistory); // Pour les validateurs
+router.get('/my-ticket-validations', TicketController.getMyTicketValidationHistory); // Pour les propriétaires de tickets
+
 // Routes pour les validateurs et admins
 router.post('/validate', TicketController.validateTicket);
 
 // Routes pour les admins uniquement
 router.get('/stats', TicketController.getTicketStats);
+router.get('/validation-stats', TicketController.getValidationStats);
+router.get('/:ticketCode/validation-history', TicketController.getTicketValidationHistory);
 
 export default router;

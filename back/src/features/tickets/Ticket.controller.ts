@@ -178,6 +178,19 @@ export class TicketController {
     try {
       // Vérifier si l'utilisateur est un validateur (conducteur, contrôleur)
       if (req.user?.role !== 'validator' && req.user?.role !== 'admin') {
+        // Enregistrer la tentative de validation non autorisée
+        const { ticket_code } = req.body;
+        if (ticket_code && req.user?.id) {
+          await TicketRepository.createValidationHistory({
+            ticket_id: '', // Ne pas avoir l'ID pour les tentatives non autorisées
+            ticket_code,
+            validator_id: parseInt(String(req.user.id)),
+            validation_status: 'unauthorized',
+            validator_name: req.user?.name || 'Inconnu',
+            validator_email: req.user?.email || '',
+            notes: 'Tentative de validation non autorisée - utilisateur sans permission'
+          });
+        }
         return res.status(403).json({ success: false, error: 'Non autorisé à valider des tickets' });
       }
       
@@ -196,11 +209,32 @@ export class TicketController {
       // Vérifier que le ticket existe
       const ticket = await TicketRepository.getTicketByCode(ticket_code);
       if (!ticket) {
+        // Enregistrer la tentative de validation d'un ticket inexistant
+        await TicketRepository.createValidationHistory({
+          ticket_id: '',
+          ticket_code,
+          validator_id: parseInt(String(req.user?.id)),
+          validation_status: 'not_found',
+          validator_name: req.user?.name || 'Inconnu',
+          validator_email: req.user?.email || '',
+          notes: 'Tentative de validation d\'un ticket inexistant'
+        });
         return res.status(404).json({ success: false, error: 'Ticket non trouvé' });
       }
       
       // Vérifier que le ticket n'a pas déjà été utilisé
       if (ticket.status !== 'unused') {
+        // Enregistrer la tentative de validation d'un ticket déjà utilisé
+        await TicketRepository.createValidationHistory({
+          ticket_id: ticket.id || '',
+          ticket_code,
+          validator_id: parseInt(String(req.user?.id)),
+          validation_status: 'already_used',
+          validator_name: req.user?.name || 'Inconnu',
+          validator_email: req.user?.email || '',
+          notes: `Tentative de validation d'un ticket déjà ${ticket.status}`
+        });
+        
         return res.status(400).json({ 
           success: false, 
           error: `Ticket déjà ${ticket.status === 'used' ? 'utilisé' : 'expiré'}`,
@@ -211,19 +245,36 @@ export class TicketController {
       // Marquer le ticket comme utilisé
       const updatedTicket = await TicketRepository.updateTicketStatus(ticket_code, 'used');
       
+      // Enregistrer la validation réussie dans l'historique
+      await TicketRepository.createValidationHistory({
+        ticket_id: ticket.id || '',
+        ticket_code,
+        validator_id: parseInt(String(req.user?.id)),
+        validation_status: 'valid',
+        validator_name: req.user?.name || 'Inconnu',
+        validator_email: req.user?.email || '',
+        device_info: {
+          user_agent: req.headers['user-agent'],
+          ip: req.ip || req.connection.remoteAddress
+        },
+        notes: 'Validation réussie'
+      });
+      
       // Diffuser l'événement temps réel pour la validation du ticket
       realtimeService.broadcast('ticket_validated', {
         ticket_code,
         validator_id: req.user?.id,
         validator_role: req.user?.role,
         previous_status: ticket.status,
-        new_status: 'used'
+        new_status: 'used',
+        ticket_owner_id: ticket.user_id
       });
       
       return res.status(200).json({ 
         success: true, 
         data: updatedTicket,
-        message: 'Ticket validé avec succès'
+        message: 'Ticket validé avec succès',
+        validation_history: await TicketRepository.getValidationHistoryByTicketCode(ticket_code)
       });
     } catch (error) {
       console.error('[TicketController.validateTicket] error:', error);
@@ -246,6 +297,101 @@ export class TicketController {
       return res.status(200).json({ success: true, data: stats });
     } catch (error) {
       console.error('[TicketController.getTicketStats] error:', error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des statistiques' });
+    }
+  }
+
+  /**
+   * Récupère l'historique de validation d'un utilisateur (tickets qu'il a validés)
+   */
+  static async getMyValidationHistory(req: RequestWithUser, res: Response) {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Utilisateur non authentifié' });
+      }
+      
+      // Vérifier que l'utilisateur est validateur ou admin
+      if (req.user?.role !== 'validator' && req.user?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Non autorisé à accéder à l\'historique de validation' });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 50;
+      const userIdNumber = parseInt(String(userId), 10);
+      
+      const history = await TicketRepository.getValidationHistoryByValidator(userIdNumber, limit);
+      
+      return res.status(200).json({ success: true, data: history });
+    } catch (error) {
+      console.error('[TicketController.getMyValidationHistory] error:', error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération de l\'historique' });
+    }
+  }
+
+  /**
+   * Récupère l'historique des tickets validés pour un utilisateur (propriétaire des tickets)
+   */
+  static async getMyTicketValidationHistory(req: RequestWithUser, res: Response) {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Utilisateur non authentifié' });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 50;
+      const userIdNumber = parseInt(String(userId), 10);
+      
+      const history = await TicketRepository.getValidationHistoryByTicketOwner(userIdNumber, limit);
+      
+      return res.status(200).json({ success: true, data: history });
+    } catch (error) {
+      console.error('[TicketController.getMyTicketValidationHistory] error:', error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération de l\'historique' });
+    }
+  }
+
+  /**
+   * Récupère l'historique de validation d'un ticket spécifique (admin uniquement)
+   */
+  static async getTicketValidationHistory(req: RequestWithUser, res: Response) {
+    try {
+      // Vérifier si l'utilisateur est admin
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Non autorisé à accéder à cet historique' });
+      }
+      
+      const { ticketCode } = req.params;
+      
+      if (!ticketCode) {
+        return res.status(400).json({ success: false, error: 'Code de ticket requis' });
+      }
+      
+      const history = await TicketRepository.getValidationHistoryByTicketCode(ticketCode);
+      
+      return res.status(200).json({ success: true, data: history });
+    } catch (error) {
+      console.error('[TicketController.getTicketValidationHistory] error:', error);
+      return res.status(500).json({ success: false, error: 'Erreur lors de la récupération de l\'historique' });
+    }
+  }
+
+  /**
+   * Récupère les statistiques de validation (admin uniquement)
+   */
+  static async getValidationStats(req: RequestWithUser, res: Response) {
+    try {
+      // Vérifier si l'utilisateur est admin
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ success: false, error: 'Non autorisé à accéder aux statistiques' });
+      }
+      
+      const stats = await TicketRepository.getValidationStats();
+      
+      return res.status(200).json({ success: true, data: stats });
+    } catch (error) {
+      console.error('[TicketController.getValidationStats] error:', error);
       return res.status(500).json({ success: false, error: 'Erreur lors de la récupération des statistiques' });
     }
   }
