@@ -201,7 +201,7 @@ export class SotralController {
       }
 
       const purchaseData: SotralTicketPurchase = validationResult.data;
-      const userId = (req as any).user?.id || null; // De l'authentification
+      const userId = (req as any).user?.id ? parseInt((req as any).user.id) : null; // Convertir en number
 
       const ticket = await sotralRepository.purchaseTicket(userId, purchaseData);
       
@@ -243,7 +243,7 @@ export class SotralController {
         return;
       }
 
-      const userId = (req as any).user?.id || null;
+      const userId = (req as any).user?.id ? parseInt((req as any).user.id) : null;
 
       const ticket = await sotralRepository.assignGeneratedTicketToUser(
         parseInt(ticketId),
@@ -291,7 +291,7 @@ export class SotralController {
         return;
       }
 
-      const tickets = await sotralRepository.getUserTickets(userId);
+      const tickets = await sotralRepository.getUserTickets(parseInt(userId));
 
       res.json({
         success: true,

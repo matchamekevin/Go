@@ -1,7 +1,7 @@
-// Version minimale avec validation API pour scanner QR et historique
+// Version minimale avec validation API pour scanner QR
 import { registerRootComponent } from 'expo';
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
@@ -9,37 +9,21 @@ import axios from 'axios';
 function MinimalScanApp() {
   console.log('🔬 MINIMAL SCAN APP - Démarrage');
   
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'scanning', 'validating', 'result', 'history'
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'scanning', 'validating', 'result'
   const [validationResult, setValidationResult] = useState(null);
-  const [validationHistory, setValidationHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
 
   const API_BASE_URL = 'https://go-j2rr.onrender.com';
   const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NzAsImVtYWlsIjoidmFsaWRhdG9yQHRlc3QuY29tIiwibmFtZSI6IlZhbGlkYXRvciBUZXN0Iiwicm9sZSI6InZhbGlkYXRvciIsImlhdCI6MTc1OTQ4NjA3MiwiZXhwIjoxNzYwMDkwODcyfQ.OZ8PyElEljKBixXkZ-IIHB0W9T6mi2QLHhJtDJqUxJA';
 
-  // Charger l'historique au démarrage
-  useEffect(() => {
-    loadValidationHistory();
-  }, []);
-
-  const loadValidationHistory = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/tickets/my-validation-history`, {
-        headers: {
-          'Authorization': `Bearer ${TEST_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
-      
-      if (response.data.success) {
-        setValidationHistory(response.data.data);
-        console.log('📊 Historique chargé:', response.data.data.length, 'validations');
-      }
-    } catch (error) {
-      console.error('❌ Erreur chargement historique:', error.message);
-    }
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Date inconnue';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
 
   const validateTicket = async (ticketCode) => {
@@ -66,8 +50,6 @@ function MinimalScanApp() {
           ticketInfo: response.data.data,
           ticketCode: ticketCode
         });
-        // Recharger l'historique après une validation réussie
-        await loadValidationHistory();
       } else {
         setValidationResult({
           isValid: false,
@@ -103,48 +85,30 @@ function MinimalScanApp() {
     }
   };
 
-  const handleScan = async ({ data }) => {
-    console.log('📱 QR Code détecté:', data);
-    await validateTicket(data);
-  };
-
-  const startScan = async () => {
-    if (!permission?.granted) {
-      const result = await requestPermission();
-      if (!result.granted) {
-        Alert.alert('Erreur', 'Autorisation caméra requise');
+  const handleBarcodeScanned = ({ type, data }) => {
+    console.log('📱 QR Code scanné:', data);
+    
+    try {
+      // Essayer de parser comme JSON d'abord
+      const parsedData = JSON.parse(data);
+      if (parsedData.code) {
+        validateTicket(parsedData.code);
         return;
       }
+    } catch (e) {
+      // Si ce n'est pas du JSON, utiliser la donnée brute
+    }
+    
+    // Utiliser la donnée brute comme code de ticket
+    validateTicket(data);
+  };
+
+  const startScan = () => {
+    if (!permission?.granted) {
+      requestPermission();
+      return;
     }
     setCurrentView('scanning');
-  };
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'valid': return '#155724';
-      case 'already_used': return '#856404';
-      case 'not_found': return '#721c24';
-      case 'unauthorized': return '#721c24';
-      default: return '#721c24';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'valid': return '✅';
-      case 'already_used': return '⚠️';
-      case 'not_found': return '❌';
-      case 'unauthorized': return '🚫';
-      default: return '❌';
-    }
   };
 
   // Vue Scanner
@@ -155,22 +119,21 @@ function MinimalScanApp() {
           <TouchableOpacity onPress={() => setCurrentView('home')}>
             <Text style={styles.backButton}>← Retour</Text>
           </TouchableOpacity>
-          <Text style={styles.scanTitle}>Scanner QR</Text>
+          <Text style={styles.scanTitle}>Scanner QR Code</Text>
         </View>
         
         <CameraView
           style={styles.camera}
           facing="back"
-          onBarcodeScanned={handleScan}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        >
-          <View style={styles.overlay}>
-            <View style={styles.scanFrame} />
-          </View>
-        </CameraView>
+          onBarcodeScanned={handleBarcodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ['qr', 'pdf417'],
+          }}
+        />
         
-        <View style={styles.scanInstructions}>
-          <Text style={styles.instructionText}>
+        <View style={styles.scanOverlay}>
+          <View style={styles.scanFrame} />
+          <Text style={styles.scanInstruction}>
             Placez le QR code du ticket dans le cadre
           </Text>
         </View>
@@ -181,68 +144,63 @@ function MinimalScanApp() {
   // Vue Validation en cours
   if (currentView === 'validating') {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <View style={styles.loadingContent}>
+      <SafeAreaView style={styles.validatingContainer}>
+        <View style={styles.validatingContent}>
           <ActivityIndicator size="large" color="#1e7e34" />
-          <Text style={styles.loadingText}>Validation en cours...</Text>
-          <Text style={styles.loadingSubtext}>Vérification du ticket dans la base de données</Text>
+          <Text style={styles.validatingText}>Validation en cours...</Text>
+          <Text style={styles.validatingSubtext}>Vérification du ticket</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Vue Résultat de validation
-  if (currentView === 'result' && validationResult) {
+  // Vue Résultat
+  if (currentView === 'result') {
     return (
-      <SafeAreaView style={[styles.resultContainer, validationResult.isValid ? styles.validBackground : styles.invalidBackground]}>
+      <SafeAreaView style={styles.resultContainer}>
         <View style={styles.resultContent}>
-          <Text style={styles.resultIcon}>
-            {validationResult.isValid ? '✅' : '❌'}
-          </Text>
-          
-          <Text style={[styles.resultTitle, validationResult.isValid ? styles.validText : styles.invalidText]}>
-            {validationResult.isValid ? 'TICKET VALIDE' : 'TICKET INVALIDE'}
-          </Text>
-          
-          <Text style={styles.resultMessage}>
-            {validationResult.message}
-          </Text>
-          
-          <View style={styles.ticketCodeInfo}>
-            <Text style={styles.ticketCodeLabel}>Code scanné:</Text>
-            <Text style={styles.ticketCodeText}>{validationResult.ticketCode}</Text>
+          <View style={[
+            styles.resultHeader,
+            { backgroundColor: validationResult?.isValid ? '#d4edda' : '#f8d7da' }
+          ]}>
+            <Text style={styles.resultIcon}>
+              {validationResult?.isValid ? '✅' : '❌'}
+            </Text>
+            <Text style={[
+              styles.resultMessage,
+              { color: validationResult?.isValid ? '#155724' : '#721c24' }
+            ]}>
+              {validationResult?.message}
+            </Text>
           </View>
           
-          {validationResult.ticketInfo && (
-            <View style={styles.ticketInfo}>
-              <Text style={styles.ticketInfoTitle}>Informations du ticket :</Text>
-              <Text style={styles.ticketInfoText}>
-                Code: {validationResult.ticketInfo.code || 'N/A'}
-              </Text>
-              {validationResult.ticketInfo.product_name && (
-                <Text style={styles.ticketInfoText}>
-                  Produit: {validationResult.ticketInfo.product_name}
+          <View style={styles.resultDetails}>
+            <Text style={styles.resultDetailTitle}>Détails du ticket</Text>
+            <Text style={styles.resultDetailItem}>
+              Code: {validationResult?.ticketCode}
+            </Text>
+            
+            {validationResult?.isValid && validationResult?.ticketInfo && (
+              <>
+                <Text style={styles.resultDetailItem}>
+                  Produit: {validationResult.ticketInfo.product_code}
                 </Text>
-              )}
-              {validationResult.ticketInfo.route_name && (
-                <Text style={styles.ticketInfoText}>
-                  Route: {validationResult.ticketInfo.route_name}
+                <Text style={styles.resultDetailItem}>
+                  Statut: {validationResult.ticketInfo.status}
                 </Text>
-              )}
-              {validationResult.ticketInfo.used_at && (
-                <Text style={styles.ticketInfoText}>
+                <Text style={styles.resultDetailItem}>
                   Validé le: {formatDate(validationResult.ticketInfo.used_at)}
                 </Text>
-              )}
-            </View>
-          )}
+              </>
+            )}
+          </View>
           
           <View style={styles.resultActions}>
             <TouchableOpacity 
               style={[styles.actionButton, styles.primaryAction]} 
               onPress={() => setCurrentView('scanning')}
             >
-              <Text style={styles.actionButtonText}>Scanner Autre Ticket</Text>
+              <Text style={styles.actionButtonText}>Scanner Autre</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -253,84 +211,6 @@ function MinimalScanApp() {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  // Vue Historique
-  if (currentView === 'history') {
-    return (
-      <SafeAreaView style={styles.historyContainer}>
-        <View style={styles.historyHeader}>
-          <TouchableOpacity onPress={() => setCurrentView('home')}>
-            <Text style={styles.backButton}>← Retour</Text>
-          </TouchableOpacity>
-          <Text style={styles.historyTitle}>Historique</Text>
-          <TouchableOpacity onPress={loadValidationHistory}>
-            <Text style={styles.refreshButton}>🔄</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.historyScroll} contentContainerStyle={styles.historyScrollContent}>
-          <Text style={styles.historySubtitle}>
-            {validationHistory.length} validation{validationHistory.length > 1 ? 's' : ''} effectuée{validationHistory.length > 1 ? 's' : ''}
-          </Text>
-
-          {validationHistory.length === 0 ? (
-            <View style={styles.noHistoryContainer}>
-              <Text style={styles.noHistoryIcon}>📋</Text>
-              <Text style={styles.noHistoryText}>Aucune validation effectuée</Text>
-              <Text style={styles.noHistorySubtext}>
-                Les tickets que vous validez apparaîtront ici
-              </Text>
-            </View>
-          ) : (
-            validationHistory.map((item, index) => (
-              <View key={index} style={styles.historyItem}>
-                <View style={styles.historyItemHeader}>
-                  <View style={styles.historyItemLeft}>
-                    <Text style={styles.historyItemIcon}>
-                      {getStatusIcon(item.validation_status)}
-                    </Text>
-                    <View style={styles.historyItemInfo}>
-                      <Text style={styles.historyItemCode}>{item.ticket_code}</Text>
-                      <Text style={styles.historyItemDate}>{formatDate(item.validated_at)}</Text>
-                    </View>
-                  </View>
-                  
-                  <Text style={[
-                    styles.historyItemStatus,
-                    { color: getStatusColor(item.validation_status) }
-                  ]}>
-                    {item.validation_status === 'valid' ? 'VALIDE' : 
-                     item.validation_status === 'already_used' ? 'DÉJÀ UTILISÉ' :
-                     item.validation_status === 'not_found' ? 'NON TROUVÉ' :
-                     item.validation_status === 'unauthorized' ? 'NON AUTORISÉ' :
-                     'INVALIDE'}
-                  </Text>
-                </View>
-                
-                {(item.product_name || item.route_name || item.ticket_owner_name) && (
-                  <View style={styles.historyItemDetails}>
-                    {item.product_name && (
-                      <Text style={styles.historyItemDetail}>📱 {item.product_name}</Text>
-                    )}
-                    {item.route_name && (
-                      <Text style={styles.historyItemDetail}>🚌 {item.route_name}</Text>
-                    )}
-                    {item.ticket_owner_name && (
-                      <Text style={styles.historyItemDetail}>👤 {item.ticket_owner_name}</Text>
-                    )}
-                  </View>
-                )}
-                
-                {item.notes && (
-                  <Text style={styles.historyItemNotes}>{item.notes}</Text>
-                )}
-              </View>
-            ))
-          )}
-        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -349,19 +229,8 @@ function MinimalScanApp() {
           <Text style={styles.scanButtonText}>Scanner QR Code</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.historyButton} 
-          onPress={() => setCurrentView('history')}
-        >
-          <Text style={styles.historyButtonIcon}>📊</Text>
-          <Text style={styles.historyButtonText}>
-            Historique ({validationHistory.length})
-          </Text>
-        </TouchableOpacity>
-        
         <Text style={styles.info}>
           Scannez les QR codes des tickets SOTRAL pour les valider.
-          Consultez votre historique de validations.
         </Text>
       </View>
     </SafeAreaView>
@@ -375,61 +244,51 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    padding: 30,
+    paddingVertical: 40,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1e7e34',
     marginBottom: 5,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6c757d',
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
   scanButton: {
-    backgroundColor: '#1e7e34',
+    backgroundColor: '#28a745',
     paddingVertical: 20,
-    paddingHorizontal: 40,
-    borderRadius: 12,
+    paddingHorizontal: 50,
+    borderRadius: 15,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
     width: '100%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   scanButtonIcon: {
-    fontSize: 48,
+    fontSize: 40,
     marginBottom: 10,
   },
   scanButtonText: {
     color: '#ffffff',
     fontSize: 18,
-    fontWeight: 'bold',
-  },
-  historyButton: {
-    backgroundColor: '#17a2b8',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-    width: '100%',
-  },
-  historyButtonIcon: {
-    fontSize: 32,
-    marginBottom: 5,
-  },
-  historyButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
     fontWeight: 'bold',
   },
   info: {
@@ -465,214 +324,86 @@ const styles = StyleSheet.create({
   camera: {
     flex: 1,
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
+  scanOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
   },
   scanFrame: {
     width: 250,
     height: 250,
-    borderWidth: 3,
-    borderColor: '#1e7e34',
-    borderRadius: 12,
-  },
-  scanInstructions: {
-    padding: 20,
-    backgroundColor: '#1a1a1a',
-    alignItems: 'center',
-  },
-  instructionText: {
-    color: '#ffffff',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  
-  // Styles pour l'écran de résultat
-  resultContainer: {
-    flex: 1,
-  },
-  validBackground: {
-    backgroundColor: '#d4edda',
-  },
-  invalidBackground: {
-    backgroundColor: '#f8d7da',
-  },
-  resultContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  resultIcon: {
-    fontSize: 120,
-    marginBottom: 20,
-  },
-  resultTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  validText: {
-    color: '#155724',
-  },
-  invalidText: {
-    color: '#721c24',
-  },
-  resultMessage: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#333',
-  },
-  ticketCodeInfo: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    width: '100%',
-  },
-  ticketCodeLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  ticketCodeText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  ticketInfo: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 30,
-    width: '100%',
-  },
-  ticketInfoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  ticketInfoText: {
-    fontSize: 14,
-    marginBottom: 5,
-    color: '#555',
-  },
-  resultActions: {
-    width: '100%',
-  },
-  actionButton: {
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  primaryAction: {
-    backgroundColor: '#1e7e34',
-  },
-  secondaryAction: {
-    backgroundColor: 'transparent',
     borderWidth: 2,
-    borderColor: '#1e7e34',
+    borderColor: '#ffffff',
+    borderRadius: 10,
+    backgroundColor: 'transparent',
   },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  scanInstruction: {
     color: '#ffffff',
-  },
-  secondaryActionText: {
-    color: '#1e7e34',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 10,
+    borderRadius: 5,
   },
   
-  // Styles pour l'écran de chargement
-  loadingContainer: {
+  // Styles pour la validation
+  validatingContainer: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  loadingContent: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  loadingText: {
-    fontSize: 18,
+  validatingContent: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  validatingText: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1e7e34',
     marginTop: 20,
-    marginBottom: 10,
   },
-  loadingSubtext: {
-    fontSize: 14,
+  validatingSubtext: {
+    fontSize: 16,
     color: '#6c757d',
-    textAlign: 'center',
+    marginTop: 10,
   },
   
-  // Styles pour l'historique
-  historyContainer: {
+  // Styles pour les résultats
+  resultContainer: {
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  historyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  historyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e7e34',
-  },
-  refreshButton: {
-    fontSize: 20,
-    color: '#1e7e34',
-  },
-  historyScroll: {
+  resultContent: {
     flex: 1,
+    padding: 20,
   },
-  historyScrollContent: {
-    padding: 16,
-  },
-  historySubtitle: {
-    fontSize: 16,
-    color: '#6c757d',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  noHistoryContainer: {
+  resultHeader: {
+    padding: 30,
+    borderRadius: 15,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
+    marginBottom: 30,
+    borderWidth: 1,
   },
-  noHistoryIcon: {
-    fontSize: 64,
-    marginBottom: 20,
+  resultIcon: {
+    fontSize: 60,
+    marginBottom: 15,
   },
-  noHistoryText: {
-    fontSize: 18,
+  resultMessage: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#6c757d',
-    marginBottom: 10,
-  },
-  noHistorySubtext: {
-    fontSize: 14,
-    color: '#6c757d',
     textAlign: 'center',
   },
-  historyItem: {
+  resultDetails: {
     backgroundColor: '#ffffff',
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 30,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -682,61 +413,40 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  historyItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  historyItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  historyItemIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  historyItemInfo: {
-    flex: 1,
-  },
-  historyItemCode: {
-    fontSize: 16,
+  resultDetailTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 2,
+    marginBottom: 15,
   },
-  historyItemDate: {
-    fontSize: 12,
-    color: '#6c757d',
+  resultDetailItem: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 10,
+    paddingLeft: 10,
   },
-  historyItemStatus: {
-    fontSize: 12,
+  resultActions: {
+    gap: 15,
+  },
+  actionButton: {
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  primaryAction: {
+    backgroundColor: '#28a745',
+  },
+  secondaryAction: {
+    backgroundColor: '#6c757d',
+  },
+  actionButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: 'bold',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.05)',
   },
-  historyItemDetails: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f3f4',
-  },
-  historyItemDetail: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 4,
-  },
-  historyItemNotes: {
-    fontSize: 13,
-    fontStyle: 'italic',
-    color: '#6c757d',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f3f4',
+  secondaryActionText: {
+    color: '#ffffff',
   },
 });
 
