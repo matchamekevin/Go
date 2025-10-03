@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthenticatedRequest } from '../../shared/midddleawers/auth.middleware';
 import { sotralRepository } from './sotral.repository';
 import pool from '../../shared/database/client';
 import {
@@ -187,7 +188,7 @@ export class SotralController {
    * POST /api/sotral/purchase
    * Acheter un ticket
    */
-  async purchaseTicket(req: Request, res: Response): Promise<void> {
+  async purchaseTicket(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       // Validation des données
       const validationResult = SotralTicketPurchaseSchema.safeParse(req.body);
@@ -201,7 +202,7 @@ export class SotralController {
       }
 
       const purchaseData: SotralTicketPurchase = validationResult.data;
-      const userId = (req as any).user?.id ? parseInt((req as any).user.id) : null; // Convertir en number
+      const userId = req.user?.id ? parseInt(req.user.id) : null; // Convertir en number
 
       const ticket = await sotralRepository.purchaseTicket(userId, purchaseData);
       
@@ -280,9 +281,9 @@ export class SotralController {
    * GET /api/sotral/my-tickets
    * Récupérer les tickets de l'utilisateur connecté
    */
-  async getMyTickets(req: Request, res: Response): Promise<void> {
+  async getMyTickets(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
       if (!userId) {
         res.status(401).json({
           success: false,

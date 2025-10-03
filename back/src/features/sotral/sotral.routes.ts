@@ -20,8 +20,8 @@ router.get('/lines/:id/stops', sotralController.getStopsByLine.bind(sotralContro
 router.get('/ticket-types', sotralController.getAllTicketTypes.bind(sotralController));
 router.post('/calculate-price', sotralController.calculatePrice.bind(sotralController));
 
-// Achat de tickets (authentification optionnelle pour l'instant)
-router.post('/purchase', sotralController.purchaseTicket.bind(sotralController));
+// Achat de tickets (authentification requise)
+router.post('/purchase', authMiddleware as any, sotralController.purchaseTicket.bind(sotralController));
 router.post('/assign-ticket', sotralController.assignTicketToUser.bind(sotralController));
 router.get('/my-tickets', authMiddleware as any, sotralController.getMyTickets);
 router.delete('/my-tickets/:id', authMiddleware as any, sotralController.cancelUserTicket);
