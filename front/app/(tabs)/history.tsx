@@ -23,32 +23,21 @@ export default function HistoryTab() {
   const [historyTickets, setHistoryTickets] = useState<UserTicketHistory[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
 
   // Charger l'historique des tickets
   const loadHistoryTickets = async () => {
     try {
       setTicketsLoading(true);
-      console.log('[History] 🔍 Début du chargement de l\'historique...');
-      console.log('[History] 🔐 État auth:', { isAuthenticated, user: user?.email });
       
       if (!isAuthenticated) {
-        console.log('[History] ⚠️ Utilisateur non authentifié - arrêt du chargement');
         setHistoryTickets([]);
         return;
       }
       
-      const historyData = await UserTicketService.getTicketHistory().catch((err: any) => {
-        console.error('[History] ❌ Erreur catch:', err);
-        return [];
-      });
-      console.log('[History] ✅ Données reçues:', {
-        count: historyData.length,
-        tickets: historyData
-      });
+      const historyData = await UserTicketService.getTicketHistory().catch(() => []);
       setHistoryTickets(historyData);
     } catch (error) {
-      console.error('[History] ❌ Erreur lors du chargement de l\'historique:', error);
+      console.error('[History] Erreur lors du chargement de l\'historique:', error);
     } finally {
       setTicketsLoading(false);
       setRefreshing(false);
@@ -64,21 +53,6 @@ export default function HistoryTab() {
   const onRefresh = () => {
     setRefreshing(true);
     loadHistoryTickets();
-  };
-
-  const checkAuth = async () => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      const user = await AsyncStorage.getItem('user');
-      console.log('[History] 🔐 Auth Check:', {
-        hasToken: !!token,
-        token: token?.substring(0, 20) + '...',
-        user: user ? JSON.parse(user) : null
-      });
-      setDebugInfo(`Token: ${token ? 'Oui' : 'Non'}\nUser: ${user ? JSON.parse(user).email : 'Aucun'}`);
-    } catch (error) {
-      console.error('[History] Erreur vérification auth:', error);
-    }
   };
 
   const renderHistoryTicket = (ticket: UserTicketHistory) => (
@@ -197,16 +171,6 @@ export default function HistoryTab() {
           {user && (
             <Text style={styles.userInfo}>Connecté : {user.email}</Text>
           )}
-          {/* Bouton debug temporaire */}
-          <TouchableOpacity 
-            style={styles.debugButton}
-            onPress={checkAuth}
-          >
-            <Text style={styles.debugButtonText}>🔍 Vérifier Auth</Text>
-          </TouchableOpacity>
-          {debugInfo ? (
-            <Text style={styles.debugInfo}>{debugInfo}</Text>
-          ) : null}
         </View>
 
         {/* Historique des billets */}
@@ -223,12 +187,6 @@ export default function HistoryTab() {
               <Ionicons name="archive-outline" size={48} color={theme.colors.secondary[300]} />
               <Text style={styles.emptyText}>Aucun historique</Text>
               <Text style={styles.emptySubtext}>Vos voyages passés apparaîtront ici</Text>
-              <Text style={styles.debugText}>
-                Pour diagnostiquer : {'\n'}
-                1. Cliquez sur "Vérifier Auth" ci-dessus{'\n'}
-                2. Regardez les logs console{'\n'}
-                3. Tirez vers le bas pour rafraîchir
-              </Text>
             </View>
           )}
         </View>
@@ -354,31 +312,6 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: theme.spacing.xxl,
-  },
-  debugButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    marginTop: theme.spacing.sm,
-    alignSelf: 'flex-start',
-  },
-  debugButtonText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-  },
-  debugInfo: {
-    color: theme.colors.white,
-    fontSize: theme.typography.fontSize.xs,
-    marginTop: theme.spacing.xs,
-    fontFamily: 'monospace',
-  },
-  debugText: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.secondary[500],
-    marginTop: theme.spacing.md,
-    textAlign: 'center',
-    lineHeight: 18,
   },
   // Styles pour l'écran de connexion requise
   authRequiredContainer: {

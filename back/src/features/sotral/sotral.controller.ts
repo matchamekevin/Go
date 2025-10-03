@@ -203,13 +203,6 @@ export class SotralController {
 
       const purchaseData: SotralTicketPurchase = validationResult.data;
       const userId = req.user?.id ? parseInt(req.user.id) : null; // Convertir en number
-      
-      // Log de débogage
-      console.log('=== DEBUG PURCHASE ===');
-      console.log('req.user:', req.user);
-      console.log('userId original:', req.user?.id);
-      console.log('userId après parseInt:', userId);
-      console.log('====================');
 
       const ticket = await sotralRepository.purchaseTicket(userId, purchaseData);
       

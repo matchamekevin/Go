@@ -35,16 +35,6 @@ router.delete('/tickets/:id', sotralController.deleteTicketAdmin.bind(sotralCont
 // Health check
 router.get('/health', sotralController.healthCheck.bind(sotralController));
 
-// Debug endpoint to test auth middleware
-router.get('/debug-auth', authMiddleware as any, (req: any, res: any) => {
-  res.json({
-    success: true,
-    message: 'Auth middleware works!',
-    user: req.user,
-    timestamp: new Date().toISOString()
-  });
-});
-
 // ==========================================
 // PAIEMENTS MOBILES (MIXX BY YAS / FLOOZ)
 // ==========================================

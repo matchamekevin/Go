@@ -18,9 +18,6 @@ export interface AuthenticatedRequest extends Request {
  * Vérifie le token Bearer et attache les données utilisateur à req.user
  */
 export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  console.log(`🔐 Auth middleware called for: ${req.method} ${req.path}`);
-  console.log(`🔐 Authorization header:`, req.headers.authorization);
-  
   try {
     const authHeader = req.headers.authorization;
     
