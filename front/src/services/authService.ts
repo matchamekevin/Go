@@ -3,7 +3,7 @@ import type { ApiResponse, AuthResponse, LoginRequest, RegisterRequest, User } f
 
 export class AuthService {
   // Connexion utilisateur
-  static async login(credentials: LoginRequest): Promise<AuthResponse> {
+  static async login(credentials: { email?: string; phone?: string; password: string }): Promise<AuthResponse> {
     try {
       const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/login', credentials);
       

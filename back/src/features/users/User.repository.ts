@@ -12,6 +12,16 @@ export const UserRepository = {
   return { ...res.rows[0], role: res.rows[0].role || 'user' };
   },
 
+  async findByPhone(phone: string): Promise<User | null> {
+    const res = await pool.query(
+      'SELECT id, email, name, phone, password, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE phone = $1 LIMIT 1',
+      [phone]
+    );
+    if (!res.rows[0]) return null;
+    // Ajout du rôle par défaut si absent
+    return { ...res.rows[0], role: res.rows[0].role || 'user' };
+  },
+
   async findById(id: string): Promise<User | null> {
   const res = await pool.query(
     'SELECT id, email, name, phone, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE id = $1 LIMIT 1',

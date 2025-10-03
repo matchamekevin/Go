@@ -21,7 +21,7 @@ import { useToast } from '../src/contexts/ToastContext';
 import AuthLayout from '../src/components/AuthLayout';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,15 +36,32 @@ export default function LoginScreen() {
   }, [errorMsg]);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!phone || !password) {
       setErrorMsg('Veuillez remplir tous les champs');
+      return;
+    }
+
+    // Validation simple du numéro de téléphone
+    const normalizePhone = (raw: string) => {
+      if (!raw) return '';
+      let s = raw.replace(/[^0-9+]/g, '');
+      if (s.startsWith('00')) s = '+' + s.slice(2);
+      if (s.startsWith('+228')) return s;
+      if (s.startsWith('228')) return '+' + s;
+      if (s.length === 8) return '+228' + s;
+      return s;
+    };
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone.startsWith('+228') || normalizedPhone.length !== 12) {
+      setErrorMsg('Veuillez entrer un numéro de téléphone togolais valide');
       return;
     }
 
     setLoading(true);
     setErrorMsg(null);
     try {
-      await login({ email, password });
+      await login({ phone: normalizedPhone, password });
       router.replace('/(tabs)');
     } catch (error: any) {
         // Si le backend a indiqué que le compte n'est pas vérifié, rediriger automatiquement vers OTP
@@ -106,17 +123,17 @@ export default function LoginScreen() {
           {/* Form */}
           <View style={styles.formContainer}>
             <View style={styles.form}>
-              {/* Email Input */}
+              {/* Phone Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
+                <Text style={styles.inputLabel}>Numéro de téléphone</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
+                  <Ionicons name="call" size={20} color={theme.colors.secondary[400]} />
                   <TextInput
                     style={styles.input}
-                    placeholder="votre@email.com"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
+                    placeholder="+228 XX XX XX XX"
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
                     placeholderTextColor={theme.colors.secondary[400]}
@@ -164,11 +181,11 @@ export default function LoginScreen() {
                   <TouchableOpacity
                     disabled={resending}
                     onPress={async () => {
-                      if (!email) return;
                       setResending(true);
                       try {
-                        await AuthService.resendOTP(email);
-                        setErrorMsg('Code renvoyé. Vérifiez votre email.');
+                        // Note: L'API OTP utilise encore l'email pour l'envoi
+                        // Il faudrait modifier l'API pour gérer les téléphones
+                        setErrorMsg('Fonctionnalité non disponible pour les téléphones.');
                       } catch (e:any) {
                         setErrorMsg('Erreur lors de l\'envoi du code.');
                       } finally {
@@ -181,8 +198,8 @@ export default function LoginScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
-                      if (!email) return;
-                      router.push({ pathname: '/verify-otp', params: { email } });
+                      // Note: Redirection vers la vérification OTP désactivée pour les téléphones
+                      setErrorMsg('Veuillez vérifier votre email pour activer le compte.');
                     }}
                     style={styles.outlineLink}
                   >

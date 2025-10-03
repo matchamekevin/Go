@@ -232,8 +232,27 @@ export class AuthService {
     return { message: 'OTP renvoyé' };
   }
 
-  static async login(email: string, password: string) {
-    const user = await UserRepository.findByEmail(email);
+  static async login(emailOrPhone: string, password: string, isPhone: boolean = false) {
+    let user;
+    
+    if (isPhone) {
+      // Normaliser le numéro de téléphone
+      const normalizePhone = (raw: string) => {
+        if (!raw) return '';
+        let s = raw.replace(/[^0-9+]/g, '');
+        if (s.startsWith('00')) s = '+' + s.slice(2);
+        if (s.startsWith('+228')) return s;
+        if (s.startsWith('228')) return '+' + s;
+        if (s.length === 8) return '+228' + s;
+        return s;
+      };
+      
+      const normalizedPhone = normalizePhone(emailOrPhone);
+      user = await UserRepository.findByPhone(normalizedPhone);
+    } else {
+      user = await UserRepository.findByEmail(emailOrPhone);
+    }
+    
     if (!user) throw new Error('Utilisateur introuvable');
     const ok = await comparePassword(password, user.password);
     if (!ok) throw new Error('Mot de passe invalide');
@@ -241,8 +260,23 @@ export class AuthService {
     if ((user as any).is_suspended) throw new Error('Compte suspendu');
     if (!user.is_verified) throw new Error('Compte non vérifié');
 
-  const token = generateJWT({ id: user.id, email: user.email, name: user.name, role: user.role || 'user' });
-  return { token, user: { id: user.id, email: user.email, name: user.name, role: user.role || 'user' } };
+    const token = generateJWT({ 
+      id: user.id, 
+      email: user.email, 
+      phone: user.phone,
+      name: user.name, 
+      role: user.role || 'user' 
+    });
+    return { 
+      token, 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        phone: user.phone,
+        name: user.name, 
+        role: user.role || 'user' 
+      } 
+    };
   }
 
   /**

@@ -31,8 +31,10 @@ function MinimalScanApp() {
     setCurrentView('validating');
     
     try {
-      const response = await axios.post(`${API_BASE_URL}/tickets/validate`, {
-        ticket_code: ticketCode
+      const response = await axios.post(`${API_BASE_URL}/sotral/validate-ticket`, {
+        ticket_code: ticketCode,
+        validator_device_id: 'SCAN_APP_001',
+        validation_timestamp: new Date().toISOString()
       }, {
         headers: {
           'Content-Type': 'application/json',

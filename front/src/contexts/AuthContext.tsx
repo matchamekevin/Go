@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
+  login: (credentials: { email?: string; phone?: string; password: string }) => Promise<void>;
   register: (userData: { email: string; name: string; password: string; phone?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const login = async (credentials: { email: string; password: string }) => {
+  const login = async (credentials: { email?: string; phone?: string; password: string }) => {
     try {
       setIsLoading(true);
       const authData = await AuthService.login(credentials);

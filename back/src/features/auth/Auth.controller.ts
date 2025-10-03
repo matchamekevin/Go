@@ -35,8 +35,10 @@ export class AuthController {
   static async login(req: Request, res: Response) {
     try {
       console.log('[AuthController.login] body:', req.body);
-      const { email, password } = req.body;
-      const result = await AuthService.login(email, password);
+      const { email, phone, password } = req.body;
+      
+      // Accepter soit email soit phone
+      const result = await AuthService.login(email || phone, password, !!phone);
       // Structure standardisée pour le frontend
       res.json({
         success: true,
@@ -45,6 +47,7 @@ export class AuthController {
           user: {
             id: result.user.id,
             email: result.user.email,
+            phone: result.user.phone,
             name: result.user.name,
             role: result.user.role || 'user'
           }
