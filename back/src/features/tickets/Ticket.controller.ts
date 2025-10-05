@@ -79,7 +79,7 @@ export class TicketController {
     const user = (req as any).user;
     if (!user)
       return res.status(401).json({ success: false, error: "Non authentifié" });
-    const tickets = await TicketRepository.getTicketsByUserId(user.id);
+    const tickets = await TicketRepository.getUserTicketsFromSotral(user.id);
     return res.json({ success: true, data: tickets });
   }
 
