@@ -211,12 +211,8 @@ export class TicketRepository {
   ): Promise<any[]> {
     // Debug: vérifier les paramètres reçus
     console.log(
-      "[TicketRepository.assignAvailableTickets] line_id:",
-      line_id,
-      "user_id:",
-      user_id,
-      "quantity:",
-      quantity,
+      "[TicketRepository.assignAvailableTickets] DÉBUT assignation tickets",
+      { line_id, user_id, quantity, external_id },
     );
 
     // Transaction pour assigner les tickets de manière atomique
@@ -227,13 +223,23 @@ export class TicketRepository {
       // Vérifier la disponibilité (sans verrouiller sotral_tickets)
       const availableQuery = `SELECT COUNT(*) as count FROM sotral_tickets
          WHERE line_id = $1 AND status = 'active'`;
-      console.log("[DEBUG] Checking availability:", availableQuery);
+      console.log(
+        "[TicketRepository.assignAvailableTickets] Vérification disponibilité:",
+        availableQuery,
+      );
 
       const availableResult = await client.query(availableQuery, [line_id]);
       const available = parseInt(availableResult.rows[0].count, 10);
 
+      console.log(
+        `[TicketRepository.assignAvailableTickets] Tickets disponibles pour la ligne ${line_id}: ${available}`,
+      );
+
       if (available < quantity) {
         await client.query("ROLLBACK");
+        console.error(
+          `[TicketRepository.assignAvailableTickets] Pas assez de tickets disponibles. Demandé: ${quantity}, Disponible: ${available}`,
+        );
         throw new Error(
           `Pas assez de tickets disponibles. Demandé: ${quantity}, Disponible: ${available}`,
         );
@@ -247,6 +253,11 @@ export class TicketRepository {
 
       const selectResult = await client.query(selectQuery, [line_id, quantity]);
       const sotralTicketIds = selectResult.rows.map((row) => row.id);
+
+      console.log(
+        `[TicketRepository.assignAvailableTickets] IDs des tickets sotral sélectionnés:`,
+        sotralTicketIds,
+      );
 
       // Créer les entrées user_tickets
       const userTickets = [];
@@ -269,25 +280,29 @@ export class TicketRepository {
           ticketCode,
         ]);
 
+        console.log(
+          `[TicketRepository.assignAvailableTickets] user_ticket créé pour sotral_ticket_id=${sotralTicketId}, code=${ticketCode}`,
+        );
+
         userTickets.push(insertResult.rows[0]);
       }
 
       // Mettre à jour le statut des tickets sotral assignés
       const updateQuery = `
         UPDATE sotral_tickets
-        SET status = 'assigned', user_id = $1, updated_at = NOW()
+        SET status = 'sold', user_id = $1, updated_at = NOW()
         WHERE id = ANY($2::int[])
       `;
       await client.query(updateQuery, [user_id, sotralTicketIds]);
       console.log(
-        `[TicketRepository.assignAvailableTickets] Statut des sotral_tickets mis à jour:`,
+        `[TicketRepository.assignAvailableTickets] Statut des sotral_tickets mis à jour (passés à 'sold') pour user_id=${user_id}:`,
         sotralTicketIds,
       );
 
       await client.query("COMMIT");
 
       console.log(
-        `[TicketRepository.assignAvailableTickets] ${userTickets.length} user_tickets créés`,
+        `[TicketRepository.assignAvailableTickets] ${userTickets.length} user_tickets créés et tickets sotral assignés à l'utilisateur ${user_id}`,
       );
       return userTickets;
     } catch (error) {
@@ -300,6 +315,9 @@ export class TicketRepository {
       });
       throw error;
     } finally {
+      console.log(
+        "[TicketRepository.assignAvailableTickets] FIN assignation tickets",
+      );
       client.release();
     }
   }
