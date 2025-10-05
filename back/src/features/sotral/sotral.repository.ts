@@ -19,7 +19,7 @@ import {
 } from './sotral.types';
 
 export class SotralRepository {
-  
+
   // ==========================================
   // GESTION DES LIGNES
   // ==========================================
@@ -28,7 +28,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT 
+        SELECT
           l.*,
           c.name as category_name,
           c.description as category_description
@@ -36,7 +36,7 @@ export class SotralRepository {
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
         ORDER BY l.line_number ASC
       `;
-      
+
       const result = await client.query(query);
       return result.rows.map((row: any) => ({
         id: row.id,
@@ -66,7 +66,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT 
+        SELECT
           l.*,
           c.name as category_name,
           c.description as category_description
@@ -74,7 +74,7 @@ export class SotralRepository {
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
         ORDER BY l.line_number ASC
       `;
-      
+
       const result = await client.query(query);
       console.log('All lines for admin:', result);
 
@@ -105,7 +105,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT 
+        SELECT
           l.*,
           c.name as category_name,
           c.description as category_description
@@ -113,10 +113,10 @@ export class SotralRepository {
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
         WHERE l.id = $1 AND l.is_active = true
       `;
-      
+
       const result = await client.query(query, [id]);
       if (result.rows.length === 0) return null;
-      
+
       const row = result.rows[0];
       return {
         id: row.id,
@@ -146,7 +146,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT 
+        SELECT
           l.*,
           c.name as category_name,
           c.description as category_description
@@ -154,10 +154,10 @@ export class SotralRepository {
         LEFT JOIN sotral_line_categories c ON l.category_id = c.id
         WHERE l.id = $1
       `;
-      
+
       const result = await client.query(query, [id]);
       if (result.rows.length === 0) return null;
-      
+
       const row = result.rows[0];
       return {
         id: row.id,
@@ -186,7 +186,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT 
+        SELECT
           l.*,
           c.name as category_name,
           c.description as category_description
@@ -195,7 +195,7 @@ export class SotralRepository {
         WHERE l.category_id = $1 AND l.is_active = true
         ORDER BY l.line_number ASC
       `;
-      
+
       const result = await client.query(query, [categoryId]);
       return result.rows.map((row: any) => ({
         id: row.id,
@@ -247,7 +247,7 @@ export class SotralRepository {
         WHERE ls.line_id = $1 AND s.is_active = true
         ORDER BY ls.direction, ls.sequence_order ASC
       `;
-      
+
       const result = await client.query(query, [lineId]);
       return result.rows;
     } finally {
@@ -263,7 +263,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT * FROM sotral_ticket_types 
+        SELECT * FROM sotral_ticket_types
         ORDER BY price_fcfa ASC
       `;
 
@@ -276,10 +276,10 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT * FROM sotral_ticket_types 
+        SELECT * FROM sotral_ticket_types
         WHERE code = $1 AND is_active = true
       `;
-      
+
       const result = await client.query(query, [code]);
       return result.rows[0] || null;
     } finally {
@@ -292,9 +292,9 @@ export class SotralRepository {
   // ==========================================
 
   async calculatePrice(
-    lineId: number, 
-    stopFromId?: number, 
-    stopToId?: number, 
+    lineId: number,
+    stopFromId?: number,
+    stopToId?: number,
     isStudent: boolean = false
   ): Promise<{ price: number; zone: string }> {
     const client = await pool.connect();
@@ -314,9 +314,9 @@ export class SotralRepository {
 
       // Calculer selon les zones tarifaires
       const zone = SOTRAL_CONFIG.PRICE_ZONES.find(z => distance <= z.max_km);
-      return { 
-        price: zone?.price || 100, 
-        zone: `Zone ${SOTRAL_CONFIG.PRICE_ZONES.indexOf(zone!) + 1}` 
+      return {
+        price: zone?.price || 100,
+        zone: `Zone ${SOTRAL_CONFIG.PRICE_ZONES.indexOf(zone!) + 1}`
       };
     } finally {
       client.release();
@@ -332,7 +332,7 @@ export class SotralRepository {
     purchaseData: SotralTicketPurchase
   ): Promise<SotralTicketWithDetails> {
     const client = await pool.connect();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -368,8 +368,8 @@ export class SotralRepository {
       // Insérer le ticket
       const insertQuery = `
         INSERT INTO sotral_tickets (
-          ticket_code, qr_code, user_id, ticket_type_id, line_id, 
-          stop_from_id, stop_to_id, price_paid_fcfa, expires_at, 
+          ticket_code, qr_code, user_id, ticket_type_id, line_id,
+          stop_from_id, stop_to_id, price_paid_fcfa, expires_at,
           trips_remaining, payment_method, payment_reference
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
@@ -436,7 +436,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const { lineId, limit = 50, offset = 0, status } = options;
-      
+
       let whereClause = 'WHERE t.user_id IS NULL'; // Tickets générés par admin (sans user_id)
       const params: any[] = [];
       let paramIndex = 1;
@@ -454,7 +454,7 @@ export class SotralRepository {
       }
 
       const query = `
-        SELECT 
+        SELECT
           t.id,
           t.ticket_code,
           t.qr_code,
@@ -473,7 +473,7 @@ export class SotralRepository {
       `;
 
       params.push(limit, offset);
-      
+
       const result = await client.query(query, params);
 
       // Compter le total
@@ -482,7 +482,7 @@ export class SotralRepository {
         FROM sotral_tickets t
         ${whereClause}
       `;
-      
+
       const countResult = await client.query(countQuery, params.slice(0, -2));
       const total = parseInt(countResult.rows[0]?.total || '0');
 
@@ -506,16 +506,16 @@ export class SotralRepository {
     message?: string;
   }> {
     const client = await pool.connect();
-    
+
     try {
       await client.query('BEGIN');
 
       // Trouver le ticket par code QR
       const ticketQuery = `
-        SELECT * FROM sotral_tickets 
+        SELECT * FROM sotral_tickets
         WHERE ticket_code = $1
       `;
-      
+
       const ticketResult = await client.query(ticketQuery, [validation.ticket_code]);
       if (ticketResult.rows.length === 0) {
         return { success: false, message: 'Ticket non trouvé' };
@@ -527,11 +527,11 @@ export class SotralRepository {
       if (ticket.status === 'used' && ticket.trips_remaining <= 0) {
         return { success: false, message: 'Ticket déjà utilisé' };
       }
-      
+
       if (ticket.status === 'expired') {
         return { success: false, message: 'Ticket expiré' };
       }
-      
+
       if (ticket.status === 'cancelled') {
         return { success: false, message: 'Ticket annulé' };
       }
@@ -573,7 +573,7 @@ export class SotralRepository {
       await client.query('COMMIT');
 
       const updatedTicket = await this.getTicketById(ticket.id);
-      
+
       return {
         success: true,
         ticket: updatedTicket!,
@@ -597,7 +597,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT 
+        SELECT
           t.*,
           tt.name as ticket_type_name,
           tt.code as ticket_type_code,
@@ -614,7 +614,7 @@ export class SotralRepository {
         WHERE t.user_id = $1
         ORDER BY t.created_at DESC
       `;
-      
+
       const result = await client.query(query, [userId]);
       return result.rows.map(this.mapTicketWithDetails);
     } finally {
@@ -626,7 +626,7 @@ export class SotralRepository {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT 
+        SELECT
           t.*,
           tt.name as ticket_type_name,
           tt.code as ticket_type_code,
@@ -642,7 +642,7 @@ export class SotralRepository {
         LEFT JOIN sotral_stops st ON t.stop_to_id = st.id
         WHERE t.id = $1
       `;
-      
+
       const result = await client.query(query, [id]);
       return result.rows.length > 0 ? this.mapTicketWithDetails(result.rows[0]) : null;
     } finally {
@@ -675,12 +675,12 @@ export class SotralRepository {
     try {
       const query = `
         INSERT INTO sotral_lines (
-          line_number, name, route_from, route_to, 
+          line_number, name, route_from, route_to,
           category_id, distance_km, stops_count, is_active
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `;
-      
+
       const values = [
         lineData.line_number,
         lineData.name,
@@ -691,7 +691,7 @@ export class SotralRepository {
         lineData.stops_count,
         lineData.is_active ?? true
       ];
-      
+
       const result = await client.query(query, values);
       return result.rows[0];
     } finally {
@@ -870,12 +870,12 @@ export class SotralRepository {
     try {
       const query = `
         INSERT INTO sotral_stops (
-          name, code, latitude, longitude, address, 
+          name, code, latitude, longitude, address,
           is_major_stop, is_active
         ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `;
-      
+
       const values = [
         stopData.name,
         stopData.code,
@@ -885,7 +885,7 @@ export class SotralRepository {
         stopData.is_major_stop ?? false,
         stopData.is_active ?? true
       ];
-      
+
       const result = await client.query(query, values);
       return result.rows[0];
     } finally {
@@ -898,13 +898,13 @@ export class SotralRepository {
     try {
       const query = `
         INSERT INTO sotral_ticket_types (
-          name, code, description, price_fcfa, 
-          validity_duration_hours, max_trips, 
+          name, code, description, price_fcfa,
+          validity_duration_hours, max_trips,
           is_student_discount, is_active
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `;
-      
+
       const values = [
         ticketTypeData.name,
         ticketTypeData.code,
@@ -915,7 +915,7 @@ export class SotralRepository {
         ticketTypeData.is_student_discount ?? false,
         ticketTypeData.is_active ?? true
       ];
-      
+
       const result = await client.query(query, values);
       return result.rows[0];
     } finally {
@@ -924,14 +924,14 @@ export class SotralRepository {
   }
 
   async generateTicketsForLine(
-    lineId: number, 
-    ticketTypeCode: string, 
-    quantity: number, 
+    lineId: number,
+    ticketTypeCode: string,
+    quantity: number,
     validityHours: number = 24,
     customPrice?: number
   ): Promise<SotralTicket[]> {
     console.log('🎫 Repository generateTicketsForLine - Received:', { lineId, ticketTypeCode, quantity, validityHours, customPrice });
-    
+
     // Force redeploy on Render - table sotral_tickets should exist
     const client = await pool.connect();
     try {
@@ -939,22 +939,22 @@ export class SotralRepository {
 
       // Récupérer le type de ticket
       const ticketTypeQuery = `
-        SELECT * FROM sotral_ticket_types 
+        SELECT * FROM sotral_ticket_types
         WHERE code = $1 AND is_active = true
       `;
       const ticketTypeResult = await client.query(ticketTypeQuery, [ticketTypeCode]);
-      
+
       if (ticketTypeResult.rows.length === 0) {
         console.error('🎫 Repository - Ticket type not found:', ticketTypeCode);
         throw new Error(`Type de ticket '${ticketTypeCode}' non trouvé`);
       }
-      
+
       const ticketType = ticketTypeResult.rows[0];
 
       // Récupérer la ligne
       const lineQuery = `SELECT * FROM sotral_lines WHERE id = $1 AND is_active = true`;
       const lineResult = await client.query(lineQuery, [lineId]);
-      
+
       if (lineResult.rows.length === 0) {
         throw new Error(`Ligne ${lineId} non trouvée`);
       }
@@ -967,7 +967,7 @@ export class SotralRepository {
         // Calculer le prix selon la distance et le type
         const isStudent = ticketType.is_student_discount;
         price = ticketType.price_fcfa;
-        
+
         // Pour les lignes ordinaires, calculer selon la distance
         if (!isStudent && line.category_id === 1) {
           price = this.calculatePriceByDistance(parseFloat(line.distance_km) || 0);
@@ -1007,7 +1007,7 @@ export class SotralRepository {
 
           const result = await client.query(insertQuery, values);
           generatedTickets.push(result.rows[0]);
-          
+
           if ((i + 1) % 10 === 0) {
             console.log(`Generated ${i + 1}/${quantity} tickets`);
           }
@@ -1067,14 +1067,14 @@ export class SotralRepository {
       }
 
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-      
+
       // Compter le total
       const countQuery = `
         SELECT COUNT(*) as total
         FROM sotral_tickets t
         ${whereClause}
       `;
-      
+
       const countResult = await client.query(countQuery, values);
       const total = parseInt(countResult.rows[0].total);
 
@@ -1083,7 +1083,7 @@ export class SotralRepository {
       values.push(limit, offset);
 
       const dataQuery = `
-        SELECT 
+        SELECT
           t.*,
           tt.name as ticket_type_name,
           tt.code as ticket_type_code,
@@ -1161,7 +1161,7 @@ export class SotralRepository {
       conditions.push(`t.trips_remaining > 0`);
 
       const whereClause = `WHERE ${conditions.join(' AND ')}`;
-      
+
       // Compter le total
       const countQuery = `
         SELECT COUNT(*) as total
@@ -1169,7 +1169,7 @@ export class SotralRepository {
         LEFT JOIN sotral_ticket_types tt ON t.ticket_type_id = tt.id
         ${whereClause}
       `;
-      
+
       const countResult = await client.query(countQuery, values);
       const total = parseInt(countResult.rows[0].total);
 
@@ -1178,7 +1178,7 @@ export class SotralRepository {
       values.push(limit, offset);
 
       const dataQuery = `
-        SELECT 
+        SELECT
           t.id,
           t.ticket_code,
           t.qr_code,
