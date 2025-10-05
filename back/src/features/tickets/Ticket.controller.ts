@@ -324,4 +324,46 @@ export class TicketController {
       });
     }
   }
+
+  /**
+   * Scanne/valide un ticket utilisateur (user_tickets/sotral_tickets)
+   */
+  static async scanUserTicket(req: RequestWithUser, res: Response) {
+    try {
+      // Attendre { "ticket_code": "USR..." } dans le body
+      const { ticket_code } = req.body;
+      if (!ticket_code) {
+        return res.status(400).json({
+          success: false,
+          error: "ticket_code requis",
+        });
+      }
+
+      // Valider le ticket (table user_tickets)
+      const result = await TicketRepository.validateUserTicket(ticket_code);
+
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          error: result.message,
+          ticket: result.ticket,
+        });
+      }
+
+      // (Optionnel) Diffuser un événement temps réel
+      // realtimeService.broadcast("user_ticket_scanned", { ... });
+
+      return res.status(200).json({
+        success: true,
+        data: result.ticket,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error("[TicketController.scanUserTicket] error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Erreur lors du scan du ticket",
+      });
+    }
+  }
 }

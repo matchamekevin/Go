@@ -381,10 +381,10 @@ export class TicketRepository {
    */
   static async getUserTicketByCode(ticketCode: string): Promise<any | null> {
     const result = await pool.query(
-      `SELECT ut.*, sl.name as line_name, sl.route as line_route
+      `SELECT ut.*, sl.name as line_name, CONCAT(sl.route_from, ' ↔ ', sl.route_to) as line_route
        FROM user_tickets ut
        LEFT JOIN sotral_lines sl ON ut.line_id = sl.id
-       WHERE ut.ticket_code = $1`,
+       WHERE ut.ticket_code = $1::text`,
       [ticketCode],
     );
     return result.rows[0] || null;
@@ -399,10 +399,10 @@ export class TicketRepository {
   ): Promise<any | null> {
     const result = await pool.query(
       `UPDATE user_tickets
-       SET status = $1,
-           used_at = CASE WHEN $1 = 'used' THEN NOW() ELSE used_at END,
+       SET status = $1::varchar,
+           used_at = CASE WHEN $1::varchar = 'used' THEN NOW() ELSE used_at END,
            updated_at = NOW()
-       WHERE ticket_code = $2
+       WHERE ticket_code = $2::varchar
        RETURNING *`,
       [status, ticketCode],
     );

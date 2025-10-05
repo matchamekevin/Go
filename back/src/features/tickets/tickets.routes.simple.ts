@@ -13,12 +13,10 @@ router.get("/products", async (req, res) => {
     return res.status(200).json({ success: true, data: products });
   } catch (error) {
     console.error("[TicketsRoutes.getAllProducts] error:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        error: "Erreur lors de la récupération des produits",
-      });
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des produits",
+    });
   }
 });
 
@@ -29,12 +27,10 @@ router.get("/routes", async (req, res) => {
     return res.status(200).json({ success: true, data: routes });
   } catch (error) {
     console.error("[TicketsRoutes.getAllRoutes] error:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        error: "Erreur lors de la récupération des trajets",
-      });
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des trajets",
+    });
   }
 });
 
@@ -58,12 +54,10 @@ router.get("/routes/category/:category", async (req, res) => {
     return res.status(200).json({ success: true, data: routes });
   } catch (error) {
     console.error("[TicketsRoutes.getRoutesByPriceCategory] error:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        error: "Erreur lors de la récupération des trajets",
-      });
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des trajets",
+    });
   }
 });
 
@@ -81,12 +75,10 @@ router.get("/user/:id", async (req, res) => {
     return res.status(200).json({ success: true, data: tickets });
   } catch (error) {
     console.error("[TicketsRoutes.getUserTicketsTest] error:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        error: "Erreur lors de la récupération des tickets",
-      });
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la récupération des tickets",
+    });
   }
 });
 
@@ -119,14 +111,15 @@ router.get("/:code/qrcode", async (req, res) => {
     return res.status(200).send(buffer);
   } catch (error) {
     console.error("[TicketsRoutes.qrcode] error:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        error: "Erreur lors de la génération du QR code",
-      });
+    return res.status(500).json({
+      success: false,
+      error: "Erreur lors de la génération du QR code",
+    });
   }
 });
+
+// Scanner/valider un ticket utilisateur (user_tickets/sotral_tickets) -- PUBLIC
+router.post("/scan", TicketController.scanUserTicket);
 
 // Routes authentifiées
 router.use(authMiddleware as any);
