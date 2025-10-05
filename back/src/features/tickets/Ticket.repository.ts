@@ -272,6 +272,18 @@ export class TicketRepository {
         userTickets.push(insertResult.rows[0]);
       }
 
+      // Mettre à jour le statut des tickets sotral assignés
+      const updateQuery = `
+        UPDATE sotral_tickets
+        SET status = 'assigned', user_id = $1, updated_at = NOW()
+        WHERE id = ANY($2::int[])
+      `;
+      await client.query(updateQuery, [user_id, sotralTicketIds]);
+      console.log(
+        `[TicketRepository.assignAvailableTickets] Statut des sotral_tickets mis à jour:`,
+        sotralTicketIds,
+      );
+
       await client.query("COMMIT");
 
       console.log(
