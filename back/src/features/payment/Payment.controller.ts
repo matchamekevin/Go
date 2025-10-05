@@ -50,9 +50,23 @@ export class PaymentController {
             .status(401)
             .json({ success: false, error: "Invalid signature" });
       }
-      const { external_id, amount, currency, status } = req.body || {};
 
-      if (!external_id || typeof amount !== "number") {
+      // Mapping CinetPay -> interne
+      const external_id = req.body.external_id || req.body.cpm_trans_id;
+      const amount = Number(req.body.amount || req.body.cpm_amount);
+      const currency = req.body.currency || req.body.cpm_currency;
+      const status =
+        req.body.status ||
+        (req.body.cpm_error_message === "SUCCES" ? "completed" : "failed");
+
+      console.log("[PaymentController.webhook] Mapping CinetPay:", {
+        external_id,
+        amount,
+        currency,
+        status,
+      });
+
+      if (!external_id || typeof amount !== "number" || isNaN(amount)) {
         return res
           .status(400)
           .json({ success: false, error: "Champs requis manquants" });
