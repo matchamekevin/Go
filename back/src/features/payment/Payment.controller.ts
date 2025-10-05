@@ -23,6 +23,15 @@ export class PaymentController {
    */
   static async webhook(req: Request, res: Response) {
     try {
+      console.log(
+        "[PaymentController.webhook] DÉBUT - Données reçues:",
+        JSON.stringify(req.body, null, 2),
+      );
+      console.log(
+        "[PaymentController.webhook] Headers:",
+        JSON.stringify(req.headers, null, 2),
+      );
+
       // Sécurité: vérifier la signature HMAC si disponible
       const secret = Config.pspWebhookSecret;
       const signature = req.headers["x-psp-signature"] as string | undefined;
@@ -75,33 +84,58 @@ export class PaymentController {
         meta: receipt.meta || {},
       });
 
-      // Générer les tickets à partir des infos meta de la pré-commande
+      // Assigner les tickets disponibles à l'utilisateur (au lieu d'en créer de nouveaux)
       let generated: any[] = [];
       if ((status || "completed") === "completed") {
         const { product_code, line_id, quantity } = receipt.meta || {};
         const qty = Math.max(1, parseInt(String(quantity || 1), 10));
-        for (let i = 0; i < qty; i++) {
-          const t = await TicketRepository.createTicket({
-            user_id: Number(receipt.user_id),
-            product_code,
-            line_id: line_id || null,
-            status: "unused",
-            purchase_method: "mobile_money",
-            metadata: { receipt_external_id: external_id },
-          });
-          // Générer un payload QR (léger) et le stocker dans metadata
-          const qrPayload = {
-            type: "ticket",
-            code: t.code,
-            user_id: t.user_id,
-            product_code: t.product_code,
-            line_id: t.line_id || null,
-            issued_at: t.purchased_at,
-          };
-          await TicketRepository.updateTicketMetadataMerge(String(t.code), {
-            qr: qrPayload,
-          });
-          generated.push(t);
+
+        console.log("[PaymentController.webhook] Receipt meta:", receipt.meta);
+        console.log("[PaymentController.webhook] Paramètres extraction:");
+        console.log("  - product_code:", product_code);
+        console.log("  - line_id:", line_id, "type:", typeof line_id);
+        console.log("  - quantity:", quantity, "-> qty:", qty);
+        console.log(
+          "  - user_id:",
+          receipt.user_id,
+          "type:",
+          typeof receipt.user_id,
+        );
+
+        try {
+          console.log(
+            "[PaymentController.webhook] Appel assignAvailableTickets avec:",
+          );
+          console.log("  - line_id (Number):", Number(line_id));
+          console.log("  - user_id (Number):", Number(receipt.user_id));
+          console.log("  - quantity:", qty);
+          console.log("  - product_code:", product_code);
+
+          // Assigner les tickets existants disponibles à l'utilisateur
+          const assignedTickets = await TicketRepository.assignAvailableTickets(
+            Number(line_id),
+            Number(receipt.user_id),
+            qty,
+            external_id,
+          );
+
+          generated = assignedTickets;
+
+          console.log(
+            `[PaymentController.webhook] SUCCESS: ${assignedTickets.length} tickets assignés à l'utilisateur ${receipt.user_id}`,
+          );
+          console.log(
+            "[PaymentController.webhook] Tickets assignés détails:",
+            assignedTickets,
+          );
+        } catch (error) {
+          console.error(
+            "[PaymentController.webhook] Erreur lors de l'assignation des tickets:",
+            error,
+          );
+          throw new Error(
+            `Impossible d'assigner les tickets: ${(error as Error).message}`,
+          );
         }
       }
 
@@ -227,6 +261,11 @@ export class PaymentController {
         },
       });
 
+      // Construire les URLs de callback automatiquement si non fournies
+      const baseUrl = Config.baseUrl || "http://localhost:3000";
+      const finalReturnUrl = return_url || `${baseUrl}/api/payment/return`;
+      const finalNotifyUrl = notify_url || `${baseUrl}/api/payment/webhook`;
+
       const payload = {
         apikey: API_KEY,
         site_id: SITE_ID,
@@ -234,8 +273,8 @@ export class PaymentController {
         amount,
         currency: currency || "XOF",
         description: description || "Achat ticket GoSOTRAL",
-        return_url,
-        notify_url,
+        return_url: finalReturnUrl,
+        notify_url: finalNotifyUrl,
         customer_name: user.name || "",
         customer_surname: "",
         customer_email: user.email || "",
@@ -263,6 +302,171 @@ export class PaymentController {
       return res
         .status(500)
         .json({ success: false, error: (error as Error).message });
+    }
+  }
+
+  // Endpoint de retour après paiement CinetPay (return_url)
+  static async paymentReturn(req: Request, res: Response) {
+    try {
+      const { transaction_id, token } = req.query;
+
+      console.log("[PaymentController.paymentReturn] Paramètres reçus:", {
+        transaction_id,
+        token,
+        query: req.query,
+      });
+
+      if (!transaction_id) {
+        return res.status(400).json({
+          success: false,
+          error: "ID de transaction manquant",
+        });
+      }
+
+      // Récupérer le reçu de paiement
+      const receipt = await PaymentRepository.findReceiptByExternalId(
+        transaction_id as string,
+      );
+
+      if (!receipt) {
+        return res.status(404).json({
+          success: false,
+          error: "Transaction non trouvée",
+        });
+      }
+
+      // Vérifier le statut du paiement via l'API CinetPay
+      const API_KEY = Config.cinetpay.apiKey;
+      const SITE_ID = Config.cinetpay.siteId;
+      const checkUrl = "https://api-checkout.cinetpay.com/v2/payment/check";
+
+      const checkPayload = {
+        apikey: API_KEY,
+        site_id: SITE_ID,
+        transaction_id: transaction_id as string,
+      };
+
+      const checkResponse = await axios.post(checkUrl, checkPayload, {
+        headers: { "Content-Type": "application/json" },
+      });
+
+      console.log(
+        "[PaymentController.paymentReturn] Réponse CinetPay:",
+        checkResponse.data,
+      );
+
+      const paymentData = checkResponse.data.data;
+      const isSuccess =
+        checkResponse.data.code === "00" && paymentData?.status === "ACCEPTED";
+
+      // Retourner une réponse JSON avec le statut
+      return res.json({
+        success: true,
+        data: {
+          transaction_id,
+          status: isSuccess ? "success" : "failed",
+          amount: paymentData?.amount || receipt.amount,
+          currency: paymentData?.currency || receipt.currency,
+          message: isSuccess
+            ? "Paiement réussi! Vos tickets ont été assignés."
+            : "Paiement échoué ou en attente.",
+          receipt_status: receipt.status,
+          cinetpay_status: paymentData?.status || "UNKNOWN",
+        },
+      });
+    } catch (error) {
+      console.error("[PaymentController.paymentReturn] Erreur:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Erreur lors de la vérification du paiement",
+      });
+    }
+  }
+
+  // Endpoint pour vérifier le statut d'un paiement
+  static async checkPaymentStatus(req: Request, res: Response) {
+    try {
+      const { transaction_id } = req.params;
+
+      if (!transaction_id) {
+        return res.status(400).json({
+          success: false,
+          error: "ID de transaction requis",
+        });
+      }
+
+      // Récupérer le reçu de paiement depuis notre base
+      const receipt =
+        await PaymentRepository.findReceiptByExternalId(transaction_id);
+
+      if (!receipt) {
+        return res.status(404).json({
+          success: false,
+          error: "Transaction non trouvée",
+        });
+      }
+
+      // Vérifier le statut actuel via l'API CinetPay
+      const API_KEY = Config.cinetpay.apiKey;
+      const SITE_ID = Config.cinetpay.siteId;
+      const checkUrl = "https://api-checkout.cinetpay.com/v2/payment/check";
+
+      const checkPayload = {
+        apikey: API_KEY,
+        site_id: SITE_ID,
+        transaction_id: transaction_id,
+      };
+
+      let cinetpayStatus = null;
+      try {
+        const checkResponse = await axios.post(checkUrl, checkPayload, {
+          headers: { "Content-Type": "application/json" },
+        });
+        cinetpayStatus = checkResponse.data;
+      } catch (apiError) {
+        console.warn(
+          "[PaymentController.checkPaymentStatus] Erreur API CinetPay:",
+          apiError,
+        );
+      }
+
+      // Récupérer les tickets associés si le paiement est complété
+      let tickets = [];
+      if (receipt.status === "completed") {
+        try {
+          const ticketResults =
+            await TicketRepository.getTicketsByExternalId(transaction_id);
+          tickets = ticketResults;
+        } catch (ticketError) {
+          console.warn(
+            "[PaymentController.checkPaymentStatus] Erreur récupération tickets:",
+            ticketError,
+          );
+        }
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          transaction_id,
+          local_status: receipt.status,
+          amount: receipt.amount,
+          currency: receipt.currency,
+          user_id: receipt.user_id,
+          meta: receipt.meta,
+          created_at: receipt.created_at,
+          cinetpay_status: cinetpayStatus?.data?.status || null,
+          cinetpay_code: cinetpayStatus?.code || null,
+          tickets_count: tickets.length,
+          tickets: tickets,
+        },
+      });
+    } catch (error) {
+      console.error("[PaymentController.checkPaymentStatus] Erreur:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Erreur lors de la vérification du statut",
+      });
     }
   }
 }

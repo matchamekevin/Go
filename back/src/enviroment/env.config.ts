@@ -5,7 +5,9 @@
  * - DB_HOST doit être 'db' en Docker Compose, '127.0.0.1' en local
  */
 export const Config = {
-  port: process.env.PORT ? Number(process.env.PORT) : 3000,
+  // Port par défaut forcé à 7000 pour le dev local (sauf si PORT défini)
+  port: process.env.PORT ? Number(process.env.PORT) : 7000,
+  baseUrl: process.env.BASE_URL || "http://localhost:7000",
   databaseUrl:
     process.env.DATABASE_URL ||
     (process.env.DB_USER &&
