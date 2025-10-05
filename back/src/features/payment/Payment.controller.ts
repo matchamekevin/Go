@@ -36,21 +36,24 @@ export class PaymentController {
       const secret = Config.pspWebhookSecret;
       const signature = req.headers["x-psp-signature"] as string | undefined;
       if (secret) {
-        if (!signature)
+        if (!signature) {
+          console.log("[PaymentController.webhook] Signature manquante !");
           return res
             .status(401)
             .json({ success: false, error: "Missing signature" });
+        }
         const payload = JSON.stringify(req.body || {});
         const expected = crypto
           .createHmac("sha256", secret)
           .update(payload)
           .digest("hex");
-        if (signature !== expected)
+        if (signature !== expected) {
+          console.log("[PaymentController.webhook] Signature invalide !");
           return res
             .status(401)
             .json({ success: false, error: "Invalid signature" });
+        }
       }
-
       // Mapping CinetPay -> interne
       const external_id = req.body.external_id || req.body.cpm_trans_id;
       const amount = Number(req.body.amount || req.body.cpm_amount);
@@ -67,6 +70,10 @@ export class PaymentController {
       });
 
       if (!external_id || typeof amount !== "number" || isNaN(amount)) {
+        console.log("[PaymentController.webhook] Champs requis manquants !", {
+          external_id,
+          amount,
+        });
         return res
           .status(400)
           .json({ success: false, error: "Champs requis manquants" });
@@ -76,6 +83,10 @@ export class PaymentController {
       const receipt =
         await PaymentRepository.findReceiptByExternalId(external_id);
       if (!receipt) {
+        console.log(
+          "[PaymentController.webhook] Reçu de paiement introuvable pour external_id:",
+          external_id,
+        );
         return res
           .status(404)
           .json({ success: false, error: "Reçu de paiement introuvable" });
@@ -83,12 +94,22 @@ export class PaymentController {
 
       // Vérifier idempotence (ne pas retraiter un webhook déjà vu)
       if (receipt.status === "completed") {
+        console.log(
+          "[PaymentController.webhook] Webhook déjà traité pour external_id:",
+          external_id,
+        );
         return res
           .status(200)
           .json({ success: true, data: { alreadyProcessed: true } });
       }
 
       // Mettre à jour le reçu de paiement
+      console.log(
+        "[PaymentController.webhook] Mise à jour du reçu de paiement pour external_id:",
+        external_id,
+        "avec status:",
+        status,
+      );
       await PaymentRepository.createReceipt({
         external_id,
         user_id: receipt.user_id,
@@ -97,6 +118,7 @@ export class PaymentController {
         status: status || "completed",
         meta: receipt.meta || {},
       });
+      console.log("[PaymentController.webhook] Reçu de paiement mis à jour !");
 
       // Assigner les tickets disponibles à l'utilisateur (au lieu d'en créer de nouveaux)
       let generated: any[] = [];
