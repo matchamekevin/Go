@@ -333,8 +333,7 @@ export class TicketRepository {
          st.status as sotral_status,
          st.expires_at as sotral_expires_at,
          st.price_paid_fcfa,
-         sl.name as line_name,
-         sl.route as line_route
+         sl.name as line_name
        FROM user_tickets ut
        LEFT JOIN sotral_tickets st ON ut.sotral_ticket_id = st.id
        LEFT JOIN sotral_lines sl ON ut.line_id = sl.id
