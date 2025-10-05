@@ -326,8 +326,11 @@ export class TicketRepository {
    * Récupère les tickets d'un utilisateur depuis user_tickets
    */
   static async getUserTicketsFromSotral(userId: number): Promise<any[]> {
-    const result = await pool.query(
-      `SELECT
+    console.log("[TicketRepository.getUserTicketsFromSotral] Paramètres:", {
+      userId,
+    });
+
+    const query = `SELECT
          ut.*,
          st.ticket_code as sotral_ticket_code,
          st.status as sotral_status,
@@ -335,12 +338,28 @@ export class TicketRepository {
          st.price_paid_fcfa,
          sl.name as line_name
        FROM user_tickets ut
-       LEFT JOIN sotral_tickets st ON ut.sotral_ticket_id = st.id
+       INNER JOIN sotral_tickets st ON ut.sotral_ticket_id = st.id
        LEFT JOIN sotral_lines sl ON ut.line_id = sl.id
        WHERE ut.user_id = $1
-       ORDER BY ut.created_at DESC`,
+         AND st.status IN ('sold', 'used')
+       ORDER BY ut.created_at DESC`;
+
+    console.log(
+      "[TicketRepository.getUserTicketsFromSotral] Requête SQL:",
+      query,
+    );
+    console.log(
+      "[TicketRepository.getUserTicketsFromSotral] Paramètres de la requête:",
       [userId],
     );
+
+    const result = await pool.query(query, [userId]);
+
+    console.log("[TicketRepository.getUserTicketsFromSotral] Résultat brut:", {
+      rowCount: result.rowCount,
+      rows: result.rows,
+    });
+
     return result.rows;
   }
 

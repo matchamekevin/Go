@@ -77,9 +77,14 @@ export class TicketController {
    */
   static async getMyTickets(req: Request, res: Response) {
     const user = (req as any).user;
+    console.log("[TicketController.getMyTickets] user.id =", user?.id);
     if (!user)
       return res.status(401).json({ success: false, error: "Non authentifié" });
     const tickets = await TicketRepository.getUserTicketsFromSotral(user.id);
+    console.log(
+      "[TicketController.getMyTickets] Tickets trouvés:",
+      tickets.length,
+    );
     return res.json({ success: true, data: tickets });
   }
 
@@ -207,7 +212,8 @@ export class TicketController {
         "[TicketController.getUserTickets] Recherche tickets pour userId:",
         userIdNumber,
       );
-      const tickets = await TicketRepository.getTicketsByUserId(userIdNumber);
+      const tickets =
+        await TicketRepository.getUserTicketsFromSotral(userIdNumber);
 
       console.log(
         "[TicketController.getUserTickets] Tickets trouvés:",
