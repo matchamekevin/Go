@@ -12,6 +12,16 @@ import pool from "../../shared/database/client";
 import { sendEmail } from "../../shared/utils/email.service";
 import { Config } from "../../enviroment/env.config";
 
+// Fonction utilitaire pour normaliser un numéro togolais
+function normalizeTgPhone(raw: string): string {
+  if (!raw) return "";
+  let s = raw.replace(/[^0-9+]/g, "");
+  if (s.startsWith("00")) s = "+" + s.slice(2);
+  if (s.startsWith("+228")) s = s.slice(4);
+  if (s.startsWith("228")) s = s.slice(3);
+  return s;
+}
+
 export class AuthService {
   static async register(data: {
     email: string;
@@ -325,12 +335,25 @@ export class AuthService {
     return { message: "OTP renvoyé" };
   }
 
-  static async login(email: string, password: string) {
-    const user = await UserRepository.findByEmail(email);
+  static async login({
+    email,
+    phone,
+    password,
+  }: {
+    email?: string;
+    phone?: string;
+    password: string;
+  }) {
+    let user = null;
+    if (email) {
+      user = await UserRepository.findByEmail(email);
+    } else if (phone) {
+      const localPhone = normalizeTgPhone(phone);
+      user = await UserRepository.findByPhone(localPhone);
+    }
     if (!user) throw new Error("Utilisateur introuvable");
     const ok = await comparePassword(password, user.password);
     if (!ok) throw new Error("Mot de passe invalide");
-    // If user is suspended, block login explicitly
     if ((user as any).is_suspended) throw new Error("Compte suspendu");
     if (!user.is_verified) throw new Error("Compte non vérifié");
 

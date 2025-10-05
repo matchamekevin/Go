@@ -1,39 +1,68 @@
-import pool from '../../shared/database/client';
-import { User } from './User.model';
+import pool from "../../shared/database/client";
+import { User } from "./User.model";
 
 export const UserRepository = {
   async findByEmail(email: string): Promise<User | null> {
-  const res = await pool.query(
-    'SELECT id, email, name, phone, password, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE email = $1 LIMIT 1',
-    [email]
-  );
-  if (!res.rows[0]) return null;
-  // Ajout du rôle par défaut si absent
-  return { ...res.rows[0], role: res.rows[0].role || 'user' };
+    const res = await pool.query(
+      "SELECT id, email, name, phone, password, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE email = $1 LIMIT 1",
+      [email],
+    );
+    if (!res.rows[0]) return null;
+    // Ajout du rôle par défaut si absent
+    return { ...res.rows[0], role: res.rows[0].role || "user" };
+  },
+
+  async findByPhone(phone: string): Promise<User | null> {
+    // Recherche sur les 8 derniers chiffres (numéro local)
+    const local = phone.replace(/[^0-9]/g, "").slice(-8);
+    const res = await pool.query(
+      "SELECT id, email, name, phone, password, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE RIGHT(phone, 8) = $1 LIMIT 1",
+      [local],
+    );
+    if (!res.rows[0]) return null;
+    return { ...res.rows[0], role: res.rows[0].role || "user" };
   },
 
   async findById(id: string): Promise<User | null> {
-  const res = await pool.query(
-    'SELECT id, email, name, phone, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE id = $1 LIMIT 1',
-    [parseInt(id)]
-  );
-  if (!res.rows[0]) return null;
-  return { ...res.rows[0], role: res.rows[0].role || 'user' };
+    const res = await pool.query(
+      "SELECT id, email, name, phone, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role FROM users WHERE id = $1 LIMIT 1",
+      [parseInt(id)],
+    );
+    if (!res.rows[0]) return null;
+    return { ...res.rows[0], role: res.rows[0].role || "user" };
   },
 
-  async create(data: { email: string; name: string; password: string; phone?: string; is_verified?: boolean }): Promise<User> {
+  async create(data: {
+    email: string;
+    name: string;
+    password: string;
+    phone?: string;
+    is_verified?: boolean;
+  }): Promise<User> {
     const res = await pool.query(
-      'INSERT INTO users (email, name, password, phone, is_verified, is_suspended) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name, phone, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role',
-      [data.email, data.name, data.password, data.phone || null, data.is_verified || false, false]
+      "INSERT INTO users (email, name, password, phone, is_verified, is_suspended) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, name, phone, is_verified, is_suspended, created_at, COALESCE(updated_at, created_at) AS updated_at, role",
+      [
+        data.email,
+        data.name,
+        data.password,
+        data.phone || null,
+        data.is_verified || false,
+        false,
+      ],
     );
     return res.rows[0];
   },
 
   async setVerified(id: string): Promise<void> {
-    await pool.query('UPDATE users SET is_verified = true WHERE id = $1', [parseInt(id)]);
+    await pool.query("UPDATE users SET is_verified = true WHERE id = $1", [
+      parseInt(id),
+    ]);
   },
 
-  async updateProfile(id: string, data: { name?: string; phone?: string; email?: string }): Promise<Partial<User>> {
+  async updateProfile(
+    id: string,
+    data: { name?: string; phone?: string; email?: string },
+  ): Promise<Partial<User>> {
     const fields: string[] = [];
     const values: any[] = [];
     let idx = 1;
@@ -54,8 +83,8 @@ export const UserRepository = {
     if (fields.length === 0) return {};
 
     values.push(parseInt(id));
-    const query = `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING id, email, name, phone, is_verified`;
+    const query = `UPDATE users SET ${fields.join(", ")} WHERE id = $${idx} RETURNING id, email, name, phone, is_verified`;
     const res = await pool.query(query, values);
     return res.rows[0];
-  }
+  },
 };
