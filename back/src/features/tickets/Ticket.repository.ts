@@ -327,8 +327,16 @@ export class TicketRepository {
    */
   static async getUserTicketsFromSotral(userId: number): Promise<any[]> {
     const result = await pool.query(
-      `SELECT ut.*, sl.name as line_name, sl.route as line_route
+      `SELECT
+         ut.*,
+         st.ticket_code as sotral_ticket_code,
+         st.status as sotral_status,
+         st.expires_at as sotral_expires_at,
+         st.price_paid_fcfa,
+         sl.name as line_name,
+         sl.route as line_route
        FROM user_tickets ut
+       LEFT JOIN sotral_tickets st ON ut.sotral_ticket_id = st.id
        LEFT JOIN sotral_lines sl ON ut.line_id = sl.id
        WHERE ut.user_id = $1
        ORDER BY ut.created_at DESC`,
