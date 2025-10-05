@@ -331,11 +331,24 @@ export class TicketRepository {
     });
 
     const query = `SELECT
-         ut.*,
+         ut.id,
+         ut.user_id,
+         ut.sotral_ticket_id,
+         ut.purchase_external_id,
+         ut.product_code,
+         ut.line_id,
+         ut.ticket_code,
+         ut.status,
+         ut.purchased_at,
+         ut.used_at,
+         ut.expires_at,
+         ut.created_at,
+         ut.updated_at,
          st.ticket_code as sotral_ticket_code,
          st.status as sotral_status,
          st.expires_at as sotral_expires_at,
          st.price_paid_fcfa,
+         st.qr_code as sotral_qr_code,
          sl.name as line_name
        FROM user_tickets ut
        INNER JOIN sotral_tickets st ON ut.sotral_ticket_id = st.id
