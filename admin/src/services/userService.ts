@@ -1,60 +1,146 @@
-import { apiClient } from './apiClient';
-import { User, ApiResponse, PaginatedResponse } from '../types/api';
+import apiClient from './apiClient.new';
 
-export class UserService {
-  static async getUsers(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    role?: string;
-  }): Promise<PaginatedResponse<User>> {
-    const queryParams = new URLSearchParams();
-    
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.search) queryParams.append('search', params.search);
-    if (params?.role) queryParams.append('role', params.role);
+export interface User {
+  id: string;
+  email: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  status: string;
+  suspended: boolean;
+  suspensionReason?: string;
+  createdAt: string;
+  lastLoginAt?: string;
+}
 
-    const url = `/admin/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiClient.get<PaginatedResponse<User>>(url);
-  }
+export interface UsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
-  static async getUserById(id: number): Promise<ApiResponse<User>> {
-    return apiClient.get<ApiResponse<User>>(`/admin/users/${id}`);
-  }
-
-  static async updateUser(id: number, data: Partial<User>): Promise<ApiResponse<User>> {
-    return apiClient.put<ApiResponse<User>>(`/admin/users/${id}`, data);
-  }
-
-  static async toggleUserStatus(id: number): Promise<ApiResponse<User>> {
-    return apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-status`);
-  }
-
-  static async toggleUserSuspension(id: number): Promise<ApiResponse<User>> {
-    // Workaround temporaire : utiliser la route de changement de statut comme fallback
+class UserService {
+  /**
+   * Récupérer tous les utilisateurs
+   */
+  async getAllUsers(
+    page: number = 1,
+    limit: number = 20,
+    search?: string,
+    status?: string
+  ): Promise<UsersResponse> {
     try {
-      return await apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-suspension`);
+      const response = await apiClient.getAllUsers({
+        page,
+        limit,
+        search,
+        status,
+      });
+      return response;
     } catch (error: any) {
-      // Si la route principale échoue (404), utiliser la route de toggle status comme fallback temporaire
-      if (error.response?.status === 404) {
-        console.warn('Route toggle-suspension non trouvée, utilisation de toggle-status comme fallback');
-        return await apiClient.patch<ApiResponse<User>>(`/admin/users/${id}/toggle-status`);
-      }
-      throw error;
+      console.error('Erreur récupération utilisateurs:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de chargement des utilisateurs'
+      );
     }
   }
 
-  static async getSuspendedUsers(): Promise<ApiResponse<User[]>> {
-    return apiClient.get<ApiResponse<User[]>>('/admin/users/suspended');
+  /**
+   * Récupérer un utilisateur par ID
+   */
+  async getUserById(userId: string): Promise<User> {
+    try {
+      const response = await apiClient.getUserById(userId);
+      return response.user || response;
+    } catch (error: any) {
+      console.error('Erreur récupération utilisateur:', error);
+      throw new Error(
+        error.response?.data?.message || 'Utilisateur introuvable'
+      );
+    }
   }
 
-  static async createUser(data: {
-    name: string;
-    email: string;
-    phone: string;
-    password: string;
-  }): Promise<ApiResponse<User>> {
-    return apiClient.post<ApiResponse<User>>('/admin/users', data);
+  /**
+   * Suspendre un utilisateur
+   */
+  async suspendUser(userId: string, reason?: string): Promise<void> {
+    try {
+      await apiClient.suspendUser(userId, reason);
+    } catch (error: any) {
+      console.error('Erreur suspension utilisateur:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de suspension'
+      );
+    }
+  }
+
+  /**
+   * Réactiver un utilisateur
+   */
+  async unsuspendUser(userId: string): Promise<void> {
+    try {
+      await apiClient.unsuspendUser(userId);
+    } catch (error: any) {
+      console.error('Erreur réactivation utilisateur:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de réactivation'
+      );
+    }
+  }
+
+  /**
+   * Formater le nom complet
+   */
+  getFullName(user: User): string {
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) return user.firstName;
+    if (user.lastName) return user.lastName;
+    return user.email;
+  }
+
+  /**
+   * Formater le statut
+   */
+  getStatusLabel(status: string): string {
+    const labels: { [key: string]: string } = {
+      active: 'Actif',
+      inactive: 'Inactif',
+      suspended: 'Suspendu',
+      pending: 'En attente',
+    };
+    return labels[status] || status;
+  }
+
+  /**
+   * Formater le rôle
+   */
+  getRoleLabel(role: string): string {
+    const labels: { [key: string]: string } = {
+      user: 'Utilisateur',
+      admin: 'Administrateur',
+      super_admin: 'Super Admin',
+      controller: 'Contrôleur',
+    };
+    return labels[role] || role;
+  }
+
+  /**
+   * Formater la date
+   */
+  formatDate(date: string | Date): string {
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   }
 }
+
+export default new UserService();

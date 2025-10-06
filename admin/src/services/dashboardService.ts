@@ -1,76 +1,102 @@
-import { apiClient } from './apiClient';
-import { ApiResponse } from '../types/api';
+import apiClient from './apiClient.new';
 
 export interface DashboardStats {
   users: {
-    total_users: number;
-    verified_users: number;
-    new_users_month: number;
+    total: number;
+    active: number;
+    suspended: number;
+    newToday: number;
   };
   tickets: {
-    total_tickets: number;
-    used_tickets: number;
-    tickets_month: number;
-    tickets_by_status?: Array<{
-      status: string;
-      count: number;
-    }>;
-  };
-  revenue: {
-    total_revenue: number;
-    revenue_month: number;
+    total: number;
+    active: number;
+    used: number;
+    expired: number;
   };
   payments: {
-    total_payments: number;
-    payments_month: number;
+    total: number;
+    completed: number;
+    pending: number;
+    failed: number;
+    totalRevenue: number;
+    todayRevenue: number;
   };
-  lines: {
-    active_lines: number;
-    top_lines: Array<{
-      line_number: number;
-      name: string;
-      tickets_sold: number;
-      revenue: number;
-    }>;
+  sotral: {
+    totalLines: number;
+    totalStops: number;
+    activeVehicles: number;
   };
 }
 
-export interface ChartData {
-  date?: string;
-  value: number;
-  label?: string;
-  name?: string;
+export interface RevenueData {
+  date: string;
+  revenue: number;
+  count: number;
 }
 
-export class DashboardService {
-  static async getStats(): Promise<ApiResponse<DashboardStats>> {
-    return apiClient.get<ApiResponse<DashboardStats>>('/admin/dashboard/stats');
+class DashboardService {
+  /**
+   * Récupérer toutes les statistiques du dashboard
+   */
+  async getDashboard(): Promise<DashboardStats> {
+    try {
+      const response = await apiClient.getDashboard();
+      return response.dashboard || response;
+    } catch (error: any) {
+      console.error('Erreur récupération dashboard:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de chargement du dashboard'
+      );
+    }
   }
 
-  static async getChartData(type: 'users' | 'tickets' | 'revenue' | 'payments' | 'tickets_by_line', period: '7d' | '30d' | '90d' | '1y'): Promise<ApiResponse<ChartData[]>> {
-    return apiClient.get<ApiResponse<ChartData[]>>(`/admin/dashboard/chart-data?type=${type}&period=${period}`);
+  /**
+   * Récupérer le rapport de revenus
+   */
+  async getRevenueReport(
+    startDate?: string,
+    endDate?: string,
+    groupBy: 'day' | 'week' | 'month' = 'day'
+  ): Promise<RevenueData[]> {
+    try {
+      const response = await apiClient.getRevenueReport({
+        startDate,
+        endDate,
+        groupBy,
+      });
+      return response.data || response;
+    } catch (error: any) {
+      console.error('Erreur récupération revenus:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de chargement des revenus'
+      );
+    }
   }
 
-  static async getRecentActivity(): Promise<ApiResponse<Array<{
-    id: number;
-    user: string;
-    action: string;
-    time: string;
-    amount?: string;
-  }>>> {
-    return apiClient.get<ApiResponse<any>>('/admin/dashboard/recent-activity');
+  /**
+   * Formater les revenus
+   */
+  formatRevenue(amount: number): string {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XOF',
+    }).format(amount);
   }
 
-  static async getSystemHealth(): Promise<ApiResponse<{
-    status: 'healthy' | 'degraded' | 'down';
-    services: {
-      database: { status: 'up' | 'down'; responseTime?: number };
-      api: { status: 'up' | 'down'; responseTime?: number };
-      external_services: { status: 'up' | 'down'; responseTime?: number };
-    };
-    uptime: number;
-    version: string;
-  }>> {
-    return apiClient.get<ApiResponse<any>>('/health');
+  /**
+   * Calculer le pourcentage de variation
+   */
+  calculateGrowth(current: number, previous: number): number {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  }
+
+  /**
+   * Formater le pourcentage
+   */
+  formatPercentage(value: number): string {
+    return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
   }
 }
+
+export default new DashboardService();

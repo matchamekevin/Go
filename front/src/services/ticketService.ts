@@ -1,81 +1,149 @@
-import { apiClient } from './apiClient';
-import type { ApiResponse, TicketProduct, Route, Ticket, TicketPurchase, TicketValidation } from '../types/api';
+/**
+ * ✅ SERVICE DE GESTION DES TICKETS - NOUVELLE INTÉGRATION
+ * Basé sur les endpoints backend réels: /api/tickets
+ */
 
-export class TicketService {
-  // Récupérer tous les produits de tickets
-  static async getAllProducts(): Promise<TicketProduct[]> {
-    const response = await apiClient.get<ApiResponse<TicketProduct[]>>('/tickets/products');
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de la récupération des produits');
+import apiClient from './api.client';
+
+export interface Ticket {
+  id: number;
+  user_id: number;
+  ticket_type: 'single' | 'day_pass' | 'week_pass' | 'month_pass';
+  qr_code: string;
+  status: 'active' | 'used' | 'expired';
+  expires_at: string;
+  activated_at?: string;
+  used_at?: string;
+  created_at: string;
+}
+
+export interface TicketStats {
+  total: number;
+  active: number;
+  used: number;
+  expired: number;
+}
+
+class TicketService {
+  /**
+   * Récupérer mes tickets
+   * Backend: GET /tickets
+   */
+  async getMyTickets(params?: {
+    status?: 'active' | 'used' | 'expired';
+    limit?: number;
+    offset?: number;
+  }): Promise<Ticket[]> {
+    try {
+      const response = await apiClient.getMyTickets(params);
+      return response.success ? (response.tickets || []) : [];
+    } catch (error) {
+      console.error('Erreur récupération tickets:', error);
+      return [];
     }
-    return response.data || [];
   }
 
-  // Récupérer tous les trajets
-  static async getAllRoutes(): Promise<Route[]> {
-    const response = await apiClient.get<ApiResponse<Route[]>>('/tickets/routes');
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de la récupération des trajets');
+  /**
+   * Récupérer un ticket spécifique
+   * Backend: GET /tickets/:ticketId
+   */
+  async getTicketById(ticketId: number): Promise<Ticket | null> {
+    try {
+      const response = await apiClient.getTicketById(ticketId);
+      return response.success ? response.ticket : null;
+    } catch (error) {
+      console.error('Erreur récupération ticket:', error);
+      return null;
     }
-    return response.data || [];
   }
 
-  // Récupérer les trajets par catégorie de prix
-  static async getRoutesByCategory(category: string): Promise<Route[]> {
-    const response = await apiClient.get<ApiResponse<Route[]>>(`/tickets/routes/category/${category}`);
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de la récupération des trajets');
+  /**
+   * Activer un ticket
+   * Backend: POST /tickets/:ticketId/activate
+   */
+  async activateTicket(ticketId: number): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await apiClient.activateTicket(ticketId);
+      return {
+        success: response.success,
+        message: response.message,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Erreur activation',
+      };
     }
-    return response.data || [];
   }
 
-  // Acheter un ticket (nécessite authentification)
-  static async purchaseTicket(purchase: TicketPurchase): Promise<Ticket> {
-    const response = await apiClient.post<ApiResponse<Ticket>>('/tickets/purchase', purchase);
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de l\'achat du ticket');
+  /**
+   * Récupérer les statistiques des tickets
+   * Backend: GET /tickets/stats
+   */
+  async getTicketStats(): Promise<TicketStats> {
+    try {
+      const response = await apiClient.getTicketStats();
+      if (response.success && response.stats) {
+        return response.stats;
+      }
+      return { total: 0, active: 0, used: 0, expired: 0 };
+    } catch (error) {
+      console.error('Erreur stats tickets:', error);
+      return { total: 0, active: 0, used: 0, expired: 0 };
     }
-    return response.data!;
   }
 
-  // Récupérer les tickets de l'utilisateur connecté
-  static async getMyTickets(): Promise<Ticket[]> {
-    const response = await apiClient.get<ApiResponse<Ticket[]>>('/tickets/my-tickets');
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de la récupération de vos tickets');
-    }
-    return response.data || [];
+  /**
+   * Récupérer les tickets actifs
+   */
+  async getActiveTickets(): Promise<Ticket[]> {
+    return this.getMyTickets({ status: 'active' });
   }
 
-  // Valider un ticket (pour les contrôleurs)
-  static async validateTicket(validation: TicketValidation): Promise<any> {
-    const response = await apiClient.post<ApiResponse<any>>('/tickets/validate', validation);
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de la validation du ticket');
-    }
-    return response.data;
+  /**
+   * Récupérer l'historique des tickets
+   */
+  async getTicketHistory(): Promise<Ticket[]> {
+    return this.getMyTickets({ status: 'used', limit: 50 });
   }
 
-  // Récupérer les statistiques des tickets (admin)
-  static async getTicketStats(): Promise<any> {
-    const response = await apiClient.get<ApiResponse<any>>('/tickets/stats');
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de la récupération des statistiques');
-    }
-    return response.data;
+  /**
+   * Vérifier si un ticket est expiré
+   */
+  isTicketExpired(ticket: Ticket): boolean {
+    if (ticket.status === 'expired') return true;
+    const expiresAt = new Date(ticket.expires_at);
+    return expiresAt < new Date();
   }
 
-  // Récupérer l'URL du QR code d'un ticket
-  static getTicketQRCodeUrl(ticketCode: string): string {
-    return `${apiClient['client'].defaults.baseURL}/tickets/${ticketCode}/qrcode`;
+  /**
+   * Formater le type de ticket
+   */
+  formatTicketType(type: string): string {
+    const types: Record<string, string> = {
+      single: 'Ticket Simple',
+      day_pass: 'Pass Journée',
+      week_pass: 'Pass Semaine',
+      month_pass: 'Pass Mois',
+    };
+    return types[type] || type;
   }
 
-  // Test: récupérer les tickets d'un utilisateur par ID (dev seulement)
-  static async getUserTicketsById(userId: number): Promise<Ticket[]> {
-    const response = await apiClient.get<ApiResponse<Ticket[]>>(`/tickets/user/${userId}`);
-    if (!response.success) {
-      throw new Error(response.error || 'Erreur lors de la récupération des tickets utilisateur');
-    }
-    return response.data || [];
+  /**
+   * Obtenir le prix d'un ticket
+   */
+  getTicketPrice(type: string): number {
+    const prices: Record<string, number> = {
+      single: 200,
+      day_pass: 1000,
+      week_pass: 5000,
+      month_pass: 15000,
+    };
+    return prices[type] || 0;
   }
 }
+
+const ticketService = new TicketService();
+
+export default ticketService;
+export { TicketService };

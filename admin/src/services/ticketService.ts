@@ -1,91 +1,182 @@
-import { apiClient } from './apiClient';
-import { Ticket, TicketProduct, Route, ApiResponse, PaginatedResponse } from '../types/api';
+import apiClient from './apiClient.new';
 
-export class TicketService {
-  // Produits de tickets
-  static async getProducts(): Promise<ApiResponse<TicketProduct[]>> {
-    return apiClient.get<ApiResponse<TicketProduct[]>>('/tickets/products');
+export interface Ticket {
+  id: string;
+  userId: string;
+  type: string;
+  status: string;
+  price: number;
+  qrCode: string;
+  validFrom?: string;
+  validUntil?: string;
+  activatedAt?: string;
+  usedAt?: string;
+  createdAt: string;
+  user?: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+}
+
+export interface TicketsResponse {
+  tickets: Ticket[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface TicketStats {
+  total: number;
+  active: number;
+  used: number;
+  expired: number;
+  byType: {
+    type: string;
+    count: number;
+  }[];
+}
+
+class TicketService {
+  /**
+   * Récupérer tous les tickets
+   */
+  async getAllTickets(
+    page: number = 1,
+    limit: number = 20,
+    status?: string,
+    userId?: string
+  ): Promise<TicketsResponse> {
+    try {
+      const response = await apiClient.getAllTickets({
+        page,
+        limit,
+        status,
+        userId,
+      });
+      return response;
+    } catch (error: any) {
+      console.error('Erreur récupération tickets:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de chargement des tickets'
+      );
+    }
   }
 
-  static async createProduct(data: Omit<TicketProduct, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<TicketProduct>> {
-    return apiClient.post<ApiResponse<TicketProduct>>('/admin/tickets/products', data);
+  /**
+   * Supprimer un ticket
+   */
+  async deleteTicket(ticketId: string, reason?: string): Promise<void> {
+    try {
+      await apiClient.deleteTicket(ticketId, reason);
+    } catch (error: any) {
+      console.error('Erreur suppression ticket:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de suppression'
+      );
+    }
   }
 
-  static async updateProduct(id: number, data: Partial<TicketProduct>): Promise<ApiResponse<TicketProduct>> {
-    return apiClient.put<ApiResponse<TicketProduct>>(`/admin/tickets/products/${id}`, data);
+  /**
+   * Expirer les anciens tickets
+   */
+  async expireOldTickets(): Promise<{ expired: number }> {
+    try {
+      const response = await apiClient.expireOldTickets();
+      return response;
+    } catch (error: any) {
+      console.error('Erreur expiration tickets:', error);
+      throw new Error(
+        error.response?.data?.message || "Erreur d'expiration des tickets"
+      );
+    }
   }
 
-  static async deleteProduct(id: number): Promise<ApiResponse<void>> {
-    return apiClient.delete<ApiResponse<void>>(`/admin/tickets/products/${id}`);
+  /**
+   * Récupérer les statistiques des tickets
+   */
+  async getTicketStats(): Promise<TicketStats> {
+    try {
+      const response = await apiClient.getTicketStats();
+      return response.stats || response;
+    } catch (error: any) {
+      console.error('Erreur statistiques tickets:', error);
+      throw new Error(
+        error.response?.data?.message || 'Erreur de chargement des statistiques'
+      );
+    }
   }
 
-  // Routes
-  static async getRoutes(): Promise<ApiResponse<Route[]>> {
-    return apiClient.get<ApiResponse<Route[]>>('/tickets/routes');
+  /**
+   * Formater le type de ticket
+   */
+  getTicketTypeLabel(type: string): string {
+    const labels: { [key: string]: string } = {
+      single: 'Simple Trajet',
+      day: 'Journée',
+      week: 'Semaine',
+      month: 'Mois',
+    };
+    return labels[type] || type;
   }
 
-  static async getRoutesByCategory(category: string): Promise<ApiResponse<Route[]>> {
-    return apiClient.get<ApiResponse<Route[]>>(`/tickets/routes/category/${category}`);
+  /**
+   * Formater le statut
+   */
+  getStatusLabel(status: string): string {
+    const labels: { [key: string]: string } = {
+      pending: 'En attente',
+      active: 'Actif',
+      used: 'Utilisé',
+      expired: 'Expiré',
+    };
+    return labels[status] || status;
   }
 
-  static async createRoute(data: Omit<Route, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Route>> {
-    return apiClient.post<ApiResponse<Route>>('/admin/tickets/routes', data);
+  /**
+   * Obtenir la couleur du statut
+   */
+  getStatusColor(status: string): string {
+    const colors: { [key: string]: string } = {
+      pending: 'orange',
+      active: 'green',
+      used: 'blue',
+      expired: 'red',
+    };
+    return colors[status] || 'gray';
   }
 
-  static async updateRoute(id: number, data: Partial<Route>): Promise<ApiResponse<Route>> {
-    return apiClient.put<ApiResponse<Route>>(`/admin/tickets/routes/${id}`, data);
+  /**
+   * Vérifier si un ticket est expiré
+   */
+  isExpired(ticket: Ticket): boolean {
+    if (!ticket.validUntil) return false;
+    return new Date(ticket.validUntil) < new Date();
   }
 
-  static async deleteRoute(id: number): Promise<ApiResponse<void>> {
-    return apiClient.delete<ApiResponse<void>>(`/admin/tickets/routes/${id}`);
+  /**
+   * Formater le prix
+   */
+  formatPrice(price: number): string {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'XOF',
+    }).format(price);
   }
 
-  // Tickets
-  static async getTickets(params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    user_id?: number;
-    product_code?: string;
-  }): Promise<PaginatedResponse<Ticket>> {
-    const queryParams = new URLSearchParams();
-    
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.user_id) queryParams.append('user_id', params.user_id.toString());
-    if (params?.product_code) queryParams.append('product_code', params.product_code);
-
-  // Le backend expose les routes admin tickets sous /admin/tickets/tickets
-  const url = `/admin/tickets/tickets${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-  return apiClient.get<PaginatedResponse<Ticket>>(url);
-  }
-
-  static async getTicketByCode(code: string): Promise<ApiResponse<Ticket>> {
-    return apiClient.get<ApiResponse<Ticket>>(`/tickets/code/${code}`);
-  }
-
-  static async getUserTickets(userId: number): Promise<ApiResponse<Ticket[]>> {
-    return apiClient.get<ApiResponse<Ticket[]>>(`/tickets/user/${userId}`);
-  }
-
-  static async updateTicketStatus(id: number, status: string): Promise<ApiResponse<Ticket>> {
-    return apiClient.patch<ApiResponse<Ticket>>(`/admin/tickets/tickets/${id}/status`, { status });
-  }
-
-  static async getTicketQRCode(code: string): Promise<Blob> {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/tickets/${code}/qrcode`);
-    return response.blob();
-  }
-
-  static async getTicketStats(): Promise<ApiResponse<{
-    total: number;
-    active: number;
-    used: number;
-    expired: number;
-    cancelled: number;
-    recentSales: number;
-  }>> {
-    return apiClient.get<ApiResponse<any>>('/tickets/stats');
+  /**
+   * Formater la date
+   */
+  formatDate(date: string | Date): string {
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   }
 }
+
+export default new TicketService();
