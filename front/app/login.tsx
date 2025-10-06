@@ -21,7 +21,7 @@ import { useToast } from '../src/contexts/ToastContext';
 import AuthLayout from '../src/components/AuthLayout';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -36,7 +36,7 @@ export default function LoginScreen() {
   }, [errorMsg]);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    if (!phone || !password) {
       setErrorMsg('Veuillez remplir tous les champs');
       return;
     }
@@ -44,13 +44,13 @@ export default function LoginScreen() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      await login({ email, password });
+      await login({ phone, password });
       router.replace('/(tabs)');
     } catch (error: any) {
         // Si le backend a indiqué que le compte n'est pas vérifié, rediriger automatiquement vers OTP
         const isUnverified = (error?.message === 'ACCOUNT_UNVERIFIED') || (error?.response && error.response.data && error.response.data.unverified);
         if (isUnverified) {
-          const targetEmail = error?.response?.data?.email || email;
+          const targetEmail = error?.response?.data?.email || phone;
           // Envoyer l'utilisateur directement vers la page de vérification OTP avec autoResend=true
           router.replace({ pathname: '/verify-otp', params: { email: targetEmail, autoResend: 'true' } });
           return;
@@ -106,17 +106,17 @@ export default function LoginScreen() {
           {/* Form */}
           <View style={styles.formContainer}>
             <View style={styles.form}>
-              {/* Email Input */}
+              {/* Phone Input */}
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email</Text>
+                <Text style={styles.inputLabel}>Numéro de téléphone</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="mail" size={20} color={theme.colors.secondary[400]} />
+                  <Ionicons name="call" size={20} color={theme.colors.secondary[400]} />
                   <TextInput
                     style={styles.input}
-                    placeholder="votre@email.com"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
+                    placeholder="+228 XX XX XX XX"
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
                     placeholderTextColor={theme.colors.secondary[400]}
@@ -164,11 +164,11 @@ export default function LoginScreen() {
                   <TouchableOpacity
                     disabled={resending}
                     onPress={async () => {
-                      if (!email) return;
+                      if (!phone) return;
                       setResending(true);
                       try {
-                        await AuthService.resendOTP(email);
-                        setErrorMsg('Code renvoyé. Vérifiez votre email.');
+                        await AuthService.resendOTP(phone);
+                        setErrorMsg('Code renvoyé. Vérifiez votre téléphone.');
                       } catch (e:any) {
                         setErrorMsg('Erreur lors de l\'envoi du code.');
                       } finally {
@@ -181,8 +181,8 @@ export default function LoginScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => {
-                      if (!email) return;
-                      router.push({ pathname: '/verify-otp', params: { email } });
+                      if (!phone) return;
+                      router.push({ pathname: '/verify-otp', params: { email: phone } });
                     }}
                     style={styles.outlineLink}
                   >
