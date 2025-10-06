@@ -7,9 +7,13 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuration
-const API_BASE_URL = __DEV__ 
-  ? 'http://192.168.1.78:5000'
-  : 'https://go-j2rr.onrender.com';
+// Force production API même en développement pour les tests
+const API_BASE_URL = 'https://go-j2rr.onrender.com';
+
+// Configuration normale (décommenter pour dev local):
+// const API_BASE_URL = __DEV__ 
+//   ? 'http://192.168.1.78:7000'
+//   : 'https://go-j2rr.onrender.com';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
