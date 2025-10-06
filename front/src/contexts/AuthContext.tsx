@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/authService';
-import { apiClient } from '../services/apiClient';
+import apiClient from '../services/api.client';
 import { UserService } from '../services/userService';
 import type { User } from '../types/api';
 

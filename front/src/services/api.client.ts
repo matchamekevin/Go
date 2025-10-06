@@ -8,8 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuration
 const API_BASE_URL = __DEV__ 
-  ? 'http://192.168.1.78:5000/api'
-  : 'https://api.gosotral.tg/api';
+  ? 'http://192.168.1.78:5000'
+  : 'https://go-j2rr.onrender.com';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
@@ -63,8 +63,19 @@ class ApiClient {
       async (error: AxiosError) => {
         const status = error.response?.status;
         const url = error.config?.url;
+        const method = error.config?.method?.toUpperCase();
         
-        console.error(`❌ ${error.config?.method?.toUpperCase()} ${url} - ${status}`);
+        // Log différent selon le type d'erreur
+        if (error.response) {
+          // Erreur du serveur (4xx, 5xx)
+          console.error(`❌ ${method} ${url} - ${status}`);
+        } else if (error.request) {
+          // Pas de réponse du serveur (réseau, timeout)
+          console.error(`❌ ${method} ${url} - Erreur réseau (pas de réponse)`);
+        } else {
+          // Erreur lors de la configuration de la requête
+          console.error(`❌ ${method} ${url} - Erreur configuration:`, error.message);
+        }
         
         // Si 401, déconnecter l'utilisateur
         if (status === 401 && !url?.includes('/auth/login')) {
@@ -89,6 +100,14 @@ class ApiClient {
     await AsyncStorage.setItem(TOKEN_KEY, token);
   }
 
+  async getToken(): Promise<string | null> {
+    return this.token || await AsyncStorage.getItem(TOKEN_KEY);
+  }
+
+  async removeToken() {
+    await this.clearAuth();
+  }
+
   async setUser(user: any) {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
   }
@@ -105,6 +124,11 @@ class ApiClient {
   async clearAuth() {
     this.token = null;
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+  }
+
+  // Méthode pour compatibilité avec l'ancien apiClient
+  clearAuthHeader() {
+    this.token = null;
   }
 
   private handleError(error: AxiosError): ApiResponse {
