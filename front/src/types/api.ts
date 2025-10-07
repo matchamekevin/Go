@@ -65,6 +65,7 @@ export interface Ticket {
   route_name?: string;
   route_start_point?: string;
   route_end_point?: string;
+  ticket_code?: string;
 }
 
 export interface TicketPurchase {

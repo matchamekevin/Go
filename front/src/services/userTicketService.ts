@@ -26,6 +26,7 @@ export interface UserTicketHistory {
   seat?: string;
   status: 'used' | 'expired' | 'valid';
   qrCode?: string;
+  ticket_code?: string;
 }
 
 export class UserTicketService {

@@ -33,6 +33,7 @@ export default function HistoryTab() {
           seat: undefined,
           status: ticket.status === 'used' ? 'used' : (ticket.status === 'expired' ? 'expired' : 'valid'),
           qrCode: ticket.sotral_qr_code || ticket.qrCode || '',
+          ticket_code: ticket.ticket_code || '',
         };
       }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       console.log('Tickets transformés:', historyTickets);
@@ -77,12 +78,13 @@ export default function HistoryTab() {
         </Text>
       </View>
       {/* Affichage unique du QR code scannable */}
-      {ticket.qrCode && ticket.qrCode.trim() ? (
+      {/* <Text>{ticket.ticket_code}</Text> */}
+      {ticket.ticket_code && ticket.ticket_code.trim() ? (
         <View style={{ alignItems: 'center', marginTop: 8 }}>
           <Text style={{ fontSize: 12, color: theme.colors.secondary[500], marginBottom: 2 }}>QR Code</Text>
           <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 8, alignItems: 'center' }}>
             <QRCode
-              value={ticket.qrCode.replace(/^data:.*,/, '')}
+              value={ticket.ticket_code}
               size={140}
               backgroundColor="white"
               color="black"
