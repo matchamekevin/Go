@@ -29,6 +29,10 @@ export const Config = {
     pass: process.env.SMTP_PASS || "",
     from: process.env.SMTP_FROM || "no-reply@example.com",
   },
+  sendgrid: {
+    apiKey: process.env.SENDGRID_API_KEY || "",
+    fromEmail: process.env.SENDGRID_FROM_EMAIL || "",
+  },
   // Admin credentials (optional): set ADMIN_EMAIL and ADMIN_PASSWORD in your .env for a simple admin login
   adminEmail: process.env.ADMIN_EMAIL || "",
   adminPassword: process.env.ADMIN_PASSWORD || "",

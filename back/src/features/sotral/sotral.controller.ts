@@ -45,7 +45,7 @@ export class SotralController {
     try {
       const { id } = req.params;
       const line = await sotralRepository.getLineById(parseInt(id));
-      
+
       if (!line) {
         res.status(404).json({
           success: false,
@@ -75,7 +75,7 @@ export class SotralController {
     try {
       const { categoryId } = req.params;
       const lines = await sotralRepository.getLinesByCategory(parseInt(categoryId));
-      
+
       res.json({
         success: true,
         data: lines,
@@ -119,7 +119,7 @@ export class SotralController {
     try {
       const { id } = req.params;
       const stops = await sotralRepository.getStopsByLine(parseInt(id));
-      
+
       res.json({
         success: true,
         data: stops,
@@ -162,14 +162,14 @@ export class SotralController {
   async calculatePrice(req: Request, res: Response): Promise<void> {
     try {
       const { lineId, stopFromId, stopToId, isStudent } = req.body;
-      
+
       const pricing = await sotralRepository.calculatePrice(
         lineId,
         stopFromId,
         stopToId,
         isStudent || false
       );
-      
+
       res.json({
         success: true,
         data: pricing
@@ -204,7 +204,7 @@ export class SotralController {
       const userId = (req as any).user?.id || null; // De l'authentification
 
       const ticket = await sotralRepository.purchaseTicket(userId, purchaseData);
-      
+
       // Diffuser l'événement temps réel pour l'achat de ticket
       realtimeService.broadcast('sotral_ticket_purchased', {
         user_id: userId,
@@ -212,7 +212,7 @@ export class SotralController {
         line_id: purchaseData.line_id,
         ticket_type_code: purchaseData.ticket_type_code
       });
-      
+
       res.status(201).json({
         success: true,
         data: ticket,
@@ -381,7 +381,7 @@ export class SotralController {
 
       const validationData: QRCodeValidation = validationResult.data;
       const result = await sotralRepository.validateTicketByQR(validationData);
-      
+
       // Si la validation a réussi, diffuser l'événement temps réel
       if (result.success && result.ticket) {
         realtimeService.broadcast('sotral_ticket_validated', {
@@ -392,7 +392,7 @@ export class SotralController {
           new_status: 'used'
         });
       }
-      
+
       const statusCode = result.success ? 200 : 400;
       res.status(statusCode).json(result);
     } catch (error) {
@@ -411,14 +411,14 @@ export class SotralController {
   async getTicketByCode(req: Request, res: Response): Promise<void> {
     try {
       const { code } = req.params;
-      
+
       // Note: Cette méthode nécessiterait d'être ajoutée au repository
       // Pour l'instant, on peut utiliser la validation sans vraiment valider
       const result = await sotralRepository.validateTicketByQR({
         ticket_code: code,
         validator_device_id: 'info-only'
       });
-      
+
       if (result.success && result.ticket) {
         res.json({
           success: true,
@@ -450,12 +450,12 @@ export class SotralController {
   async getAdminStats(req: Request, res: Response): Promise<void> {
     try {
       const { dateFrom, dateTo } = req.query;
-      
+
       const dateFromObj = dateFrom ? new Date(dateFrom as string) : undefined;
       const dateToObj = dateTo ? new Date(dateTo as string) : undefined;
-      
+
       const stats = await sotralRepository.getAdminStats(dateFromObj, dateToObj);
-      
+
       res.json({
         success: true,
         data: stats
@@ -476,7 +476,7 @@ export class SotralController {
   async getAllTicketsAdmin(req: Request, res: Response): Promise<void> {
     try {
       const { page = 1, limit = 50, status, userId } = req.query;
-      
+
       // Cette méthode nécessiterait d'être implémentée dans le repository
       // Pour l'instant, retourner une réponse basique
       res.json({
@@ -506,7 +506,7 @@ export class SotralController {
     try {
       const { userId } = req.params;
       const tickets = await sotralRepository.getUserTickets(parseInt(userId));
-      
+
       res.json({
         success: true,
         data: tickets,
@@ -531,11 +531,11 @@ export class SotralController {
    */
   async getGeneratedTickets(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        lineId, 
+      const {
+        lineId,
         ticketTypeCode,
-        page = 1, 
-        limit = 20 
+        page = 1,
+        limit = 20
       } = req.query;
 
       const options = {
@@ -546,7 +546,7 @@ export class SotralController {
       };
 
       const result = await sotralRepository.getPublicGeneratedTickets(options);
-      
+
       res.json({
         success: true,
         data: result.data,
