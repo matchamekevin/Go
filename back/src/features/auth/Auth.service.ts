@@ -92,8 +92,13 @@ export class AuthService {
     // Store normalized with country code in DB
     const storedPhone = "+228" + localPhone;
 
-    const existing = await UserRepository.findByEmail(data.email);
-    if (existing) throw new Error("Email déjà utilisé");
+    // Vérifier l'unicité de l'email
+    const existingEmail = await UserRepository.findByEmail(data.email);
+    if (existingEmail) throw new Error("Email déjà utilisé");
+
+    // Vérifier l'unicité du numéro de téléphone
+    const existingPhone = await UserRepository.findByPhone(storedPhone);
+    if (existingPhone) throw new Error("Numéro de téléphone déjà utilisé");
 
     const hashed = await hashPassword(data.password);
     // Normaliser le nom
