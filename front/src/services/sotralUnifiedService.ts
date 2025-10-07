@@ -359,19 +359,19 @@ class SotralUnifiedService {
 
     const token = await AsyncStorage.getItem('auth_token');
     try {
-      console.log(
-        `[SotralUnifiedService] DATATATA: `,
-         {
-          line_id: paymentData.lineId,
-          description: paymentData.description,
-          amount: paymentData.amount,
-          return_url: "https://go-j2rr.onrender.com/payment/return",
-          notify_url: "https://go-j2rr.onrender.com/payment/notify",
-          currency: "XOF",
-          quantity: paymentData.quantity,
-          product_code: "T100",
-        },
-      )
+      // console.log(
+      //   `[SotralUnifiedService] DATATATA: `,
+      //    {
+      //     amount: paymentData.amount,
+      //     currency: "XOF",
+      //     description: paymentData.description,
+      //     return_url: "https://go-j2rr.onrender.com/payment/return",
+      //     notify_url: "https://go-j2rr.onrender.com/payment/webhook",
+      //     product_code: "T100",
+      //     line_id: paymentData.lineId,
+      //     quantity: paymentData.quantity,
+      //   },
+      // )
       console.log(`[SotralUnifiedService] Initiation paiement pour ligne ${paymentData.lineId}`);
       const response: ApiResponse<{
         payment_ref?: string;
@@ -381,14 +381,14 @@ class SotralUnifiedService {
       }> = await this.apiClient.post(
         '/payment/init',
         {
-          line_id: paymentData.lineId,
-          description: paymentData.description,
           amount: paymentData.amount,
-          return_url: "https://go-j2rr.onrender.com/payment/return",
-          notify_url: "https://go-j2rr.onrender.com/payment/notify",
           currency: "XOF",
-          quantity: paymentData.quantity,
+          description: paymentData.description,
+          return_url: "https://go-j2rr.onrender.com/payment/return",
+          notify_url: "https://go-j2rr.onrender.com/payment/webhook",
           product_code: "T100",
+          line_id: paymentData.lineId,
+          quantity: paymentData.quantity,
         },
         {
           headers: {
