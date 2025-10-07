@@ -196,7 +196,7 @@ class ApiClient {
    * Vérification OTP email
    */
   async verifyEmail(email: string, otp: string): Promise<ApiResponse> {
-    const response = await this.client.post('/auth/verify-email', { email, otp });
+    const response = await this.client.post('/auth/verify-otp', { email, otp });
     return response.data;
   }
 
