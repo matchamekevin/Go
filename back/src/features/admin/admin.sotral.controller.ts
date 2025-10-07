@@ -1,11 +1,14 @@
-import { Request, Response } from 'express';
-import { sotralRepository } from '../sotral/sotral.repository';
-import { SotralLineSchema, SotralStopSchema, SotralTicketTypeSchema } from '../sotral/sotral.types';
-import pool from '../../shared/database/client';
-import { realtimeService } from '../../services/realtime.service';
+import { Request, Response } from "express";
+import { sotralRepository } from "../sotral/sotral.repository";
+import {
+  SotralLineSchema,
+  SotralStopSchema,
+  SotralTicketTypeSchema,
+} from "../sotral/sotral.types";
+import pool from "../../shared/database/client";
+import { realtimeService } from "../../services/realtime.service";
 
 export class AdminSotralController {
-
   // ==========================================
   // GESTION DES LIGNES SOTRAL
   // ==========================================
@@ -17,17 +20,17 @@ export class AdminSotralController {
   async getAllLines(req: Request, res: Response): Promise<void> {
     try {
       const lines = await sotralRepository.getAllLines();
-      
+
       res.json({
         success: true,
         data: lines,
-        count: lines.length
+        count: lines.length,
       });
     } catch (error) {
-      console.error('Erreur getAllLines admin:', error);
+      console.error("Erreur getAllLines admin:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la récupération des lignes'
+        error: "Erreur lors de la récupération des lignes",
       });
     }
   }
@@ -42,31 +45,54 @@ export class AdminSotralController {
       if (!validationResult.success) {
         res.status(400).json({
           success: false,
-          error: 'Données de ligne invalides',
-          details: validationResult.error.issues
+          error: "Données de ligne invalides",
+          details: validationResult.error.issues,
         });
         return;
       }
 
       const lineData = validationResult.data;
-      const newLine = await sotralRepository.createLine(lineData);
 
-      // Émettre un événement temps réel
-      realtimeService.broadcast('line_created', {
-        line: newLine,
-        userId: (req as any).user?.id
-      });
-      
-      res.status(201).json({
-        success: true,
-        data: newLine,
-        message: 'Ligne créée avec succès'
-      });
+      // Standardiser le format des noms de routes (pour la comparaison)
+      lineData.route_from = lineData.route_from.trim().toLowerCase();
+      lineData.route_to = lineData.route_to.trim().toLowerCase();
+
+      try {
+        const newLine = await sotralRepository.createLine(lineData);
+
+        // Émettre un événement temps réel
+        realtimeService.broadcast("line_created", {
+          line: newLine,
+          userId: (req as any).user?.id,
+        });
+
+        res.status(201).json({
+          success: true,
+          data: newLine,
+          message: "Ligne créée avec succès",
+        });
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("même trajet")) {
+          res.status(409).json({
+            success: false,
+            error: "Une ligne avec ce trajet existe déjà",
+            details: {
+              route_from: lineData.route_from,
+              route_to: lineData.route_to,
+            },
+          });
+          return;
+        }
+        throw err; // Relancer pour le catch externe
+      }
     } catch (error) {
-      console.error('Erreur createLine:', error);
+      console.error("Erreur createLine:", error);
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Erreur lors de la création de la ligne'
+        error:
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la création de la ligne",
       });
     }
   }
@@ -79,43 +105,46 @@ export class AdminSotralController {
     try {
       const { id } = req.params;
       const validationResult = SotralLineSchema.partial().safeParse(req.body);
-      
+
       if (!validationResult.success) {
         res.status(400).json({
           success: false,
-          error: 'Données de ligne invalides',
-          details: validationResult.error.issues
+          error: "Données de ligne invalides",
+          details: validationResult.error.issues,
         });
         return;
       }
 
       const lineData = validationResult.data;
-      const updatedLine = await sotralRepository.updateLine(parseInt(id), lineData);
-      
+      const updatedLine = await sotralRepository.updateLine(
+        parseInt(id),
+        lineData,
+      );
+
       if (!updatedLine) {
         res.status(404).json({
           success: false,
-          error: 'Ligne non trouvée'
+          error: "Ligne non trouvée",
         });
         return;
       }
 
       // Émettre un événement temps réel
-      realtimeService.broadcast('line_updated', {
+      realtimeService.broadcast("line_updated", {
         line: updatedLine,
-        userId: (req as any).user?.id
+        userId: (req as any).user?.id,
       });
 
       res.json({
         success: true,
         data: updatedLine,
-        message: 'Ligne mise à jour avec succès'
+        message: "Ligne mise à jour avec succès",
       });
     } catch (error) {
-      console.error('Erreur updateLine:', error);
+      console.error("Erreur updateLine:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la mise à jour de la ligne'
+        error: "Erreur lors de la mise à jour de la ligne",
       });
     }
   }
@@ -128,30 +157,30 @@ export class AdminSotralController {
     try {
       const { id } = req.params;
       const deleted = await sotralRepository.deleteLine(parseInt(id));
-      
+
       if (!deleted) {
         res.status(404).json({
           success: false,
-          error: 'Ligne non trouvée'
+          error: "Ligne non trouvée",
         });
         return;
       }
 
       // Émettre un événement temps réel
-      realtimeService.broadcast('line_deleted', {
+      realtimeService.broadcast("line_deleted", {
         lineId: parseInt(id),
-        userId: (req as any).user?.id
+        userId: (req as any).user?.id,
       });
 
       res.json({
         success: true,
-        message: 'Ligne supprimée définitivement avec succès'
+        message: "Ligne supprimée définitivement avec succès",
       });
     } catch (error) {
-      console.error('Erreur deleteLine:', error);
+      console.error("Erreur deleteLine:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la suppression de la ligne'
+        error: "Erreur lors de la suppression de la ligne",
       });
     }
   }
@@ -163,41 +192,41 @@ export class AdminSotralController {
   async toggleLineStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      console.log('ToggleLineStatus called with id:', id);
+      console.log("ToggleLineStatus called with id:", id);
 
       const line = await sotralRepository.getLineByIdForAdmin(parseInt(id));
-      console.log('Line found:', line);
+      console.log("Line found:", line);
 
       if (!line) {
-        console.log('Line not found, returning 404');
+        console.log("Line not found, returning 404");
         res.status(404).json({
           success: false,
-          error: 'Ligne non trouvée'
+          error: "Ligne non trouvée",
         });
         return;
       }
 
       const updatedLine = await sotralRepository.updateLine(parseInt(id), {
-        is_active: !line.is_active
+        is_active: !line.is_active,
       });
-      console.log('Line updated:', updatedLine);
+      console.log("Line updated:", updatedLine);
 
       // Émettre un événement temps réel
-      realtimeService.broadcast('line_updated', {
+      realtimeService.broadcast("line_updated", {
         line: updatedLine,
-        userId: (req as any).user?.id
+        userId: (req as any).user?.id,
       });
 
       res.json({
         success: true,
         data: updatedLine,
-        message: `Ligne ${updatedLine?.is_active ? 'activée' : 'désactivée'} avec succès`
+        message: `Ligne ${updatedLine?.is_active ? "activée" : "désactivée"} avec succès`,
       });
     } catch (error) {
-      console.error('Erreur toggleLineStatus:', error);
+      console.error("Erreur toggleLineStatus:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors du changement de statut'
+        error: "Erreur lors du changement de statut",
       });
     }
   }
@@ -213,17 +242,17 @@ export class AdminSotralController {
   async getAllStops(req: Request, res: Response): Promise<void> {
     try {
       const stops = await sotralRepository.getAllStops();
-      
+
       res.json({
         success: true,
         data: stops,
-        count: stops.length
+        count: stops.length,
       });
     } catch (error) {
-      console.error('Erreur getAllStops admin:', error);
+      console.error("Erreur getAllStops admin:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la récupération des arrêts'
+        error: "Erreur lors de la récupération des arrêts",
       });
     }
   }
@@ -238,25 +267,28 @@ export class AdminSotralController {
       if (!validationResult.success) {
         res.status(400).json({
           success: false,
-          error: 'Données d\'arrêt invalides',
-          details: validationResult.error.issues
+          error: "Données d'arrêt invalides",
+          details: validationResult.error.issues,
         });
         return;
       }
 
       const stopData = validationResult.data;
       const newStop = await sotralRepository.createStop(stopData);
-      
+
       res.status(201).json({
         success: true,
         data: newStop,
-        message: 'Arrêt créé avec succès'
+        message: "Arrêt créé avec succès",
       });
     } catch (error) {
-      console.error('Erreur createStop:', error);
+      console.error("Erreur createStop:", error);
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Erreur lors de la création de l\'arrêt'
+        error:
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la création de l'arrêt",
       });
     }
   }
@@ -272,17 +304,17 @@ export class AdminSotralController {
   async getTicketTypes(req: Request, res: Response): Promise<void> {
     try {
       const ticketTypes = await sotralRepository.getAllTicketTypes();
-      
+
       res.json({
         success: true,
         data: ticketTypes,
-        count: ticketTypes.length
+        count: ticketTypes.length,
       });
     } catch (error) {
-      console.error('Erreur getTicketTypes admin:', error);
+      console.error("Erreur getTicketTypes admin:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la récupération des types de tickets'
+        error: "Erreur lors de la récupération des types de tickets",
       });
     }
   }
@@ -297,31 +329,35 @@ export class AdminSotralController {
       if (!validationResult.success) {
         res.status(400).json({
           success: false,
-          error: 'Données de type de ticket invalides',
-          details: validationResult.error.issues
+          error: "Données de type de ticket invalides",
+          details: validationResult.error.issues,
         });
         return;
       }
 
       const ticketTypeData = validationResult.data;
-      const newTicketType = await sotralRepository.createTicketType(ticketTypeData);
+      const newTicketType =
+        await sotralRepository.createTicketType(ticketTypeData);
 
       // Émettre un événement temps réel
-      realtimeService.broadcast('ticket_type_created', {
+      realtimeService.broadcast("ticket_type_created", {
         ticketType: newTicketType,
-        userId: (req as any).user?.id
+        userId: (req as any).user?.id,
       });
-      
+
       res.status(201).json({
         success: true,
         data: newTicketType,
-        message: 'Type de ticket créé avec succès'
+        message: "Type de ticket créé avec succès",
       });
     } catch (error) {
-      console.error('Erreur createTicketType:', error);
+      console.error("Erreur createTicketType:", error);
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Erreur lors de la création du type de ticket'
+        error:
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la création du type de ticket",
       });
     }
   }
@@ -336,46 +372,67 @@ export class AdminSotralController {
    */
   async generateTicketsForLine(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        lineId, 
-        ticketTypeCode, 
-        quantity = 100, 
+      const {
+        lineId,
+        ticketTypeCode,
+        quantity = 100,
         validityHours = 24,
-        price_fcfa // Prix personnalisé saisi par l'utilisateur
+        price_fcfa, // Prix personnalisé saisi par l'utilisateur
       } = req.body;
 
-      console.log('🎫 generateTicketsForLine - Received:', { lineId, ticketTypeCode, quantity, validityHours, price_fcfa });
-      console.log('🎫 generateTicketsForLine - ticketTypeCode type:', typeof ticketTypeCode, 'value:', JSON.stringify(ticketTypeCode));
+      console.log("🎫 generateTicketsForLine - Received:", {
+        lineId,
+        ticketTypeCode,
+        quantity,
+        validityHours,
+        price_fcfa,
+      });
+      console.log(
+        "🎫 generateTicketsForLine - ticketTypeCode type:",
+        typeof ticketTypeCode,
+        "value:",
+        JSON.stringify(ticketTypeCode),
+      );
 
       if (!lineId || !ticketTypeCode) {
-        console.log('🎫 generateTicketsForLine - Missing required fields');
+        console.log("🎫 generateTicketsForLine - Missing required fields");
         res.status(400).json({
           success: false,
-          error: 'lineId et ticketTypeCode sont requis'
+          error: "lineId et ticketTypeCode sont requis",
         });
         return;
       }
 
       // Mapper les nouveaux codes vers les vrais codes de types de tickets
       let actualTicketTypeCode = ticketTypeCode;
-      if (ticketTypeCode === 'ordinaires') {
-        actualTicketTypeCode = 'SIMPLE';
-        console.log('🎫 generateTicketsForLine - Mapped "ordinaires" to "SIMPLE"');
-      } else if (ticketTypeCode === 'etudiantes') {
-        actualTicketTypeCode = 'STUDENT';
-        console.log('🎫 generateTicketsForLine - Mapped "etudiantes" to "STUDENT"');
+      if (ticketTypeCode === "ordinaires") {
+        actualTicketTypeCode = "SIMPLE";
+        console.log(
+          '🎫 generateTicketsForLine - Mapped "ordinaires" to "SIMPLE"',
+        );
+      } else if (ticketTypeCode === "etudiantes") {
+        actualTicketTypeCode = "STUDENT";
+        console.log(
+          '🎫 generateTicketsForLine - Mapped "etudiantes" to "STUDENT"',
+        );
       } else {
-        console.log('🎫 generateTicketsForLine - No mapping applied, using:', actualTicketTypeCode);
+        console.log(
+          "🎫 generateTicketsForLine - No mapping applied, using:",
+          actualTicketTypeCode,
+        );
       }
 
-      console.log('🎫 generateTicketsForLine - Final mapping:', { original: ticketTypeCode, mapped: actualTicketTypeCode });
+      console.log("🎫 generateTicketsForLine - Final mapping:", {
+        original: ticketTypeCode,
+        mapped: actualTicketTypeCode,
+      });
 
       // Vérifier que la ligne existe
       const line = await sotralRepository.getLineByIdForAdmin(lineId);
       if (!line) {
         res.status(404).json({
           success: false,
-          error: 'Ligne non trouvée'
+          error: "Ligne non trouvée",
         });
         return;
       }
@@ -386,7 +443,7 @@ export class AdminSotralController {
         actualTicketTypeCode,
         quantity,
         validityHours,
-        price_fcfa ? parseInt(price_fcfa) : undefined
+        price_fcfa ? parseInt(price_fcfa) : undefined,
       );
 
       res.status(201).json({
@@ -394,15 +451,18 @@ export class AdminSotralController {
         data: {
           line: line,
           tickets_generated: generatedTickets.length,
-          tickets: generatedTickets.slice(0, 5) // Retourner seulement les 5 premiers comme exemple
+          tickets: generatedTickets.slice(0, 5), // Retourner seulement les 5 premiers comme exemple
         },
-        message: `${generatedTickets.length} tickets générés avec succès pour la ligne ${line.name}`
+        message: `${generatedTickets.length} tickets générés avec succès pour la ligne ${line.name}`,
       });
     } catch (error) {
-      console.error('Erreur generateTicketsForLine:', error);
+      console.error("Erreur generateTicketsForLine:", error);
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Erreur lors de la génération des tickets'
+        error:
+          error instanceof Error
+            ? error.message
+            : "Erreur lors de la génération des tickets",
       });
     }
   }
@@ -413,62 +473,79 @@ export class AdminSotralController {
    */
   async bulkGenerateTickets(req: Request, res: Response): Promise<void> {
     try {
-      const { 
-        ticketTypeCode = 'SIMPLE', 
-        quantityPerLine = 50, 
+      const {
+        ticketTypeCode = "SIMPLE",
+        quantityPerLine = 50,
         validityHours = 24,
-        price_fcfa // Prix personnalisé saisi par l'utilisateur
+        price_fcfa, // Prix personnalisé saisi par l'utilisateur
       } = req.body;
 
-      console.log('🎫 bulkGenerateTickets - Received:', { ticketTypeCode, quantityPerLine, validityHours, price_fcfa });
+      console.log("🎫 bulkGenerateTickets - Received:", {
+        ticketTypeCode,
+        quantityPerLine,
+        validityHours,
+        price_fcfa,
+      });
 
       // Mapper les nouveaux codes vers les vrais codes de types de tickets
       let actualTicketTypeCode = ticketTypeCode;
-      if (ticketTypeCode === 'ordinaires') {
-        actualTicketTypeCode = 'SIMPLE';
-      } else if (ticketTypeCode === 'etudiantes') {
-        actualTicketTypeCode = 'STUDENT';
+      if (ticketTypeCode === "ordinaires") {
+        actualTicketTypeCode = "SIMPLE";
+      } else if (ticketTypeCode === "etudiantes") {
+        actualTicketTypeCode = "STUDENT";
       }
 
-      console.log('🎫 bulkGenerateTickets - Mapped:', { original: ticketTypeCode, mapped: actualTicketTypeCode });
+      console.log("🎫 bulkGenerateTickets - Mapped:", {
+        original: ticketTypeCode,
+        mapped: actualTicketTypeCode,
+      });
 
       // Récupérer toutes les lignes actives
       const lines = await sotralRepository.getAllLines();
-      const activeLines = lines.filter(line => line.is_active);
+      const activeLines = lines.filter((line) => line.is_active);
 
       const results = [];
 
       for (const line of activeLines) {
         try {
-          console.log(`🎫 Generating tickets for line ${line.id} (${line.name}) with type ${actualTicketTypeCode}`);
-          const generatedTickets = await sotralRepository.generateTicketsForLine(
-            line.id!,
-            actualTicketTypeCode,
-            quantityPerLine,
-            validityHours,
-            price_fcfa ? parseInt(price_fcfa) : undefined
+          console.log(
+            `🎫 Generating tickets for line ${line.id} (${line.name}) with type ${actualTicketTypeCode}`,
           );
+          const generatedTickets =
+            await sotralRepository.generateTicketsForLine(
+              line.id!,
+              actualTicketTypeCode,
+              quantityPerLine,
+              validityHours,
+              price_fcfa ? parseInt(price_fcfa) : undefined,
+            );
 
           results.push({
             line_id: line.id,
             line_name: line.name,
             tickets_generated: generatedTickets.length,
-            success: true
+            success: true,
           });
         } catch (error) {
-          console.error(`🎫 Error generating tickets for line ${line.id}:`, error);
+          console.error(
+            `🎫 Error generating tickets for line ${line.id}:`,
+            error,
+          );
           results.push({
             line_id: line.id,
             line_name: line.name,
             tickets_generated: 0,
             success: false,
-            error: error instanceof Error ? error.message : 'Erreur inconnue'
+            error: error instanceof Error ? error.message : "Erreur inconnue",
           });
         }
       }
 
-      const totalGenerated = results.reduce((sum, result) => sum + result.tickets_generated, 0);
-      const successCount = results.filter(r => r.success).length;
+      const totalGenerated = results.reduce(
+        (sum, result) => sum + result.tickets_generated,
+        0,
+      );
+      const successCount = results.filter((r) => r.success).length;
 
       res.status(201).json({
         success: true,
@@ -476,15 +553,15 @@ export class AdminSotralController {
           total_lines_processed: activeLines.length,
           successful_generations: successCount,
           total_tickets_generated: totalGenerated,
-          results: results
+          results: results,
         },
-        message: `Génération terminée: ${totalGenerated} tickets créés pour ${successCount}/${activeLines.length} lignes`
+        message: `Génération terminée: ${totalGenerated} tickets créés pour ${successCount}/${activeLines.length} lignes`,
       });
     } catch (error) {
-      console.error('Erreur bulkGenerateTickets:', error);
+      console.error("Erreur bulkGenerateTickets:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la génération en masse des tickets'
+        error: "Erreur lors de la génération en masse des tickets",
       });
     }
   }
@@ -500,20 +577,24 @@ export class AdminSotralController {
   async getDashboardStats(req: Request, res: Response): Promise<void> {
     try {
       const { dateFrom, dateTo } = req.query;
-      
+
       const dateFromObj = dateFrom ? new Date(dateFrom as string) : undefined;
       const dateToObj = dateTo ? new Date(dateTo as string) : undefined;
-      
-      const stats = await sotralRepository.getAdminStats(dateFromObj, dateToObj);
-      
+
+      const stats = await sotralRepository.getAdminStats(
+        dateFromObj,
+        dateToObj,
+      );
+
       // Ajouter des statistiques supplémentaires
       const lines = await sotralRepository.getAllLines();
       const ticketTypes = await sotralRepository.getAllTicketTypes();
       const stops = await sotralRepository.getAllStops();
-      
+
       // Récupérer les catégories de lignes
       const client = await pool.connect();
-      const categoriesQuery = 'SELECT COUNT(*) as count FROM sotral_line_categories';
+      const categoriesQuery =
+        "SELECT COUNT(*) as count FROM sotral_line_categories";
       const categoriesResult = await client.query(categoriesQuery);
       const totalCategories = parseInt(categoriesResult.rows[0].count);
       client.release();
@@ -522,27 +603,27 @@ export class AdminSotralController {
         ...stats,
         infrastructure: {
           total_lines: lines.length,
-          active_lines: lines.filter(l => l.is_active).length,
+          active_lines: lines.filter((l) => l.is_active).length,
           total_stops: stops.length,
-          active_stops: stops.filter(s => s.is_active).length,
-          ticket_types: totalCategories  // Nombre de catégories de lignes
-        }
+          active_stops: stops.filter((s) => s.is_active).length,
+          ticket_types: totalCategories, // Nombre de catégories de lignes
+        },
       };
-      
+
       res.json({
         success: true,
-        data: enhancedStats
+        data: enhancedStats,
       });
     } catch (error) {
-      console.error('Erreur getDashboardStats:', error);
+      console.error("Erreur getDashboardStats:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la récupération des statistiques'
+        error: "Erreur lors de la récupération des statistiques",
       });
     }
   }
 
-    /**
+  /**
    * GET /admin/sotral/tickets
    * Récupérer tous les tickets avec filtres et pagination pour l'admin
    */
@@ -554,7 +635,7 @@ export class AdminSotralController {
         status,
         userId,
         dateFrom,
-        dateTo
+        dateTo,
       } = req.query;
 
       const pageNum = parseInt(page as string) || 1;
@@ -564,7 +645,7 @@ export class AdminSotralController {
       if (pageNum < 1 || limitNum < 1 || limitNum > 10000) {
         res.status(400).json({
           success: false,
-          error: 'Paramètres de pagination invalides'
+          error: "Paramètres de pagination invalides",
         });
         return;
       }
@@ -574,10 +655,14 @@ export class AdminSotralController {
         lineId: undefined, // Pour l'admin, on peut ajouter ce filtre plus tard si nécessaire
         userId: userId ? parseInt(userId as string) : undefined,
         dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
-        dateTo: dateTo ? new Date(dateTo as string) : undefined
+        dateTo: dateTo ? new Date(dateTo as string) : undefined,
       };
 
-      const result = await sotralRepository.getAllTicketsWithFilters(pageNum, limitNum, filters);
+      const result = await sotralRepository.getAllTicketsWithFilters(
+        pageNum,
+        limitNum,
+        filters,
+      );
 
       res.json({
         success: true,
@@ -586,19 +671,19 @@ export class AdminSotralController {
           page: pageNum,
           limit: limitNum,
           total: result.total,
-          totalPages: Math.ceil(result.total / limitNum)
-        }
+          totalPages: Math.ceil(result.total / limitNum),
+        },
       });
     } catch (error) {
-      console.error('Erreur getAllTickets admin:', error);
+      console.error("Erreur getAllTickets admin:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la récupération des tickets'
+        error: "Erreur lors de la récupération des tickets",
       });
     }
   }
 
-      /**
+  /**
    * DELETE /admin/sotral/tickets/:id
    * Supprimer un ticket individuel
    */
@@ -615,67 +700,75 @@ export class AdminSotralController {
         console.log(`[deleteTicket] Invalid ticket ID: ${id}`);
         res.status(400).json({
           success: false,
-          error: 'ID de ticket invalide'
+          error: "ID de ticket invalide",
         });
         return;
       }
 
       // Démarrer la transaction
-      await client.query('BEGIN');
+      await client.query("BEGIN");
       console.log(`[deleteTicket] Transaction started for ticket ${ticketId}`);
 
       // Vérifier que le ticket existe
-      const ticketQuery = 'SELECT id FROM sotral_tickets WHERE id = $1';
+      const ticketQuery = "SELECT id FROM sotral_tickets WHERE id = $1";
       console.log(`[deleteTicket] Checking if ticket ${ticketId} exists`);
       const ticketResult = await client.query(ticketQuery, [ticketId]);
-      console.log(`[deleteTicket] Ticket query result: ${ticketResult.rows.length} rows found`);
+      console.log(
+        `[deleteTicket] Ticket query result: ${ticketResult.rows.length} rows found`,
+      );
 
       if (ticketResult.rows.length === 0) {
-        await client.query('ROLLBACK');
-        console.log(`[deleteTicket] Ticket ${ticketId} not found, returning 404`);
+        await client.query("ROLLBACK");
+        console.log(
+          `[deleteTicket] Ticket ${ticketId} not found, returning 404`,
+        );
         res.status(404).json({
           success: false,
-          error: 'Ticket non trouvé'
+          error: "Ticket non trouvé",
         });
         return;
       }
 
       // Supprimer le ticket
-      const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = $1';
+      const deleteQuery = "DELETE FROM sotral_tickets WHERE id = $1";
       console.log(`[deleteTicket] Deleting ticket ${ticketId}`);
       const deleteResult = await client.query(deleteQuery, [ticketId]);
-      console.log(`[deleteTicket] Delete result: ${deleteResult.rowCount} rows affected`);
+      console.log(
+        `[deleteTicket] Delete result: ${deleteResult.rowCount} rows affected`,
+      );
 
       if (deleteResult.rowCount === 0) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         console.log(`[deleteTicket] Delete affected 0 rows, returning 404`);
         res.status(404).json({
           success: false,
-          error: 'Ticket non trouvé'
+          error: "Ticket non trouvé",
         });
         return;
       }
 
       // Valider la transaction
-      await client.query('COMMIT');
-      console.log(`[deleteTicket] Transaction committed successfully for ticket ${ticketId}`);
+      await client.query("COMMIT");
+      console.log(
+        `[deleteTicket] Transaction committed successfully for ticket ${ticketId}`,
+      );
 
       // Émettre un événement temps réel
-      realtimeService.broadcast('ticket_deleted', {
+      realtimeService.broadcast("ticket_deleted", {
         ticketId: ticketId,
-        userId: (req as any).user?.id
+        userId: (req as any).user?.id,
       });
 
       res.json({
         success: true,
-        message: 'Ticket supprimé avec succès'
+        message: "Ticket supprimé avec succès",
       });
     } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('Erreur deleteTicket:', error);
+      await client.query("ROLLBACK");
+      console.error("Erreur deleteTicket:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la suppression du ticket'
+        error: "Erreur lors de la suppression du ticket",
       });
     } finally {
       client.release();
@@ -694,51 +787,53 @@ export class AdminSotralController {
       if (!Array.isArray(ids) || ids.length === 0) {
         res.status(400).json({
           success: false,
-          error: 'Aucun ID de ticket fourni'
+          error: "Aucun ID de ticket fourni",
         });
         return;
       }
 
       // Démarrer la transaction
-      await client.query('BEGIN');
+      await client.query("BEGIN");
 
       // Convertir les IDs en nombres et filtrer les invalides
-      const validIds = ids.map(id => parseInt(String(id))).filter(id => !isNaN(id));
+      const validIds = ids
+        .map((id) => parseInt(String(id)))
+        .filter((id) => !isNaN(id));
 
       if (validIds.length === 0) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
         res.status(400).json({
           success: false,
-          error: 'Aucun ID de ticket valide fourni'
+          error: "Aucun ID de ticket valide fourni",
         });
         return;
       }
 
       // Supprimer les tickets
-      const deleteQuery = 'DELETE FROM sotral_tickets WHERE id = ANY($1)';
+      const deleteQuery = "DELETE FROM sotral_tickets WHERE id = ANY($1)";
       const deleteResult = await client.query(deleteQuery, [validIds]);
 
       // Valider la transaction
-      await client.query('COMMIT');
+      await client.query("COMMIT");
 
       // Émettre des événements temps réel pour chaque ticket supprimé
       for (const id of validIds) {
-        realtimeService.broadcast('ticket_deleted', {
+        realtimeService.broadcast("ticket_deleted", {
           ticketId: id,
-          userId: (req as any).user?.id
+          userId: (req as any).user?.id,
         });
       }
 
       res.json({
         success: true,
-        message: `${deleteResult.rowCount} ticket(s) supprimé(s) avec succès`
+        message: `${deleteResult.rowCount} ticket(s) supprimé(s) avec succès`,
       });
     } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('Erreur deleteTickets:', error);
+      await client.query("ROLLBACK");
+      console.error("Erreur deleteTickets:", error);
       res.status(500).json({
         success: false,
-        error: 'Erreur lors de la suppression des tickets'
+        error: "Erreur lors de la suppression des tickets",
       });
     } finally {
       client.release();
