@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,8 @@ import { sotralUnifiedService, UnifiedSotralLine, UnifiedSotralTicket } from '..
 export default function PaymentConfirmationScreen() {
   const { lineId } = useLocalSearchParams<{ lineId: string }>();
   const router = useRouter();
-
   const [line, setLine] = useState<UnifiedSotralLine | null>(null);
-  const [availableTickets, setAvailableTickets] = useState<UnifiedSotralTicket[]>([]);
+  const [ticket, setTicket] = useState<UnifiedSotralTicket | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,8 +47,9 @@ export default function PaymentConfirmationScreen() {
       setLine(lineData);
 
       // Charger les tickets disponibles pour cette ligne
-      const tickets = await sotralUnifiedService.getTicketsByLine(id);
-      setAvailableTickets(tickets);
+      const ticket = await sotralUnifiedService.getTicketsByLine(id);
+      console.log('Tickets disponibles pour la ligne:', ticket);
+      setTicket(ticket);
 
     } catch (err) {
       console.error('Erreur chargement:', err);
@@ -73,16 +73,11 @@ export default function PaymentConfirmationScreen() {
     }
   };
 
-  const getSelectedTicket = (): UnifiedSotralTicket | null => {
-    // Pour l'instant, on prend le premier ticket disponible
-    // Dans un vrai scénario, on pourrait avoir une sélection de type de ticket
-    return availableTickets.length > 0 ? availableTickets[0] : null;
-  };
+
 
   const calculateTotalPrice = (): number => {
-    const ticket = getSelectedTicket();
     const qty = parseInt(quantity) || 1;
-    return ticket ? ticket.price_paid_fcfa * qty : 0;
+    return ticket ? ticket.price * qty : 0;
   };
 
   const handleQuantityChange = (text: string) => {
@@ -90,21 +85,16 @@ export default function PaymentConfirmationScreen() {
     const numericValue = text.replace(/[^0-9]/g, '');
     const numValue = parseInt(numericValue) || 1;
 
-    // Limiter à la quantité disponible
-    const maxQuantity = availableTickets.length;
-    const finalValue = Math.min(numValue, maxQuantity);
-
-    setQuantity(finalValue.toString());
+    setQuantity(numValue.toString());
   };
 
   const adjustQuantity = (delta: number) => {
     const currentQty = parseInt(quantity) || 1;
-    const newQty = Math.max(1, Math.min(currentQty + delta, availableTickets.length));
+    const newQty = Math.max(1, currentQty + delta);
     setQuantity(newQty.toString());
   };
 
-  const handleContinueToPaymentMethod = () => {
-    const ticket = getSelectedTicket();
+  const handleContinueToPaymentMethod = async() => {
     const qty = parseInt(quantity);
 
     if (!ticket) {
@@ -116,21 +106,31 @@ export default function PaymentConfirmationScreen() {
       Alert.alert('Erreur', 'Veuillez saisir une quantité valide');
       return;
     }
-
-    if (qty > availableTickets.length) {
-      Alert.alert('Erreur', 'Quantité demandée supérieure au stock disponible');
+    if (!lineId) {
+      Alert.alert('Erreur', 'ID de ligne manquant');
       return;
     }
-
     // Naviguer vers la sélection du moyen de paiement
-    router.push({
-      pathname: '/payment-method',
-      params: {
-        lineId: lineId,
-        ticketId: ticket.id.toString(),
-        quantity: qty.toString()
-      }
+
+    const result = await sotralUnifiedService.initiateMobilePayment({
+      lineId: parseInt(lineId),
+      quantity: qty,
+      description: `Achat de ${qty} tickets pour la ligne ${lineId}`,
+      amount: calculateTotalPrice(),
     });
+    
+    if (!result.success) {
+      Alert.alert('Erreur', result.error || 'Échec de l\'initiation du paiement');
+      return;
+    }
+    console.log('Référence de paiement:', result);
+    // router.push({
+    //   pathname: '/payment-method',
+    //   params: {
+    //     lineId: lineId,
+    //     quantity: qty.toString()
+    //   }
+    // });
   };
 
   if (loading) {
@@ -161,7 +161,7 @@ export default function PaymentConfirmationScreen() {
     );
   }
 
-  const selectedTicket = getSelectedTicket();
+  const selectedTicket = ticket;
   const totalPrice = calculateTotalPrice();
   const qty = parseInt(quantity);
 
@@ -217,7 +217,7 @@ export default function PaymentConfirmationScreen() {
                   {selectedTicket.trips_remaining} trajet{selectedTicket.trips_remaining > 1 ? 's' : ''}
                 </Text>
                 <Text style={styles.ticketPrice}>
-                  {selectedTicket.price_paid_fcfa} FCFA par ticket
+                  {selectedTicket.price} FCFA par ticket
                 </Text>
               </View>
               <View style={styles.ticketStatus}>
@@ -238,7 +238,6 @@ export default function PaymentConfirmationScreen() {
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={() => adjustQuantity(-1)}
-              disabled={qty <= 1}
             >
               <Ionicons
                 name="remove"
@@ -259,19 +258,14 @@ export default function PaymentConfirmationScreen() {
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={() => adjustQuantity(1)}
-              disabled={qty >= availableTickets.length}
             >
               <Ionicons
                 name="add"
                 size={24}
-                color={qty >= availableTickets.length ? theme.colors.secondary[300] : theme.colors.primary[600]}
+                color={theme.colors.primary[600]}
               />
             </TouchableOpacity>
           </View>
-
-          <Text style={styles.quantityInfo}>
-            {availableTickets.length} ticket{availableTickets.length > 1 ? 's' : ''} disponible{availableTickets.length > 1 ? 's' : ''}
-          </Text>
         </View>
 
         {/* Price Summary */}
@@ -280,10 +274,10 @@ export default function PaymentConfirmationScreen() {
 
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>
-              {qty} ticket{qty > 1 ? 's' : ''} × {selectedTicket?.price_paid_fcfa || 0} FCFA
+              {qty} ticket{qty > 1 ? 's' : ''} × {selectedTicket?.price || 0} FCFA
             </Text>
             <Text style={styles.priceValue}>
-              {selectedTicket ? (selectedTicket.price_paid_fcfa * qty) : 0} FCFA
+              {selectedTicket ? (selectedTicket.price * qty) : 0} FCFA
             </Text>
           </View>
 

@@ -58,6 +58,7 @@ export default function SearchTab() {
       if (myRequestId !== requestIdRef.current) return;
       const results = searchData.searchResults;
 
+      console.log(`[SearchTab] Recherche pour résultats:`, results);
       // Prioritize items whose 'from', 'to' or 'company' start with the query (prefix-match)
       const qStart = q.split(/→|-/)[0].trim().toLowerCase();
       const isPrefix = (it: any) => {
@@ -204,7 +205,7 @@ export default function SearchTab() {
 
         // Charger les tickets générés par l'admin
         const tickets = await sotralUnifiedService.getGeneratedTickets();
-        console.log('[SearchTab] Tickets récupérés:', tickets.length);
+        console.log('[SearchTab] Tickets récupérés:', tickets);
 
         setAvailableTickets(tickets);
       } catch (error) {

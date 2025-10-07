@@ -22,6 +22,7 @@ export default function HomeTab() {
       setErrorPopularRoutes(null);
       setLoading(true);
   const routes = await RouteService.getPopularRoutes();
+  console.log('Trajets populaires chargés:', routes);
       setPopularRoutes(routes);
     } catch (error) {
       console.error('Erreur lors du chargement des trajets populaires:', error);
@@ -133,7 +134,7 @@ export default function HomeTab() {
                       <Text style={styles.routeTagText}>{route.type}</Text>
                     </View>
                     <Text style={styles.routeDuration}>{route.duration}</Text>
-                    <Text style={styles.routePrice}>{route.price}</Text>
+                    {/* <Text style={styles.routePrice}>{route.price}</Text> */}
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.secondary[300]} />

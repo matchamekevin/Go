@@ -3,6 +3,7 @@
  * Basé sur les endpoints backend réels: /api/auth
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from './api.client';
 
 export interface RegisterData {
@@ -62,9 +63,14 @@ class AuthService {
   async login(data: LoginData): Promise<AuthResult> {
     try {
       const response = await apiClient.login(data);
-      
-      if (response.success && response.token) {
-        await apiClient.setToken(response.token);
+      console.log('REPONSE LOGIN µµµµµµµ :', response);
+      if (response.success && response.data.token) {
+        console.log('Token reçu lors du login:', response.data.token);
+        await apiClient.setToken(response.data.token);
+        // Ajout explicite : stocker le token dans AsyncStorage pour le paiement
+        await AsyncStorage.setItem('auth_token', response.data.token);
+        const goToken = await AsyncStorage.getItem('auth_token');
+        console.log('TOKEN TOKEN TOKEN:', goToken);
         if (response.user) {
           await apiClient.setUser(response.user);
         }

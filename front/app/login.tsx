@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Keyboard,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Keyboard,
   TouchableWithoutFeedback,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { theme } from '../src/styles/theme';
 import { useAuth } from '../src/contexts/AuthContext';
 import { AuthService } from '../src/services/authService';
-import { normalizeErrorMessage, mapAuthErrorToFriendly } from '../src/utils/normalizeError';
+import { theme } from '../src/styles/theme';
+import { mapAuthErrorToFriendly, normalizeErrorMessage } from '../src/utils/normalizeError';
 // ToastOverlay rendered globally via ToastProvider
 import { useToast } from '../src/contexts/ToastContext';
 // ErrorMessage removed; using global toast only

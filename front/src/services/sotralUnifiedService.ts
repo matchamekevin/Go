@@ -1,5 +1,7 @@
 import { apiClient } from './apiClient';
 import type { ApiResponse, SotralLine, SotralTicket, SotralTicketType } from '../types/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Config } from '../config';
 
 // ==========================================
 // SERVICE UNIFIÉ SOTRAL POUR L'APP MOBILE
@@ -38,7 +40,6 @@ export interface UnifiedSotralTicket {
   price_paid_fcfa: number;
   status: 'active' | 'used' | 'expired' | 'cancelled';
   purchased_at: string;
-  expires_at?: string;
   trips_remaining: number;
   payment_method?: string;
   payment_reference?: string;
@@ -155,29 +156,29 @@ class SotralUnifiedService {
   /**
    * Récupérer les tickets pour une ligne spécifique
    */
-  async getTicketsByLine(lineId: number): Promise<UnifiedSotralTicket[]> {
+  async getTicketsByLine(lineId: number): Promise<{price: number}|undefined> {
     try {
       console.log(`[SotralUnifiedService] Récupération des tickets pour la ligne ${lineId}...`);
-      const response: ApiResponse<SotralTicket[]> = await this.apiClient.get(`/sotral/lines/${lineId}/tickets`);
+      const response: ApiResponse<{price: number}> = await this.apiClient.post(`/sotral/calculate-price`,{
+        line_id: lineId
+      });
 
       if (!response.success || !response.data) {
         console.error('[SotralUnifiedService] Erreur récupération tickets ligne:', response);
-        return [];
+        return 
       }
 
-      const tickets: UnifiedSotralTicket[] = response.data;
-      console.log(`[SotralUnifiedService] ${tickets.length} tickets récupérés pour la ligne ${lineId}`);
-
-      return tickets;
+      const ticket = response.data;
+      return ticket;
     } catch (error: any) {
       // Vérifier si c'est une erreur 404 (endpoint non déployé)
       if (error.status === 404) {
         console.warn(`[SotralUnifiedService] Endpoint /sotral/lines/${lineId}/tickets non disponible sur ce serveur (404). Retour de tableau vide.`);
-        return [];
+        return
       }
       
       console.error('[SotralUnifiedService] Erreur réseau tickets ligne:', error);
-      return [];
+      return;
     }
   }
   private async enrichLinesWithPricing(lines: UnifiedSotralLine[]): Promise<UnifiedSotralLine[]> {
@@ -350,36 +351,64 @@ class SotralUnifiedService {
    * Initier un paiement mobile
    */
   async initiateMobilePayment(paymentData: {
-    ticketId: number;
-    paymentMethod: 'mixx' | 'flooz';
-    phoneNumber: string;
+    lineId: number;
+    description: string;
     amount: number;
-  }): Promise<{ success: boolean; paymentRef?: string; error?: string }> {
-    try {
-      console.log(`[SotralUnifiedService] Initiation paiement ${paymentData.paymentMethod} pour ticket ${paymentData.ticketId}`);
+    quantity: number;
+  }): Promise<{ success: boolean; paymentRef?: string; paymentUrl?: string; error?: string }> {
 
+    const token = await AsyncStorage.getItem('auth_token');
+    try {
+      console.log(
+        `[SotralUnifiedService] DATATATA: `,
+         {
+          line_id: paymentData.lineId,
+          description: paymentData.description,
+          amount: paymentData.amount,
+          return_url: "https://go-j2rr.onrender.com/payment/return",
+          notify_url: "https://go-j2rr.onrender.com/payment/notify",
+          currency: "XOF",
+          quantity: paymentData.quantity,
+          product_code: "T100",
+        },
+      )
+      console.log(`[SotralUnifiedService] Initiation paiement pour ligne ${paymentData.lineId}`);
       const response: ApiResponse<{
-        payment_ref: string;
+        payment_ref?: string;
         status: string;
         payment_url?: string;
-      }> = await this.apiClient.post('/sotral/payments/initiate', {
-        ticket_id: paymentData.ticketId,
-        payment_method: paymentData.paymentMethod,
-        phone_number: paymentData.phoneNumber,
-        amount: paymentData.amount
-      });
+        data?: unknown;
+      }> = await this.apiClient.post(
+        '/payment/init',
+        {
+          line_id: paymentData.lineId,
+          description: paymentData.description,
+          amount: paymentData.amount,
+          return_url: "https://go-j2rr.onrender.com/payment/return",
+          notify_url: "https://go-j2rr.onrender.com/payment/notify",
+          currency: "XOF",
+          quantity: paymentData.quantity,
+          product_code: "T100",
+        },
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined
+          }
+        }
+      );
 
       if (!response.success || !response.data) {
         console.error('[SotralUnifiedService] Erreur initiation paiement:', response);
         return {
           success: false,
-          error: response.error || 'Erreur lors de l\'initiation du paiement'
+          error: response.error || "Erreur lors de l'initiation du paiement"
         };
       }
 
       return {
         success: true,
-        paymentRef: response.data.payment_ref
+        paymentRef: response.data.payment_ref,
+        paymentUrl: response.data.payment_url
       };
     } catch (error: any) {
       console.error('[SotralUnifiedService] Erreur réseau paiement:', error);

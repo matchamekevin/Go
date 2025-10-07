@@ -183,7 +183,12 @@ class ApiClient {
     password: string;
   }): Promise<ApiResponse> {
     const response = await this.client.post('/auth/login', data);
-    return response.data;
+    const resData = response.data;
+    // Stocker le token si présent
+    if (resData.success && resData.token) {
+      await this.setToken(resData.token);
+    }
+    return resData;
   }
 
   /**
