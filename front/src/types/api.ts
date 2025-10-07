@@ -54,6 +54,7 @@ export interface Ticket {
   // Champs supplémentaires depuis le backend
   sotral_qr_code?: string;
   qr_code?: string;
+  qrCode?: string;
   price_paid_fcfa?: number;
   line_id?: string;
   line_name?: string;
