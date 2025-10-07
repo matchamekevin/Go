@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 import type { ApiResponse, Ticket } from '../types/api';
 import { DEV_CONFIG, devLog, devError } from '../config/devConfig';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface UserTicket {
   id: string;
@@ -23,32 +24,28 @@ export interface UserTicketHistory {
   time: string;
   price: string;
   seat?: string;
-  status: 'used' | 'expired';
+  status: 'used' | 'expired' | 'valid';
+  qrCode?: string;
 }
 
 export class UserTicketService {
   // Récupérer tous les tickets de l'utilisateur connecté
   static async getMyTickets(): Promise<Ticket[]> {
-    // Force fallback en mode debug
-    if (DEV_CONFIG.FORCE_FALLBACK) {
-      devLog('UserTicketService', 'Mode fallback forcé activé');
-      return [];
-    }
-    
     try {
       devLog('UserTicketService', 'Récupération des tickets utilisateur...');
-      const response = await apiClient.get<ApiResponse<Ticket[]>>('/tickets/my-tickets');
-      
-      devLog('UserTicketService', 'Réponse API reçue', {
-        success: response.success,
-        dataLength: response.data?.length || 0
-      });
-      
-      if (!response.success) {
-        devError('UserTicketService', new Error(response.error || 'API Error'), 'getMyTickets');
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token) {
+        devLog('UserTicketService', 'Aucun token trouvé, utilisateur non authentifié');
         return [];
       }
-      
+      const response = await apiClient.get<ApiResponse<Ticket[]>>('/tickets/my-tickets',{
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      console.log('Réponse API brute:', response);
+
       return response.data || [];
     } catch (error) {
       devError('UserTicketService', error, 'getMyTickets - Network Error');
@@ -78,32 +75,21 @@ export class UserTicketService {
       return activeTickets;
     } catch (error) {
       devError('UserTicketService', error, 'getActiveTickets');
-      return this.getFallbackActiveTickets();
+      return []
     }
   }
 
   // Récupérer l'historique des tickets (utilisés ou expirés)
-  static async getTicketHistory(): Promise<UserTicketHistory[]> {
+  static async getTicketHistory(): Promise<Ticket[]> {
     try {
       devLog('UserTicketService', 'Récupération de l\'historique des tickets...');
       const tickets = await this.getMyTickets();
-      
+      console.log('Tickets récupérés pour l\'historique:', tickets);
       const historyTickets = tickets
-        .filter(ticket => ticket.status === 'used' || ticket.status === 'expired')
-        .map(ticket => this.transformToUserTicketHistory(ticket))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Tri par date décroissante
-        
-      devLog('UserTicketService', `Tickets historiques trouvés: ${historyTickets.length}`);
-      
-      if (historyTickets.length === 0) {
-        devLog('UserTicketService', 'Aucun historique trouvé via API');
-        return [];
-      }
-      
-      return historyTickets;
+      return tickets
     } catch (error) {
       devError('UserTicketService', error, 'getTicketHistory');
-      return this.getFallbackTicketHistory();
+      return []
     }
   }
 
@@ -140,7 +126,7 @@ export class UserTicketService {
       time,
       price,
       seat: this.generateSeat(),
-      qrCode: ticket.code || `QR_${ticket.id}`,
+      qrCode: ticket.sotral_qr_code || ticket.qr_code || ticket.code || '',
       status: 'valid',
       expiresIn
     };
@@ -164,7 +150,8 @@ export class UserTicketService {
       time,
       price,
       seat: this.generateSeat(),
-      status: ticket.status === 'used' ? 'used' : 'expired'
+      status: ticket.status === 'used' ? 'used' : 'expired',
+      qrCode: ticket.sotral_qr_code || ticket.qr_code || ticket.code || ''
     };
   }
 
@@ -188,17 +175,5 @@ export class UserTicketService {
     return `${numbers}${letter}`;
   }
 
-  // Données de fallback pour les tickets actifs
-  private static getFallbackActiveTickets(): UserTicket[] {
-    // Plus de données hardcodées - utiliser uniquement les données de l'admin via l'API
-    devLog('UserTicketService', 'Aucun ticket actif via API, retour vide');
-    return [];
-  }
 
-  // Données de fallback pour l'historique
-  private static getFallbackTicketHistory(): UserTicketHistory[] {
-    // Plus de données hardcodées - utiliser uniquement les données de l'admin via l'API
-    devLog('UserTicketService', 'Aucun historique via API, retour vide');
-    return [];
-  }
 }

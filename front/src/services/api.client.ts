@@ -251,7 +251,7 @@ class ApiClient {
     limit?: number;
     offset?: number;
   }): Promise<ApiResponse> {
-    const response = await this.client.get('/tickets', { params });
+    const response = await this.client.get('/tickets/my-tickets', { params });
     return response.data;
   }
 

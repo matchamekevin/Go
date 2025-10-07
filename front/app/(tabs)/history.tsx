@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../../src/styles/theme';
 import HelpFAB from '../../src/components/HelpFAB';
 import { UserTicketService, type UserTicketHistory } from '../../src/services/userTicketService';
@@ -15,8 +16,27 @@ export default function HistoryTab() {
   const loadHistoryTickets = async () => {
     try {
       setTicketsLoading(true);
-      const historyData = await UserTicketService.getTicketHistory().catch(() => []);
-      setHistoryTickets(historyData);
+      // Récupère les tickets backend
+      const tickets = await UserTicketService.getTicketHistory().catch(() => []);
+      console.log('Tickets récupérés:', tickets);
+      // Affiche tous les tickets, y compris 'unused'
+      const historyTickets = tickets.map(ticket => {
+        console.log('Ticket sotral_qr_code:', ticket.sotral_qr_code);
+        console.log('Ticket qrCode:', ticket.qrCode);
+        return {
+          id: ticket.id?.toString() || `ticket-${Date.now()}`,
+          type: 'Ticket SOTRAL',
+          route: ticket.line_name || `${ticket.line_id}`,
+          date: ticket.purchased_at ? new Date(ticket.purchased_at).toLocaleDateString('fr-FR') : '',
+          time: ticket.purchased_at ? new Date(ticket.purchased_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '',
+          price: ticket.price_paid_fcfa ? `${ticket.price_paid_fcfa} FCFA` : '-- FCFA',
+          seat: undefined,
+          status: ticket.status === 'used' ? 'used' : (ticket.status === 'expired' ? 'expired' : 'valid'),
+          qrCode: ticket.sotral_qr_code || ticket.qrCode || '',
+        };
+      }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      console.log('Tickets transformés:', historyTickets);
+      setHistoryTickets(historyTickets);
     } catch (error) {
       console.error('Erreur lors du chargement de l\'historique:', error);
     } finally {
@@ -48,17 +68,32 @@ export default function HistoryTab() {
       </View>
       <View style={styles.usedBadge}>
         <Ionicons
-          name={ticket.status === 'expired' ? "time-outline" : "checkmark-circle"}
+          name={ticket.status === 'expired' ? "time-outline" : ticket.status === 'used' ? "checkmark-circle" : "ellipse-outline"}
           size={14}
-          color={ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600]}
+          color={ticket.status === 'expired' ? theme.colors.warning[600] : (ticket.status === 'used' ? theme.colors.success[600] : theme.colors.secondary[600])}
         />
-        <Text style={[
-          styles.usedText,
-          { color: ticket.status === 'expired' ? theme.colors.warning[600] : theme.colors.success[600] }
-        ]}>
-          {ticket.status === 'expired' ? 'Expiré' : 'Utilisé'}
+        <Text style={[styles.usedText, { color: ticket.status === 'expired' ? theme.colors.warning[600] : (ticket.status === 'used' ? theme.colors.success[600] : theme.colors.secondary[600]) }]}>
+          {ticket.status === 'expired' ? 'Expiré' : ticket.status === 'used' ? 'Utilisé' : 'Valide'}
         </Text>
       </View>
+      {/* Affichage unique du QR code scannable */}
+      {ticket.qrCode && ticket.qrCode.trim() ? (
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={{ fontSize: 12, color: theme.colors.secondary[500], marginBottom: 2 }}>QR Code</Text>
+          <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 8, alignItems: 'center' }}>
+            <QRCode
+              value={ticket.qrCode.replace(/^data:.*,/, '')}
+              size={140}
+              backgroundColor="white"
+              color="black"
+            />
+          </View>
+        </View>
+      ) : (
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={{ fontSize: 12, color: theme.colors.secondary[400] }}>Pas de QR code disponible</Text>
+        </View>
+      )}
     </View>
   );
 

@@ -51,6 +51,12 @@ export interface Ticket {
   used_at?: string;
   purchase_method?: 'mobile_money' | 'cash' | 'card' | 'ussd';
   metadata?: Record<string, any>;
+  // Champs supplémentaires depuis le backend
+  sotral_qr_code?: string;
+  qr_code?: string;
+  price_paid_fcfa?: number;
+  line_id?: string;
+  line_name?: string;
   // Jointures depuis le backend
   product_name?: string;
   product_price?: number;

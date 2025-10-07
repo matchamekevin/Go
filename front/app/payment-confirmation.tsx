@@ -124,13 +124,12 @@ export default function PaymentConfirmationScreen() {
       return;
     }
     console.log('Référence de paiement:', result);
-    // router.push({
-    //   pathname: '/payment-method',
-    //   params: {
-    //     lineId: lineId,
-    //     quantity: qty.toString()
-    //   }
-    // });
+    const url = result.paymentUrl;
+    if (!url) {
+      Alert.alert('Erreur', 'URL de paiement manquante');
+      return;
+    }
+    router.push(url);
   };
 
   if (loading) {
