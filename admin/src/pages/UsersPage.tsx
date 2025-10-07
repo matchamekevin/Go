@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Phone, Calendar, Shield, ShieldCheck, Users } from 'lucide-react';
-import { UserService } from '../services/userService';
+import userService from '../services/userService';
 import { User } from '../types/api';
 import SearchBar from '../components/SearchBar';
 import StatusBadge from '../components/StatusBadge';
@@ -38,24 +38,21 @@ const UsersPage: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await UserService.getUsers({
-        page: currentPage,
-        limit: 10,
-        search: searchQuery || undefined,
-        role: filterStatus !== 'all' ? filterStatus : undefined
-      });
-
-      if (response.success && response.data) {
-        setUsers(response.data.items);
-        setTotalPages(response.data.totalPages);
+      const response = await userService.getAllUsers(
+        currentPage,
+        10,
+        searchQuery || undefined,
+        filterStatus !== 'all' ? filterStatus : undefined
+      );
+      if (response && response.items) {
+        setUsers(response.items);
+        setTotalPages(response.totalPages || 1);
       } else {
         console.warn('Aucune donnée utilisateur reçue:', response);
         setUsers([]);
-        // Ne pas afficher de toast ici car apiClient gère déjà les erreurs globalement
       }
     } catch (error) {
       console.error('Erreur lors du chargement des utilisateurs:', error);
-      // Ne pas afficher de toast ici car apiClient gère déjà les erreurs globalement
       setUsers([]);
     } finally {
       setLoading(false);

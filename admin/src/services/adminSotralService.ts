@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+
 import {
   SotralLine,
   SotralTicket,
@@ -10,6 +10,8 @@ import {
   TicketGenerationRequest,
   BulkTicketGenerationRequest
 } from '../types/sotral';
+import apiClient from './apiClient.backup';
+
 
 interface AdminSotralServiceConfig {
   baseUrl: string;

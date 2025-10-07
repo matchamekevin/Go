@@ -1,4 +1,4 @@
-import apiClient from './apiClient.new';
+import apiClient from './apiClient';
 
 export interface DashboardStats {
   users: {
@@ -41,7 +41,7 @@ class DashboardService {
   async getDashboard(): Promise<DashboardStats> {
     try {
       const response = await apiClient.getDashboard();
-      return response.dashboard || response;
+      return response.data;
     } catch (error: any) {
       console.error('Erreur récupération dashboard:', error);
       throw new Error(
@@ -53,25 +53,25 @@ class DashboardService {
   /**
    * Récupérer le rapport de revenus
    */
-  async getRevenueReport(
-    startDate?: string,
-    endDate?: string,
-    groupBy: 'day' | 'week' | 'month' = 'day'
-  ): Promise<RevenueData[]> {
-    try {
-      const response = await apiClient.getRevenueReport({
-        startDate,
-        endDate,
-        groupBy,
-      });
-      return response.data || response;
-    } catch (error: any) {
-      console.error('Erreur récupération revenus:', error);
-      throw new Error(
-        error.response?.data?.message || 'Erreur de chargement des revenus'
-      );
-    }
-  }
+  // async getRevenueReport(
+  //   startDate?: string,
+  //   endDate?: string,
+  //   groupBy: 'day' | 'week' | 'month' = 'day'
+  // ): Promise<RevenueData[]> {
+  //   try {
+  //     const response = await apiClient.getRevenueReport({
+  //       startDate,
+  //       endDate,
+  //       groupBy,
+  //     });
+  //     return response.data || response;
+  //   } catch (error: any) {
+  //     console.error('Erreur récupération revenus:', error);
+  //     throw new Error(
+  //       error.response?.data?.message || 'Erreur de chargement des revenus'
+  //     );
+  //   }
+  // }
 
   /**
    * Formater les revenus

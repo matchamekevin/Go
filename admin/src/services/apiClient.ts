@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://go-j2rr.onrender.com';
 
 class ApiClient {
   private axiosInstance: AxiosInstance;
@@ -42,7 +42,7 @@ class ApiClient {
 
   // ==================== AUTH ====================
   async login(email: string, password: string) {
-    const response = await this.axiosInstance.post('/api/auth/login', {
+    const response = await this.axiosInstance.post('/auth/login', {
       email,
       password,
     });
@@ -50,13 +50,13 @@ class ApiClient {
   }
 
   async getCurrentUser() {
-    const response = await this.axiosInstance.get('/api/auth/me');
+    const response = await this.axiosInstance.get('/auth/me');
     return response.data;
   }
 
   // ==================== DASHBOARD ====================
   async getDashboard() {
-    const response = await this.axiosInstance.get('/api/admin/dashboard');
+    const response = await this.axiosInstance.get('/admin/dashboard/stats');
     return response.data;
   }
 
@@ -67,18 +67,18 @@ class ApiClient {
     search?: string;
     status?: string;
   }) {
-    const response = await this.axiosInstance.get('/api/admin/users', { params });
+    const response = await this.axiosInstance.get('/admin/users', { params });
     return response.data;
   }
 
   async getUserById(userId: string) {
-    const response = await this.axiosInstance.get(`/api/admin/users/${userId}`);
+    const response = await this.axiosInstance.get(`/admin/users/${userId}`);
     return response.data;
   }
 
   async suspendUser(userId: string, reason?: string) {
     const response = await this.axiosInstance.put(
-      `/api/admin/users/${userId}/suspend`,
+      `/admin/users/${userId}/suspend`,
       { reason }
     );
     return response.data;
@@ -86,7 +86,7 @@ class ApiClient {
 
   async unsuspendUser(userId: string) {
     const response = await this.axiosInstance.put(
-      `/api/admin/users/${userId}/unsuspend`
+      `/admin/users/${userId}/unsuspend`
     );
     return response.data;
   }
@@ -98,24 +98,24 @@ class ApiClient {
     status?: string;
     userId?: string;
   }) {
-    const response = await this.axiosInstance.get('/api/admin/tickets', { params });
+    const response = await this.axiosInstance.get('/admin/tickets', { params });
     return response.data;
   }
 
   async deleteTicket(ticketId: string, reason?: string) {
-    const response = await this.axiosInstance.delete(`/api/admin/tickets/${ticketId}`, {
+    const response = await this.axiosInstance.delete(`/admin/tickets/${ticketId}`, {
       data: { reason },
     });
     return response.data;
   }
 
   async expireOldTickets() {
-    const response = await this.axiosInstance.post('/api/admin/tickets/expire-old');
+    const response = await this.axiosInstance.post('/admin/tickets/expire-old');
     return response.data;
   }
 
   async getTicketStats() {
-    const response = await this.axiosInstance.get('/api/admin/tickets/stats');
+    const response = await this.axiosInstance.get('/admin/tickets/stats');
     return response.data;
   }
 
@@ -128,7 +128,7 @@ class ApiClient {
     startDate?: string;
     endDate?: string;
   }) {
-    const response = await this.axiosInstance.get('/api/admin/payments', { params });
+    const response = await this.axiosInstance.get('/admin/payments', { params });
     return response.data;
   }
 
@@ -137,7 +137,7 @@ class ApiClient {
     endDate?: string;
     groupBy?: 'day' | 'week' | 'month';
   }) {
-    const response = await this.axiosInstance.get('/api/admin/reports/revenue', {
+    const response = await this.axiosInstance.get('/admin/reports', {
       params,
     });
     return response.data;
@@ -150,7 +150,7 @@ class ApiClient {
     color?: string;
     type?: string;
   }) {
-    const response = await this.axiosInstance.post('/api/admin/sotral/lines', data);
+    const response = await this.axiosInstance.post('/admin/sotral/lines', data);
     return response.data;
   }
 
@@ -164,14 +164,14 @@ class ApiClient {
     }
   ) {
     const response = await this.axiosInstance.put(
-      `/api/admin/sotral/lines/${lineId}`,
+      `/admin/sotral/lines/${lineId}`,
       data
     );
     return response.data;
   }
 
   async deleteLine(lineId: string) {
-    const response = await this.axiosInstance.delete(`/api/admin/sotral/lines/${lineId}`);
+    const response = await this.axiosInstance.delete(`/admin/sotral/lines/${lineId}`);
     return response.data;
   }
 
@@ -182,7 +182,7 @@ class ApiClient {
     longitude: number;
     address?: string;
   }) {
-    const response = await this.axiosInstance.post('/api/admin/sotral/stops', data);
+    const response = await this.axiosInstance.post('/admin/sotral/stops', data);
     return response.data;
   }
 
@@ -196,21 +196,21 @@ class ApiClient {
     }
   ) {
     const response = await this.axiosInstance.put(
-      `/api/admin/sotral/stops/${stopId}`,
+      `/admin/sotral/stops/${stopId}`,
       data
     );
     return response.data;
   }
 
   async deleteStop(stopId: string) {
-    const response = await this.axiosInstance.delete(`/api/admin/sotral/stops/${stopId}`);
+    const response = await this.axiosInstance.delete(`/admin/sotral/stops/${stopId}`);
     return response.data;
   }
 
   // ==================== SOTRAL LINE-STOPS ASSOCIATION ====================
   async addStopToLine(lineId: string, stopId: string, order?: number) {
     const response = await this.axiosInstance.post(
-      `/api/admin/sotral/lines/${lineId}/stops`,
+      `/admin/sotral/lines/${lineId}/stops`,
       { stopId, order }
     );
     return response.data;
@@ -218,14 +218,14 @@ class ApiClient {
 
   async removeStopFromLine(lineId: string, stopId: string) {
     const response = await this.axiosInstance.delete(
-      `/api/admin/sotral/lines/${lineId}/stops/${stopId}`
+      `/admin/sotral/lines/${lineId}/stops/${stopId}`
     );
     return response.data;
   }
 
   async reorderLineStops(lineId: string, stopIds: string[]) {
     const response = await this.axiosInstance.put(
-      `/api/admin/sotral/lines/${lineId}/stops/reorder`,
+      `/admin/sotral/lines/${lineId}/stops/reorder`,
       { stopIds }
     );
     return response.data;
@@ -238,7 +238,7 @@ class ApiClient {
     arrivalTime: string;
     days?: string[];
   }) {
-    const response = await this.axiosInstance.post('/api/admin/sotral/schedules', data);
+    const response = await this.axiosInstance.post('/admin/sotral/schedules', data);
     return response.data;
   }
 
@@ -248,19 +248,19 @@ class ApiClient {
     vehicleNumber: string;
     capacity?: number;
   }) {
-    const response = await this.axiosInstance.post('/api/admin/sotral/vehicles', data);
+    const response = await this.axiosInstance.post('/admin/sotral/vehicles', data);
     return response.data;
   }
 
   // ==================== SOTRAL IMPORT ====================
   async importSotralData(data: any) {
-    const response = await this.axiosInstance.post('/api/admin/sotral/import', data);
+    const response = await this.axiosInstance.post('/admin/sotral/import', data);
     return response.data;
   }
 
   // ==================== HEALTH CHECK ====================
   async healthCheck() {
-    const response = await this.axiosInstance.get('/api/health');
+    const response = await this.axiosInstance.get('/health');
     return response.data;
   }
 }

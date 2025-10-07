@@ -1,21 +1,20 @@
-import apiClient from './apiClient.new';
+import apiClient from './apiClient';
 
 export interface User {
   id: string;
   email: string;
+  name: string;
   phone?: string;
-  firstName?: string;
-  lastName?: string;
+  is_suspended?: boolean;
+  is_verified: boolean;
   role: string;
-  status: string;
-  suspended: boolean;
-  suspensionReason?: string;
-  createdAt: string;
-  lastLoginAt?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UsersResponse {
   users: User[];
+  items: User[];
   total: number;
   page: number;
   limit: number;
@@ -39,7 +38,7 @@ class UserService {
         search,
         status,
       });
-      return response;
+      return response.data;
     } catch (error: any) {
       console.error('Erreur récupération utilisateurs:', error);
       throw new Error(
@@ -95,11 +94,7 @@ class UserService {
    * Formater le nom complet
    */
   getFullName(user: User): string {
-    if (user.firstName && user.lastName) {
-      return `${user.firstName} ${user.lastName}`;
-    }
-    if (user.firstName) return user.firstName;
-    if (user.lastName) return user.lastName;
+    if (user.name) return user.name;
     return user.email;
   }
 

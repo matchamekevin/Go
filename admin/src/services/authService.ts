@@ -1,4 +1,4 @@
-import apiClient from './apiClient.new';
+import apiClient from './apiClient';
 
 export interface AdminUser {
   id: string;
@@ -21,17 +21,19 @@ class AuthService {
   async login(email: string, password: string): Promise<LoginResponse> {
     try {
       const response = await apiClient.login(email, password);
-
+      console.log('Login response:', response);
+      // L'API retourne { success, data: { token, user } }
+      const { token, user } = response.data;
       // Vérifier que l'utilisateur a le rôle admin
-      if (response.user.role !== 'admin' && response.user.role !== 'super_admin') {
+      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
         throw new Error('Accès refusé : droits administrateur requis');
       }
 
       // Sauvegarder le token et les infos user
-      localStorage.setItem('admin_auth_token', response.token);
-      localStorage.setItem('admin_user', JSON.stringify(response.user));
+      localStorage.setItem('admin_auth_token', token);
+      localStorage.setItem('admin_user', JSON.stringify(user));
 
-      return response;
+      return { token, user };
     } catch (error: any) {
       console.error('Erreur de connexion admin:', error);
       throw new Error(

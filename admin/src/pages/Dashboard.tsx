@@ -42,7 +42,7 @@ ChartJS.register(
   Filler
 );
 
-import { DashboardService } from '../services/dashboardService';
+import dashboardService from '../services/dashboardService';
 import { useAuth } from '../contexts/AuthContext';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 
@@ -58,40 +58,41 @@ const Dashboard: React.FC = () => {
 
   // Fonction de récupération des données
   const fetchData = async () => {
-    const [
-      statsResponse,
-      activityResponse,
-      revenueResponse
-    ] = await Promise.allSettled([
-      DashboardService.getStats(),
-      DashboardService.getRecentActivity(),
-      DashboardService.getChartData('revenue', selectedPeriod),
-    ]);
+    try {
+      setIsLoading(true);
+      setError(null);
+      // Récupérer les statistiques principales
+  const response = await dashboardService.getDashboard();
+  console.log('Stats dashboard:', response);
+  setStats(response);
 
-    // Traiter les réponses individuellement sans lever d'erreur globale
-    if (statsResponse.status === 'fulfilled' && statsResponse.value.success && statsResponse.value.data) {
-      setStats(statsResponse.value.data);
-    } else {
-      console.error('Erreur lors du chargement des statistiques:', statsResponse.status === 'rejected' ? statsResponse.reason : statsResponse.value?.error);
-    }
+      // Récupérer les revenus (exemple : 30 derniers jours)
+      const today = new Date();
+      const startDate = new Date(today);
+      if (selectedPeriod === '7d') startDate.setDate(today.getDate() - 7);
+      else if (selectedPeriod === '30d') startDate.setDate(today.getDate() - 30);
+      else if (selectedPeriod === '90d') startDate.setDate(today.getDate() - 90);
+      // const revenue = await dashboardService.getRevenueReport(
+      //   startDate.toISOString().slice(0, 10),
+      //   today.toISOString().slice(0, 10),
+      //   'day'
+      // );
+      // setRevenueDaily(revenue);
 
-    if (activityResponse.status === 'fulfilled' && activityResponse.value.success && activityResponse.value.data) {
-      setRecentActivity(activityResponse.value.data);
-    } else {
-      console.error('Erreur lors du chargement de l\'activité récente:', activityResponse.status === 'rejected' ? activityResponse.reason : activityResponse.value?.error);
-    }
-
-    if (revenueResponse.status === 'fulfilled' && revenueResponse.value.success && revenueResponse.value.data) {
-      setRevenueDaily(revenueResponse.value.data);
-    } else {
-      console.error('Erreur lors du chargement des données de revenus:', revenueResponse.status === 'rejected' ? revenueResponse.reason : revenueResponse.value?.error);
+      // Si tu veux une activité récente, il faut ajouter une méthode dans dashboardService et l'API
+      setRecentActivity([]); // Placeholder vide
+    } catch (error: any) {
+      setError('Erreur lors du chargement des données du dashboard.');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Utiliser le hook de réactualisation automatique
   const { isRefreshing } = useAutoRefresh(fetchData, {
     interval: 30000, // 30 secondes
-    enabled: true
+    enabled: false
   });
 
   useEffect(() => {

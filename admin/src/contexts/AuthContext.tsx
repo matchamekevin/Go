@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { AuthService } from '../services/authService';
 import { LoginRequest, User } from '../types/api';
 import { toast } from 'react-hot-toast';
+import AuthService from '../services/authService';
+// import { authService } from '@/services';
 
 interface AuthContextType {
   user: User | null;
@@ -23,45 +24,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   const checkAuth = async () => {
     try {
-      const storedToken = AuthService.getStoredToken();
-      const storedUser = AuthService.getStoredUser();
+      const storedToken = AuthService.getToken();
+      const storedUser = AuthService.getCachedAdmin();
 
       if (storedToken && storedUser) {
-        // Validation basique des données utilisateur
-        const isValidUser = storedUser.id && storedUser.email && storedUser.name;
-
-        if (isValidUser) {
-          setToken(storedToken);
-          setUser({
-            id: storedUser.id,
-            email: storedUser.email,
-            name: storedUser.name,
-            role: storedUser.role || 'user',
-            phone: storedUser.phone || '',
-            is_verified: storedUser.is_verified ?? true,
-            created_at: storedUser.created_at || '',
-            updated_at: storedUser.updated_at || '',
-          });
-        } else {
-          // Données invalides, nettoyer le stockage
-          AuthService.clearStoredData();
-          toast.error('Données utilisateur invalides, veuillez vous reconnecter.');
-        }
+        setToken(storedToken);
+        setUser({
+          id: storedUser.id,
+          email: storedUser.email,
+          name: storedUser.firstName || storedUser.email,
+          role: storedUser.role || 'admin',
+          phone: '',
+          is_verified: true,
+          created_at: storedUser.createdAt || '',
+          updated_at: '',
+        });
+      } else {
+        AuthService.logout();
+        setToken(null);
+        setUser(null);
       }
     } catch (err) {
       const error = err as Error;
       console.error('Erreur lors de la vérification de l\'authentification:', error);
-
-      // En cas d'erreur de token expiré, nettoyer et afficher un message
-      if (error.message.includes('Token') || error.message.includes('auth')) {
-        AuthService.clearStoredData();
-        setToken(null);
-        setUser(null);
-        toast.error('Session expirée, veuillez vous reconnecter.');
-      }
+      AuthService.logout();
+      setToken(null);
+      setUser(null);
+      toast.error('Session expirée, veuillez vous reconnecter.');
     } finally {
       setIsLoading(false);
     }
@@ -70,28 +61,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginRequest): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await AuthService.login(credentials);
-      
-      if (response.success && response.data) {
-        const { token: newToken, user: newUser } = response.data;
-        // Stocker les données d'authentification
-        AuthService.setAuthData(newToken, newUser);
-        // Mettre à jour l'état
-        setToken(newToken);
-        setUser({
-          id: newUser.id,
-          email: newUser.email,
-          name: newUser.name,
-          role: newUser.role,
-          phone: '',
-          is_verified: true,
-          created_at: '',
-          updated_at: '',
-        });
-        toast.success(`Bienvenue, ${newUser.name}!`);
-      } else {
-        throw new Error('Réponse d\'authentification invalide');
-      }
+      const response = await AuthService.login(credentials.email, credentials.password);
+      // Stockage déjà fait dans le service
+      setToken(response.token);
+      setUser({
+        id: response.user.id,
+        email: response.user.email,
+        name: response.user.firstName || response.user.email,
+        role: response.user.role || 'admin',
+        phone: '',
+        is_verified: true,
+        created_at: response.user.createdAt || '',
+        updated_at: '',
+      });
+      toast.success(`Bienvenue, ${response.user.firstName || response.user.email}!`);
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || error.message || 'Erreur de connexion';
       toast.error(errorMessage);
@@ -103,13 +86,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async (): Promise<void> => {
     try {
-      await AuthService.logout();
+      AuthService.logout();
       setToken(null);
       setUser(null);
       toast.success('Déconnexion réussie');
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
-      // Même en cas d'erreur, on nettoie localement
       setToken(null);
       setUser(null);
     }

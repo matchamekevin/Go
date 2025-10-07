@@ -1,7 +1,7 @@
 import React from 'react';
 import { User } from '../types/api';
 import ConfirmModal from './ConfirmModal';
-import { UserService } from '../services/userService';
+import userService from '../services/userService';
 import { toast } from 'react-hot-toast';
 
 interface Props {
@@ -27,15 +27,15 @@ const UserActionsModal: React.FC<Props> = ({ user, isOpen, onClose, onActionComp
 
     try {
       setLoading(true);
-      const res = await UserService.toggleUserSuspension(user.id);
-      if (res.success) {
-        const isSuspended = res.data && (res.data as any).is_suspended;
-        toast.success(isSuspended ? 'Compte suspendu' : 'Compte réactivé');
-        onActionComplete && onActionComplete();
-        onClose();
+      if (user.is_suspended) {
+        await userService.unsuspendUser(user.id);
+        toast.success('Compte réactivé');
       } else {
-        toast.error('Impossible de modifier le statut du compte');
+        await userService.suspendUser(user.id);
+        toast.success('Compte suspendu');
       }
+      onActionComplete && onActionComplete();
+      onClose();
     } catch (err: any) {
       toast.error(err?.message || 'Erreur');
     } finally {

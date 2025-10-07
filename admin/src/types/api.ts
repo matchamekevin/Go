@@ -18,7 +18,7 @@ export interface LoginResponse {
 }
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   name: string;
   phone?: string;
