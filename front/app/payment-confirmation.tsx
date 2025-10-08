@@ -5,10 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  // Alert,
   TextInput,
-  Alert,
   RefreshControl,
 } from 'react-native';
+import Toast from "react-native-toast-message";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +42,11 @@ export default function PaymentConfirmationScreen() {
       // Charger les détails de la ligne
       const lineData = await sotralUnifiedService.getLineById(id);
       if (!lineData) {
+        Toast.show({
+          type: 'error',
+          text1: 'Ligne introuvable',
+          text2: 'La ligne demandée n’existe pas ou a été supprimée.',
+        });
         setError('Ligne non trouvée');
         return;
       }
@@ -51,9 +57,23 @@ export default function PaymentConfirmationScreen() {
       console.log('Tickets disponibles pour la ligne:', ticket);
       setTicket(ticket);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur chargement:', err);
-      setError('Erreur lors du chargement des données');
+      if (err?.status === 404 && err?.message?.includes('Ligne non trouvée')) {
+        Toast.show({
+          type: 'error',
+          text1: 'Ligne introuvable',
+          text2: 'La ligne demandée n’existe pas ou a été supprimée.',
+        });
+        setError('Ligne non trouvée');
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Erreur réseau',
+          text2: err?.message || 'Une erreur inattendue est survenue.',
+        });
+        setError('Erreur lors du chargement des données');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,7 +97,7 @@ export default function PaymentConfirmationScreen() {
 
   const calculateTotalPrice = (): number => {
     const qty = parseInt(quantity) || 1;
-    return ticket ? ticket.price * qty : 0;
+  return ticket ? ticket.price * qty : 0;
   };
 
   const handleQuantityChange = (text: string) => {
@@ -98,16 +118,28 @@ export default function PaymentConfirmationScreen() {
     const qty = parseInt(quantity);
 
     if (!ticket) {
-      Alert.alert('Erreur', 'Aucun ticket disponible pour cette ligne');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Aucun ticket disponible pour cette ligne',
+      });
       return;
     }
 
     if (qty < 1) {
-      Alert.alert('Erreur', 'Veuillez saisir une quantité valide');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Veuillez saisir une quantité valide',
+      });
       return;
     }
     if (!lineId) {
-      Alert.alert('Erreur', 'ID de ligne manquant');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'ID de ligne manquant',
+      });
       return;
     }
     // Naviguer vers la sélection du moyen de paiement
@@ -120,13 +152,21 @@ export default function PaymentConfirmationScreen() {
     });
     
     if (!result.success) {
-      Alert.alert('Erreur', result.error || 'Échec de l\'initiation du paiement');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: result.error || "Échec de l'initiation du paiement",
+      });
       return;
     }
     console.log('Référence de paiement:', result);
     const url = result.paymentUrl;
     if (!url) {
-      Alert.alert('Erreur', 'URL de paiement manquante');
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'URL de paiement manquante',
+      });
       return;
     }
     router.push(url);
@@ -216,7 +256,7 @@ export default function PaymentConfirmationScreen() {
                   {selectedTicket.trips_remaining} trajet{selectedTicket.trips_remaining > 1 ? 's' : ''}
                 </Text>
                 <Text style={styles.ticketPrice}>
-                  {selectedTicket.price} FCFA par ticket
+                  {ticket && ticket.price ? ticket.price + ' FCFA par ticket' : ''}
                 </Text>
               </View>
               <View style={styles.ticketStatus}>
@@ -273,10 +313,10 @@ export default function PaymentConfirmationScreen() {
 
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>
-              {qty} ticket{qty > 1 ? 's' : ''} × {selectedTicket?.price || 0} FCFA
+              {qty} ticket{qty > 1 ? 's' : ''} × {ticket && ticket.price ? ticket.price : 0} FCFA
             </Text>
             <Text style={styles.priceValue}>
-              {selectedTicket ? (selectedTicket.price * qty) : 0} FCFA
+              {ticket && ticket.price ? (ticket.price * qty) : 0} FCFA
             </Text>
           </View>
 

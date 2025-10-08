@@ -6,10 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import Toast from "react-native-toast-message";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -96,20 +96,29 @@ export default function PaymentCodeScreen() {
     const cleanPhone = phoneNumber.replace(/\s/g, '');
 
     if (!validatePhoneNumber(phoneNumber)) {
-      Alert.alert(
-        'Numéro invalide',
-        'Veuillez saisir un numéro de téléphone camerounais valide (ex: 6XX XXX XXX)'
-      );
+      Toast.show({
+        type: 'error',
+        text1: 'Numéro invalide',
+        text2: 'Veuillez saisir un numéro de téléphone camerounais valide (ex: 6XX XXX XXX)',
+      });
       return;
     }
 
     if (!paymentCode.trim()) {
-      Alert.alert('Code requis', 'Veuillez saisir votre code de paiement');
+      Toast.show({
+        type: 'error',
+        text1: 'Code requis',
+        text2: 'Veuillez saisir votre code de paiement',
+      });
       return;
     }
 
     if (paymentCode.length < 4) {
-      Alert.alert('Code trop court', 'Le code de paiement doit contenir au moins 4 caractères');
+      Toast.show({
+        type: 'error',
+        text1: 'Code trop court',
+        text2: 'Le code de paiement doit contenir au moins 4 caractères',
+      });
       return;
     }
 
@@ -136,22 +145,21 @@ export default function PaymentCodeScreen() {
           }
         });
       } else {
-        Alert.alert(
-          'Paiement échoué',
-          'Le paiement n\'a pas pu être traité. Vérifiez votre code et solde, puis réessayez.',
-          [
-            { text: 'Annuler', style: 'cancel' },
-            { text: 'Réessayer', onPress: () => setIsProcessing(false) }
-          ]
-        );
+        Toast.show({
+          type: 'error',
+          text1: 'Paiement échoué',
+          text2: 'Le paiement n\'a pas pu être traité. Vérifiez votre code et solde, puis réessayez.',
+        });
+        setIsProcessing(false);
       }
     } catch (error) {
       console.error('Erreur paiement:', error);
-      Alert.alert(
-        'Erreur',
-        'Une erreur est survenue lors du paiement. Veuillez réessayer.',
-        [{ text: 'OK', onPress: () => setIsProcessing(false) }]
-      );
+      Toast.show({
+        type: 'error',
+        text1: 'Erreur',
+        text2: 'Une erreur est survenue lors du paiement. Veuillez réessayer.',
+      });
+      setIsProcessing(false);
     }
   };
 

@@ -8,7 +8,8 @@
     "expo-haptics": "^15.0.7",
     "expo-linear-gradient": "^14.1.5",
     "expo-router": "^6.0.10",
-    "expo-splash-screen": "^31.0.10"
+    "expo-splash-screen": "^31.0.10",
+    "react-native-toast-message": "^2.3.3"
   },
   "name": "go",
   "version": "1.0.0",

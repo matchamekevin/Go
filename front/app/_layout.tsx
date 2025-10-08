@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { ToastProvider } from '../src/contexts/ToastContext';
 import { ThemeProvider } from '../src/contexts/ThemeContext';
 import { StatusBar } from 'expo-status-bar';
+import Toast from 'react-native-toast-message';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function RootLayout() {
@@ -46,6 +47,7 @@ function AppRouter() {
           </View>
         </View>
       )}
+      <Toast />
     </View>
   );
 }
