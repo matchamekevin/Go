@@ -41,17 +41,11 @@ export const useSotralStatsQuery = () => {
   return useQuery({
     queryKey: ['sotral-stats'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/dashboard-stats`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        return data.data?.infrastructure;
+      const response = await adminSotralService.getDashboardStats();
+      if (response.success) {
+        return response.data?.infrastructure;
       }
-      throw new Error('Erreur lors du chargement des statistiques');
+      throw new Error(response.error || 'Erreur lors du chargement des statistiques');
     },
     staleTime: 1 * 60 * 1000, // Considérer les données fraîches pendant 1 minute
     refetchOnWindowFocus: true,

@@ -35,17 +35,11 @@ export const useSotralOperations = () => {
       dispatch({ type: 'SET_LOADING', payload: { key: 'lines', value: true } });
       dispatch({ type: 'SET_ERROR', payload: { key: 'lines', error: null } });
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await adminSotralService.getLines();
 
-      if (response.ok) {
-        const data = await response.json();
-        const lines = Array.isArray(data.data) ? data.data : data || [];
-        dispatch({ type: 'SET_LINES', payload: lines });
+      if (response.success) {
+        const lines = Array.isArray(response.data) ? response.data : response.data || [];
+        dispatch({ type: 'SET_LINES', payload: lines as any });
         dispatch({ type: 'SET_USING_CACHE', payload: false });
         writeCache(CACHE_KEY, lines);
       } else {
@@ -55,13 +49,12 @@ export const useSotralOperations = () => {
           dispatch({ type: 'SET_USING_CACHE', payload: true });
         }
 
-        const errorData = await response.json().catch(() => ({}));
         dispatch({ type: 'SET_ERROR', payload: {
           key: 'lines',
           error: {
             type: 'server',
             message: 'Erreur lors du chargement des lignes',
-            details: errorData.error || 'Impossible de récupérer les données des lignes.',
+            details: response.error || 'Impossible de récupérer les données des lignes.',
             suggestion: 'Vérifiez votre connexion et réessayez.'
           }
         }});
@@ -93,16 +86,10 @@ export const useSotralOperations = () => {
       dispatch({ type: 'SET_LOADING', payload: { key: 'stops', value: true } });
       dispatch({ type: 'SET_ERROR', payload: { key: 'stops', error: null } });
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/stops`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await adminSotralService.getAllStops();
 
-      if (response.ok) {
-        const data = await response.json();
-        const stops = Array.isArray(data.data) ? data.data : [];
+      if (response.success) {
+        const stops = Array.isArray(response.data) ? response.data : [];
         dispatch({ type: 'SET_STOPS', payload: stops });
         writeCache(CACHE_KEY_STOPS, stops);
       } else {
@@ -111,7 +98,7 @@ export const useSotralOperations = () => {
           error: {
             type: 'server',
             message: 'Erreur lors du chargement des arrêts',
-            details: 'Impossible de récupérer les données des arrêts.',
+            details: response.error || 'Impossible de récupérer les données des arrêts.',
             suggestion: 'Vérifiez votre connexion et réessayez.'
           }
         }});
@@ -137,16 +124,10 @@ export const useSotralOperations = () => {
       dispatch({ type: 'SET_LOADING', payload: { key: 'stats', value: true } });
       dispatch({ type: 'SET_ERROR', payload: { key: 'stats', error: null } });
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/dashboard-stats`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await adminSotralService.getDashboardStats();
 
-      if (response.ok) {
-        const data = await response.json();
-        const stats = data.data?.infrastructure || null;
+      if (response.success) {
+        const stats = response.data?.infrastructure || null;
         dispatch({ type: 'SET_STATS', payload: stats });
         writeCache(CACHE_KEY_STATS, stats);
       } else {
@@ -155,7 +136,7 @@ export const useSotralOperations = () => {
           error: {
             type: 'server',
             message: 'Erreur lors du chargement des statistiques',
-            details: 'Impossible de récupérer les statistiques.',
+            details: response.error || 'Impossible de récupérer les statistiques.',
             suggestion: 'Vérifiez votre connexion et réessayez.'
           }
         }});
@@ -197,6 +178,19 @@ export const useSotralOperations = () => {
   }, [dispatch, readCache, loadLines, loadStops, loadStats]);
 
   // Refresh all data
+  const refreshData = useCallback(async () => {
+    await Promise.all([loadLines(), loadStops(), loadStats()]);
+  }, [loadLines, loadStops, loadStats]);
+
+  // useEffect pour mise à jour automatique après une action
+  useEffect(() => {
+    if (needsRefresh) {
+      refreshData().then(() => {
+        setNeedsRefresh(false); // Remettre à false après le refresh
+      });
+    }
+  }, [needsRefresh, refreshData]);
+
   const refreshData = useCallback(async () => {
     await Promise.all([loadLines(), loadStops(), loadStats()]);
   }, [loadLines, loadStops, loadStats]);
@@ -244,26 +238,17 @@ export const useSotralOperations = () => {
     dispatch({ type: 'SET_ERROR', payload: { key: 'general', error: null } });
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ...lineData, is_active: true })
-      });
+      const result = await adminSotralService.createLine({ ...lineData, is_active: true });
 
-      if (response.ok) {
-        const result = await response.json();
-        dispatch({ type: 'ADD_LINE', payload: result.data });
-        toast.success(result.message || 'Ligne créée avec succès');
+      if (result.success && result.data) {
+        dispatch({ type: 'ADD_LINE', payload: result.data as any });
+        toast.success('Ligne créée avec succès');
         return { success: true };
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
         const error = {
           type: 'server' as const,
-          message: errorData.error || 'Erreur lors de la création de la ligne',
-          details: errorData.details || 'Une erreur est survenue'
+          message: result.error || 'Erreur lors de la création de la ligne',
+          details: 'Une erreur est survenue'
         };
         dispatch({ type: 'SET_ERROR', payload: { key: 'general', error } });
         return { success: false, error: error.message };
@@ -294,26 +279,17 @@ export const useSotralOperations = () => {
     dispatch({ type: 'SET_ERROR', payload: { key: 'general', error: null } });
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines/${lineId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(lineData)
-      });
+      const result = await adminSotralService.updateLine(lineId, lineData);
 
-      if (response.ok) {
-        const result = await response.json();
-        dispatch({ type: 'UPDATE_LINE', payload: result.data });
-        toast.success(result.message || 'Ligne modifiée avec succès');
+      if (result.success && result.data) {
+        dispatch({ type: 'UPDATE_LINE', payload: result.data as any });
+        toast.success('Ligne modifiée avec succès');
         return { success: true };
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
         const error = {
           type: 'server' as const,
-          message: errorData.error || 'Erreur lors de la modification de la ligne',
-          details: errorData.details || 'Une erreur est survenue'
+          message: result.error || 'Erreur lors de la modification de la ligne',
+          details: 'Une erreur est survenue'
         };
         dispatch({ type: 'SET_ERROR', payload: { key: 'general', error } });
         return { success: false, error: error.message };
@@ -336,15 +312,9 @@ export const useSotralOperations = () => {
     dispatch({ type: 'SET_ERROR', payload: { key: 'general', error: null } });
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/lines/${lineId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await adminSotralService.deleteLine(lineId);
 
-      if (response.ok) {
+      if (result.success) {
         dispatch({ type: 'DELETE_LINE', payload: lineId });
         toast.success('Ligne supprimée avec succès');
         return { success: true };

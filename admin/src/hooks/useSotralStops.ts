@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { adminSotralService } from '../services/adminSotralService';
 
 interface SotralStop {
   id: number;
@@ -28,21 +29,15 @@ export const useSotralStops = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/stops`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await adminSotralService.getAllStops();
       
-      if (response.ok) {
-        const data = await response.json();
-        setStops(data.data || []);
+      if (response.success) {
+        setStops(response.data || []);
       } else {
         setError({
           type: 'server',
           message: 'Erreur lors du chargement des arrêts',
-          details: 'Impossible de récupérer les données des arrêts.',
+          details: response.error || 'Impossible de récupérer les données des arrêts.',
           suggestion: 'Vérifiez votre connexion et réessayez.'
         });
       }
@@ -64,21 +59,15 @@ export const useSotralStops = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/stops`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await adminSotralService.getAllStops();
 
-        if (response.ok) {
-          const data = await response.json();
-          setStops(data.data || []);
+        if (response.success) {
+          setStops(response.data || []);
         } else {
           setError({
             type: 'server',
             message: 'Erreur lors du chargement des arrêts',
-            details: 'Impossible de récupérer les données des arrêts.',
+            details: response.error || 'Impossible de récupérer les données des arrêts.',
             suggestion: 'Vérifiez votre connexion et réessayez.'
           });
         }

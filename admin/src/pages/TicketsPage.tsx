@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, Bus, TrendingUp, X, Ticket, DollarSign, CheckCircle, QrCode, Eye, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { SotralLine } from '../types/sotral';

@@ -266,7 +266,13 @@ app.use("/admin", adminRoutes);
 app.use("/admin/tickets", adminTicketsRoutes);
 app.use("/admin/sotral", adminSotralRoutes);
 app.use("/support", supportRoutes);
-
+// filepath: back/src/app.ts
+// ...existing code...
+// Monter les routes SOTRAL en premier pour éviter le middleware admin
+app.use("/admin/sotral", sotralRoutes);
+// Puis les routes admin génériques
+app.use("/admin", adminRoutes);
+// ...existing code...
 // Route de test temporaire pour supprimer un ticket sans auth
 app.delete("/test-delete-ticket/:id", async (req: Request, res: Response) => {
   try {

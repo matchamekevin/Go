@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { adminSotralService } from '../services/adminSotralService';
 
 interface LineStats {
   total_lines: number;
@@ -24,21 +25,15 @@ export const useSotralStats = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/dashboard-stats`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await adminSotralService.getDashboardStats();
       
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.data?.infrastructure || null);
+      if (response.success) {
+        setStats(response.data?.infrastructure || null);
       } else {
         setError({
           type: 'server',
           message: 'Erreur lors du chargement des statistiques',
-          details: 'Impossible de récupérer les statistiques.',
+          details: response.error || 'Impossible de récupérer les statistiques.',
           suggestion: 'Vérifiez votre connexion et réessayez.'
         });
       }
@@ -60,21 +55,15 @@ export const useSotralStats = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/dashboard-stats`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await adminSotralService.getDashboardStats();
 
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data.data?.infrastructure || null);
+        if (response.success) {
+          setStats(response.data?.infrastructure || null);
         } else {
           setError({
             type: 'server',
             message: 'Erreur lors du chargement des statistiques',
-            details: 'Impossible de récupérer les statistiques.',
+            details: response.error || 'Impossible de récupérer les statistiques.',
             suggestion: 'Vérifiez votre connexion et réessayez.'
           });
         }

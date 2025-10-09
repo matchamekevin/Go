@@ -157,6 +157,13 @@ class AdminSotralService {
     ) as Promise<ApiResponse<SotralLine[]>>;
   }
 
+  async getAllStops(): Promise<ApiResponse<any[]>> {
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/stops`),
+      'stops'
+    ) as Promise<ApiResponse<any[]>>;
+  }
+
   async getLineById(id: number): Promise<ApiResponse<SotralLine>> {
     return this.handleApiCall(
       () => apiClient.get(`${this.config.baseUrl}/lines/${id}`),
@@ -302,7 +309,7 @@ class AdminSotralService {
 
   async updateTicketStatus(id: number, status: string): Promise<ApiResponse<SotralTicket>> {
     const result = await this.handleApiCall(
-      () => apiClient.patch(`${this.config.baseUrl}/tickets/${id}/status`, { status }),
+      () => apiClient.put(`${this.config.baseUrl}/tickets/${id}/status`, { status }),
       undefined,
       true
     );
@@ -359,6 +366,13 @@ class AdminSotralService {
     return this.handleApiCall(
       () => apiClient.get(`${this.config.baseUrl}/analytics/popular-lines?limit=${limit}`),
       `popular-lines:${limit}`
+    );
+  }
+
+  async getDashboardStats(): Promise<ApiResponse<any>> {
+    return this.handleApiCall(
+      () => apiClient.get(`${this.config.baseUrl}/dashboard-stats`),
+      'dashboard-stats'
     );
   }
 
