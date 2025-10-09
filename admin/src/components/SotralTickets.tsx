@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, AlertTriangle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import SotralService, { type SotralTicket } from '../services/sotralService';
 import { adminSotralService } from '../services/adminSotralService';
+import { SotralUtils } from '../services/sotralService';
+import { SotralTicketWithDetails } from '../types/sotral';
 
 interface TicketCardProps {
-  ticket: SotralTicket;
-  onDelete?: (ticket: SotralTicket) => void;
+  ticket: SotralTicketWithDetails;
+  onDelete?: (ticket: SotralTicketWithDetails) => void;
   canDelete?: boolean;
 }
 
@@ -55,8 +56,8 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onDelete, canDelete = t
                 <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-mono font-medium">
                   {ticket.ticket_code}
                 </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${SotralService.getTicketStatusColor(ticket.status)}`}>
-                  {SotralService.getTicketStatusLabel(ticket.status)}
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${SotralUtils.getTicketStatusColor(ticket.status)}`}>
+                  {SotralUtils.getTicketStatusLabel(ticket.status)}
                 </span>
               </div>
 
@@ -74,34 +75,34 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onDelete, canDelete = t
 
             {/* Informations du ticket */}
             <div className="space-y-2 text-sm">
-              {ticket.ticket_type && (
+              {ticket.ticket_type_name && (
                 <div className="flex items-center">
                   <span className="w-20 font-medium text-gray-600">Type:</span>
-                  <span className="text-gray-900">{ticket.ticket_type.name}</span>
+                  <span className="text-gray-900">{ticket.ticket_type_name}</span>
                 </div>
               )}
 
               <div className="flex items-center">
                 <span className="w-20 font-medium text-gray-600">Prix:</span>
                 <span className="text-gray-900 font-medium">
-                  {SotralService.formatCurrency(ticket.price_paid_fcfa)}
+                  {SotralUtils.formatCurrency(ticket.price_paid_fcfa)}
                 </span>
               </div>
 
-              {ticket.line && (
+              {ticket.line_name && (
                 <div className="flex items-center">
                   <span className="w-20 font-medium text-gray-600">Ligne:</span>
                   <span className="text-gray-900">
-                    Ligne {ticket.line.line_number} - {ticket.line.name}
+                    Ligne {ticket.line_number} - {ticket.line_name}
                   </span>
                 </div>
               )}
 
-              {ticket.stop_from && ticket.stop_to && (
+              {ticket.stop_from_name && ticket.stop_to_name && (
                 <div className="flex items-center">
                   <span className="w-20 font-medium text-gray-600">Trajet:</span>
                   <span className="text-gray-900">
-                    {ticket.stop_from.name} → {ticket.stop_to.name}
+                    {ticket.stop_from_name} → {ticket.stop_to_name}
                   </span>
                 </div>
               )}
@@ -113,14 +114,15 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onDelete, canDelete = t
                 </span>
               </div>
 
-              {ticket.payment_method && (
+              {/* Payment method not available in SotralTicketWithDetails */}
+              {/* {ticket.payment_method && (
                 <div className="flex items-center">
                   <span className="w-20 font-medium text-gray-600">Paiement:</span>
                   <span className="text-gray-900">
-                    {SotralService.getPaymentMethodLabel(ticket.payment_method)}
+                    {SotralUtils.getPaymentMethodLabel(ticket.payment_method)}
                   </span>
                 </div>
-              )}
+              )} */}
 
               <div className="flex items-center">
                 <span className="w-20 font-medium text-gray-600">Acheté:</span>
@@ -155,14 +157,14 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onDelete, canDelete = t
           </div>
         </div>
 
-        {/* Footer avec référence de paiement */}
-        {ticket.payment_reference && (
+        {/* Payment reference not available in SotralTicketWithDetails */}
+        {/* {ticket.payment_reference && (
           <div className="mt-4 pt-3 border-t border-gray-200">
             <div className="text-xs text-gray-500">
               Référence: {ticket.payment_reference}
             </div>
           </div>
-        )}
+        )} */}
 
         {/* Modal de suppression */}
         {showDeleteModal && (
@@ -208,13 +210,13 @@ const TicketCard: React.FC<TicketCardProps> = ({ ticket, onDelete, canDelete = t
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-sm text-gray-600">Prix :</dt>
-                      <dd className="text-sm font-medium text-gray-900">{SotralService.formatCurrency(ticket.price_paid_fcfa)}</dd>
+                      <dd className="text-sm font-medium text-gray-900">{SotralUtils.formatCurrency(ticket.price_paid_fcfa)}</dd>
                     </div>
                     <div className="flex justify-between">
                       <dt className="text-sm text-gray-600">Statut :</dt>
                       <dd className="text-sm font-medium">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${SotralService.getTicketStatusColor(ticket.status)}`}>
-                          {SotralService.getTicketStatusLabel(ticket.status)}
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${SotralUtils.getTicketStatusColor(ticket.status)}`}>
+                          {SotralUtils.getTicketStatusLabel(ticket.status)}
                         </span>
                       </dd>
                     </div>
@@ -390,7 +392,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
 };
 
 const SotralTickets: React.FC = () => {
-  const [tickets, setTickets] = useState<SotralTicket[]>([]);
+  const [tickets, setTickets] = useState<SotralTicketWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
@@ -418,7 +420,7 @@ const SotralTickets: React.FC = () => {
         ...(filters.userId && { userId: parseInt(filters.userId) })
       };
       
-      const response = await SotralService.getAllTickets(params);
+      const response = await SotralUtils.getAllTickets(params);
       setTickets(response.data);
       setPagination(response.pagination);
     } catch (err) {
@@ -441,7 +443,7 @@ const SotralTickets: React.FC = () => {
     setFilters(prev => ({ ...prev, page }));
   };
 
-  const handleDeleteTicket = async (ticket: SotralTicket) => {
+  const handleDeleteTicket = async (ticket: SotralTicketWithDetails) => {
     if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement le ticket ${ticket.ticket_code} ?`)) {
       return;
     }
@@ -528,7 +530,7 @@ const SotralTickets: React.FC = () => {
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">
             <div className="text-2xl font-bold text-purple-600">
-              {SotralService.formatCurrency(totalRevenue)}
+              {SotralUtils.formatCurrency(totalRevenue)}
             </div>
             <div className="text-sm text-purple-600">Revenus (page actuelle)</div>
           </div>

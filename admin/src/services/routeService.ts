@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import apiClient from './apiClient';
 import { ApiResponse } from '../types/api';
 
 export interface RouteData {

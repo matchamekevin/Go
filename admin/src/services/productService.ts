@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import apiClient from './apiClient';
 import { ApiResponse, PaginatedResponse } from '../types/api';
 
 export interface Product {

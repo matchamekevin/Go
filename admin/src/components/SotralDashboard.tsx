@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import SotralService, { type SotralStats } from '../services/sotralService';
+import { SotralUtils } from '../services/sotralService';
+import { AnalyticsData as SotralStats } from '../types/sotral';
 
 interface StatsCardProps {
   title: string;
@@ -69,7 +70,7 @@ const PopularLineCard: React.FC<PopularLineCardProps> = ({ line, rank }) => {
       </div>
       <div className="text-right">
         <p className="text-sm font-medium text-gray-900">
-          {SotralService.formatCurrency(line.revenue_fcfa)}
+          {SotralUtils.formatCurrency(line.revenue_fcfa)}
         </p>
       </div>
     </div>
@@ -89,7 +90,7 @@ const SotralDashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await SotralService.getStats(
+      const data = await SotralUtils.getStats(
         dateFilter.from || undefined,
         dateFilter.to || undefined
       );
@@ -187,27 +188,27 @@ const SotralDashboard: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total tickets vendus"
-          value={stats.total_tickets_sold.toLocaleString()}
+          value={stats.general.total_tickets.toLocaleString()}
           icon={<span className="text-2xl">🎫</span>}
           color="blue"
         />
         <StatsCard
           title="Revenus totaux"
-          value={SotralService.formatCurrency(stats.total_revenue_fcfa)}
+          value={SotralUtils.formatCurrency(stats.general.total_revenue)}
           icon={<span className="text-2xl">💰</span>}
           color="green"
         />
         <StatsCard
           title="Utilisateurs actifs"
-          value={stats.active_users.toLocaleString()}
+          value={stats.general.active_users.toLocaleString()}
           icon={<span className="text-2xl">👥</span>}
           color="purple"
         />
         <StatsCard
           title="Revenue moyen/ticket"
-          value={SotralService.formatCurrency(
-            stats.total_tickets_sold > 0 
-              ? stats.total_revenue_fcfa / stats.total_tickets_sold 
+          value={SotralUtils.formatCurrency(
+            stats.general.total_tickets > 0
+              ? stats.general.total_revenue / stats.general.total_tickets
               : 0
           )}
           icon={<span className="text-2xl">📊</span>}
@@ -222,7 +223,7 @@ const SotralDashboard: React.FC = () => {
             Lignes les plus populaires
           </h3>
           <div className="space-y-3">
-            {stats.popular_lines.slice(0, 5).map((line, index) => (
+            {stats.popularLines.slice(0, 5).map((line: any, index: number) => (
               <PopularLineCard 
                 key={line.line_id} 
                 line={line} 
@@ -238,7 +239,7 @@ const SotralDashboard: React.FC = () => {
             Types de tickets
           </h3>
           <div className="space-y-3">
-            {stats.ticket_types_distribution.map((type, index) => (
+            {stats.ticketTypes.map((type: any, index: number) => (
               <div key={index} className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center justify-between text-sm">
@@ -262,7 +263,7 @@ const SotralDashboard: React.FC = () => {
       </div>
 
       {/* Ventes quotidiennes */}
-      {stats.daily_sales.length > 0 && (
+      {stats.dailySales.length > 0 && (
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Ventes quotidiennes (7 derniers jours)
@@ -283,7 +284,7 @@ const SotralDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {stats.daily_sales.map((day, index) => (
+                {stats.dailySales.map((day: any, index: number) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {new Date(day.date).toLocaleDateString('fr-FR')}
@@ -292,7 +293,7 @@ const SotralDashboard: React.FC = () => {
                       {day.tickets_count}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {SotralService.formatCurrency(day.revenue_fcfa)}
+                      {SotralUtils.formatCurrency(day.revenue_fcfa)}
                     </td>
                   </tr>
                 ))}

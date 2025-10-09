@@ -1,5 +1,11 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
+// Define LoginCredentials type
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://go-j2rr.onrender.com';
 
 class ApiClient {
@@ -261,6 +267,27 @@ class ApiClient {
   // ==================== HEALTH CHECK ====================
   async healthCheck() {
     const response = await this.axiosInstance.get('/health');
+    return response.data;
+  }
+
+  // ==================== GENERIC METHODS ====================
+  async get<T = any>(url: string, config?: any): Promise<T> {
+    const response = await this.axiosInstance.get(url, config);
+    return response.data;
+  }
+
+  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await this.axiosInstance.post(url, data, config);
+    return response.data;
+  }
+
+  async put<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await this.axiosInstance.put(url, data, config);
+    return response.data;
+  }
+
+  async delete<T = any>(url: string, config?: any): Promise<T> {
+    const response = await this.axiosInstance.delete(url, config);
     return response.data;
   }
 }

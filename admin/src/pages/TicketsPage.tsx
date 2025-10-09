@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCw, Bus, TrendingUp, X, Ticket, DollarSign, CheckCircle, QrCode, Eye, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { SotralLine } from '../services/sotralService';
-import { useSotralLinesQuery, useSotralStatsQuery, useGenerateTicketsMutation, useDeleteTicketMutation, useRefreshData } from '../hooks/useReactQuery';
+import { SotralLine } from '../types/sotral';
+import { useSotralLinesQuery, useSotralStatsQuery, useDeleteTicketMutation, useRefreshData } from '../hooks/useReactQuery';
 
 interface SotralStop {
   id: number;
@@ -61,13 +61,6 @@ interface TicketGeneration {
   validityHours: number;
 }
 
-interface LineStats {
-  total_lines: number;
-  active_lines: number;
-  total_stops: number;
-  ticket_types: number;
-}
-
 interface TicketStats {
   total_tickets: number;
   total_revenue: number;
@@ -78,25 +71,25 @@ interface TicketStats {
 const SotralTicketManagementPage: React.FC = () => {
   // Default lines based on the provided list (fallback when API not available)
   const DEFAULT_LINES: SotralLine[] = [
-    { id: 1, line_number: 1, name: 'Zanguéra ↔ BIA (Centre-ville)', route_from: 'Zanguéra', route_to: 'BIA', category_id: 1, distance_km: 19.4, stops_count: 68, is_active: true },
-    { id: 2, line_number: 2, name: 'Adétikopé ↔ REX (front de mer)', route_from: 'Adétikopé', route_to: 'REX', category_id: 1, distance_km: 24.5, stops_count: 62, is_active: true },
-    { id: 3, line_number: 3, name: 'Akato ↔ BIA', route_from: 'Akato', route_to: 'BIA', category_id: 1, distance_km: 19.2, stops_count: 68, is_active: true },
-    { id: 6, line_number: 6, name: 'Agoè-Assiyéyé ↔ BIA', route_from: 'Agoè-Assiyéyé', route_to: 'BIA', category_id: 1, distance_km: 16.3, stops_count: 60, is_active: true },
-    { id: 7, line_number: 7, name: 'Kpogan ↔ BIA', route_from: 'Kpogan', route_to: 'BIA', category_id: 1, distance_km: 19.7, stops_count: 58, is_active: true },
-    { id: 8, line_number: 8, name: 'Djagblé ↔ REX', route_from: 'Djagblé', route_to: 'REX', category_id: 1, distance_km: 18.9, stops_count: 49, is_active: true },
-    { id: 10, line_number: 10, name: 'Legbassito ↔ BIA', route_from: 'Legbassito', route_to: 'BIA', category_id: 1, distance_km: 24.2, stops_count: 74, is_active: true },
-    { id: 11, line_number: 11, name: 'Attiegouvi ↔ REX', route_from: 'Attiegouvi', route_to: 'REX', category_id: 1, distance_km: 9.5, stops_count: 43, is_active: true },
-    { id: 12, line_number: 12, name: 'Entreprise de l\'Union ↔ BIA', route_from: 'Entreprise de l\'Union', route_to: 'BIA', category_id: 1, distance_km: 15.3, stops_count: 66, is_active: true },
-    { id: 13, line_number: 13, name: 'Adétikopé ↔ Campus (Université)', route_from: 'Adétikopé', route_to: 'Campus', category_id: 1, distance_km: 17.8, stops_count: 51, is_active: true },
-    { id: 14, line_number: 14, name: 'Legbassito ↔ Campus', route_from: 'Legbassito', route_to: 'Campus', category_id: 1, distance_km: 17.3, stops_count: 38, is_active: true },
-    { id: 15, line_number: 15, name: 'Zanguéra ↔ Campus', route_from: 'Zanguéra', route_to: 'Campus', category_id: 1, distance_km: 13.2, stops_count: 64, is_active: true },
-    { id: 16, line_number: 16, name: 'Akato ↔ Campus', route_from: 'Akato', route_to: 'Campus', category_id: 1, distance_km: 18.0, stops_count: 58, is_active: true },
-    { id: 17, line_number: 17, name: 'Adjalolo ↔ Campus', route_from: 'Adjalolo', route_to: 'Campus', category_id: 1, distance_km: 11.1, stops_count: 40, is_active: true },
-    { id: 18, line_number: 18, name: 'Adakpamé ↔ Campus', route_from: 'Adakpamé', route_to: 'Campus', category_id: 1, distance_km: 13.0, stops_count: 56, is_active: true },
-    { id: 19, line_number: 19, name: 'Akodesséwa-Bè ↔ Campus', route_from: 'Akodesséwa-Bè', route_to: 'Campus', category_id: 1, distance_km: 13.0, stops_count: 45, is_active: true },
-    { id: 20, line_number: 20, name: 'Avépozo ↔ Campus', route_from: 'Avépozo', route_to: 'Campus', category_id: 1, distance_km: 18.0, stops_count: 71, is_active: true },
-    { id: 21, line_number: 21, name: 'Entreprise de l\'Union ↔ Campus', route_from: 'Entreprise de l\'Union', route_to: 'Campus', category_id: 1, distance_km: 11.0, stops_count: 45, is_active: true },
-    { id: 22, line_number: 22, name: 'Djagblé ↔ Campus', route_from: 'Djagblé', route_to: 'Campus', category_id: 1, distance_km: 16.4, stops_count: 41, is_active: true }
+    { id: 1, line_number: 1, line_name: 'Zanguéra ↔ BIA (Centre-ville)', name: 'Zanguéra ↔ BIA (Centre-ville)', route_from: 'Zanguéra', route_to: 'BIA', category_id: 1, distance_km: 19.4, stops_count: 68, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 2, line_number: 2, line_name: 'Adétikopé ↔ REX (front de mer)', name: 'Adétikopé ↔ REX (front de mer)', route_from: 'Adétikopé', route_to: 'REX', category_id: 1, distance_km: 24.5, stops_count: 62, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 3, line_number: 3, line_name: 'Akato ↔ BIA', name: 'Akato ↔ BIA', route_from: 'Akato', route_to: 'BIA', category_id: 1, distance_km: 19.2, stops_count: 68, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 6, line_number: 6, line_name: 'Agoè-Assiyéyé ↔ BIA', name: 'Agoè-Assiyéyé ↔ BIA', route_from: 'Agoè-Assiyéyé', route_to: 'BIA', category_id: 1, distance_km: 16.3, stops_count: 60, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 7, line_number: 7, line_name: 'Kpogan ↔ BIA', name: 'Kpogan ↔ BIA', route_from: 'Kpogan', route_to: 'BIA', category_id: 1, distance_km: 19.7, stops_count: 58, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 8, line_number: 8, line_name: 'Djagblé ↔ REX', name: 'Djagblé ↔ REX', route_from: 'Djagblé', route_to: 'REX', category_id: 1, distance_km: 18.9, stops_count: 49, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 10, line_number: 10, line_name: 'Legbassito ↔ BIA', name: 'Legbassito ↔ BIA', route_from: 'Legbassito', route_to: 'BIA', category_id: 1, distance_km: 24.2, stops_count: 74, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 11, line_number: 11, line_name: 'Attiegouvi ↔ REX', name: 'Attiegouvi ↔ REX', route_from: 'Attiegouvi', route_to: 'REX', category_id: 1, distance_km: 9.5, stops_count: 43, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 12, line_number: 12, line_name: 'Entreprise de l\'Union ↔ BIA', name: 'Entreprise de l\'Union ↔ BIA', route_from: 'Entreprise de l\'Union', route_to: 'BIA', category_id: 1, distance_km: 15.3, stops_count: 66, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 13, line_number: 13, line_name: 'Adétikopé ↔ Campus (Université)', name: 'Adétikopé ↔ Campus (Université)', route_from: 'Adétikopé', route_to: 'Campus', category_id: 1, distance_km: 17.8, stops_count: 51, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 14, line_number: 14, line_name: 'Legbassito ↔ Campus', name: 'Legbassito ↔ Campus', route_from: 'Legbassito', route_to: 'Campus', category_id: 1, distance_km: 17.3, stops_count: 38, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 15, line_number: 15, line_name: 'Zanguéra ↔ Campus', name: 'Zanguéra ↔ Campus', route_from: 'Zanguéra', route_to: 'Campus', category_id: 1, distance_km: 13.2, stops_count: 64, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 16, line_number: 16, line_name: 'Akato ↔ Campus', name: 'Akato ↔ Campus', route_from: 'Akato', route_to: 'Campus', category_id: 1, distance_km: 18.0, stops_count: 58, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 17, line_number: 17, line_name: 'Adjalolo ↔ Campus', name: 'Adjalolo ↔ Campus', route_from: 'Adjalolo', route_to: 'Campus', category_id: 1, distance_km: 11.1, stops_count: 40, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 18, line_number: 18, line_name: 'Adakpamé ↔ Campus', name: 'Adakpamé ↔ Campus', route_from: 'Adakpamé', route_to: 'Campus', category_id: 1, distance_km: 13.0, stops_count: 56, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 19, line_number: 19, line_name: 'Akodesséwa-Bè ↔ Campus', name: 'Akodesséwa-Bè ↔ Campus', route_from: 'Akodesséwa-Bè', route_to: 'Campus', category_id: 1, distance_km: 13.0, stops_count: 45, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 20, line_number: 20, line_name: 'Avépozo ↔ Campus', name: 'Avépozo ↔ Campus', route_from: 'Avépozo', route_to: 'Campus', category_id: 1, distance_km: 18.0, stops_count: 71, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 21, line_number: 21, line_name: 'Entreprise de l\'Union ↔ Campus', name: 'Entreprise de l\'Union ↔ Campus', route_from: 'Entreprise de l\'Union', route_to: 'Campus', category_id: 1, distance_km: 11.0, stops_count: 45, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: 22, line_number: 22, line_name: 'Djagblé ↔ Campus', name: 'Djagblé ↔ Campus', route_from: 'Djagblé', route_to: 'Campus', category_id: 1, distance_km: 16.4, stops_count: 41, price_range: '150-200', is_active: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
   ];
   
   // Utiliser les hooks React Query pour les données avec revalidation intelligente
@@ -104,7 +97,6 @@ const SotralTicketManagementPage: React.FC = () => {
   const { data: realtimeStats, isLoading: statsLoading } = useSotralStatsQuery();
 
   // Mutations pour les opérations
-  const generateTicketsMutation = useGenerateTicketsMutation();
   const deleteTicketMutation = useDeleteTicketMutation();
   const { refreshAll } = useRefreshData();
 
@@ -208,7 +200,7 @@ const SotralTicketManagementPage: React.FC = () => {
     // Charger les tickets initialement
     const loadInitialTickets = async () => {
       try {
-        const token = localStorage.getItem('admin_token');
+        const token = localStorage.getItem('admin_auth_token');
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/tickets?limit=1000`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -238,7 +230,7 @@ const SotralTicketManagementPage: React.FC = () => {
     // Charger les types de tickets
     const loadTicketTypes = async () => {
       try {
-        const token = localStorage.getItem('admin_token');
+        const token = localStorage.getItem('admin_auth_token');
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/ticket-types`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -285,7 +277,7 @@ const SotralTicketManagementPage: React.FC = () => {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/generate-tickets`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('admin_auth_token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -324,7 +316,7 @@ const SotralTicketManagementPage: React.FC = () => {
         fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:7000'}/admin/sotral/generate-tickets`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('admin_auth_token')}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({

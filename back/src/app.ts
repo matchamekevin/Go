@@ -260,11 +260,11 @@ app.use("/realtime", realtimeRoutes); // Real-time events routes
 // registers GET/PATCH for /tickets and would otherwise return the Express HTML 404 "Cannot DELETE /admin/tickets").
 
 // Mount the generic admin router FIRST so its auth middleware doesn't override specific routes
+app.use("/admin/sotral", sotralRoutes);  // Monter avant les autres routes admin
 app.use("/admin", adminRoutes);
 
 // Then mount specific admin sub-routers that may have different auth requirements
 app.use("/admin/tickets", adminTicketsRoutes);
-app.use("/admin/sotral", adminSotralRoutes);
 app.use("/support", supportRoutes);
 
 // Route de test temporaire pour supprimer un ticket sans auth

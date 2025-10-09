@@ -15,7 +15,7 @@ import {
   Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { SotralLine } from '../services/sotralService';
+import { SotralLine } from '../types/sotral';
 import StatsCards from '../components/StatsCards';
 import LineTable from '../components/LineTable';
 import ErrorDisplay from '../components/ErrorDisplay';
@@ -412,9 +412,9 @@ const SotralManagementPage: React.FC = () => {
     setSelectedLine(line);
     setFormData({
       line_number: line.line_number.toString(), // Convertir en string pour le formulaire
-      name: line.name,
-      route_from: line.route_from,
-      route_to: line.route_to,
+      name: line.name || '',
+      route_from: line.route_from || '',
+      route_to: line.route_to || '',
       category_id: line.category_id?.toString() || '1',
       distance_km: line.distance_km?.toString() || '', // Convertir en string pour le formulaire
       stops_count: line.stops_count?.toString() || '' // Convertir en string pour le formulaire

@@ -1,4 +1,4 @@
-import apiClient from './apiClient.new';
+import apiClient from './apiClient';
 
 export interface Payment {
   id: string;
