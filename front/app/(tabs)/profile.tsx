@@ -70,6 +70,7 @@ export default function ProfileTab() {
   const [editedEmail, setEditedEmail] = useState(user?.email || '');
   const [editedPhone, setEditedPhone] = useState(user?.phone || '');
   const [contactMessage, setContactMessage] = useState('');
+  const [isEditing, setIsEditing] = useState(false); // Ajout de l'état manquant
 
   const profileStats = [
     {
@@ -374,6 +375,17 @@ export default function ProfileTab() {
   // Initiales pour l'avatar
   const getInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Gestion de la mise à jour du profil
+  const handleSaveProfile = async () => {
+    try {
+      await updateUserProfile({ name: editedName, email: editedEmail, phone: editedPhone });
+      Alert.alert('Succès', 'Profil mis à jour avec succès.');
+      setIsEditing(false); // Maintenant défini
+    } catch (error) {
+      Alert.alert('Erreur', 'Échec de la mise à jour du profil. Vérifiez votre connexion.');
+    }
   };
 
   return (

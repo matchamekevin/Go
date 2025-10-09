@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/authService';
 import apiClient from '../services/api.client';
-import { UserService } from '../services/userService';
+import * as UserService from '../services/UserService';
 import type { User } from '../types/api';
 
 interface AuthContextType {
@@ -28,7 +28,7 @@ interface AuthProviderProps {
 
 const USER_STORAGE_KEY = 'user_session';
 
-export function AuthProvider({ children }: AuthProviderProps) {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,14 +90,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('🔐 Session restaurée pour:', userData.email);
           // Rafraîchir le profil depuis l'API en tâche de fond
           UserService.getProfile()
-            .then(fresh => {
+            .then((fresh: User) => {
               setUser(fresh);
               setIsAuthenticated(true);
-              // Mettre à jour le stockage local
               AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(fresh));
               console.log('🔄 Profil utilisateur rafraîchi depuis l’API:', fresh.email);
             })
-            .catch(e => {
+            .catch((e: unknown) => {
               console.warn('⚠️ Impossible de rafraîchir le profil:', e);
             });
         } catch (parseError) {
@@ -118,41 +117,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Connexion avec téléphone (méthode principale)
+  // Fonction pour récupérer le profil utilisateur depuis l'API
+  const fetchUserProfile = async () => {
+    try {
+      const profile = await UserService.getProfile(); // Récupère les vraies infos depuis l'API
+      setUser(profile);
+      if (profile) {
+        await AsyncStorage.setItem('user', JSON.stringify(profile));
+      } else {
+        await AsyncStorage.removeItem('user');
+      }
+    } catch (error) {
+      console.error('Erreur récupération profil:', error);
+    }
+  };
+
+  // Fonction de connexion (ajout de log pour diagnostiquer la réponse API)
   const login = async (credentials: { phone: string; password: string }) => {
     try {
       setIsLoading(true);
-      const authData = await authService.loginWithPhone(credentials.phone, credentials.password);
-      
-      if (!authData.success) {
-        throw new Error(authData.message || 'Erreur de connexion');
+      const response = await fetch('https://go-j2rr.onrender.com/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+      if (!response.ok) {
+        throw new Error('Erreur de connexion');
       }
-      
-      if (authData.user) {
-        try {
-          const fresh = await UserService.getProfile();
-          await saveUserSession({ ...authData.user, ...fresh } as any);
-        } catch (e) {
-          await saveUserSession(authData.user as any);
-        }
+
+      const data = await response.json();
+      console.log('DEBUG - Réponse API complète:', data);
+
+      // Récupérer le token dans data.token
+      const token = data?.data?.token;
+      if (!token) {
+        throw new Error('Token manquant dans la réponse de l\'API');
       }
+
+      await AsyncStorage.setItem('token', token);
+      await fetchUserProfile();
+      setIsAuthenticated(true);
     } catch (error: any) {
-      // Erreurs connues qui ne doivent PAS nettoyer la session (erreurs de login normales)
-      const benignErrors = [
-        'USER_NOT_FOUND',
-        'INVALID_CREDENTIALS',
-        'ACCOUNT_NOT_VERIFIED',
-        'ACCOUNT_UNVERIFIED',
-        'Compte non vérifié',
-        'utilisateur introuvable'
-      ];
-      const msg = error?.message || '';
-      const match = benignErrors.some(e => msg.includes(e));
-      if (!match) {
-        console.warn('⚠️ Erreur inattendue lors de la connexion (session non effacée) :', msg);
-      } else {
-        console.log('ℹ️ Erreur de connexion non fatale, session conservée:', msg);
-      }
+      console.error('Erreur login:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -259,27 +267,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Fonction pour mettre à jour le profil (nouvelle implémentation pour enregistrer les actions)
   const updateUserProfile = async (userData: Partial<User>) => {
     try {
-      if (!user) throw new Error('Utilisateur non connecté');
-
-      // Préparer payload API (limiter aux champs modifiables)
-      const payload: any = {};
-  if (userData.name !== undefined) payload.name = userData.name.trim();
-  if (userData.phone !== undefined) payload.phone = userData.phone;
-  if (userData.email !== undefined) payload.email = userData.email;
-
-      let serverUser: User | null = null;
-      try {
-        serverUser = await UserService.updateProfile(payload);
-      } catch (e) {
-        console.error('Erreur mise à jour serveur, utilisation locale:', e);
-      }
-
-      const merged = { ...user, ...payload, ...(serverUser || {}) } as User;
-      await saveUserSession(merged);
+      setIsLoading(true);
+      const updatedProfile = await UserService.updateProfile(userData); // Envoie les changements à l'API
+      setUser(updatedProfile); // Met à jour localement avec la réponse de l'API
+      await AsyncStorage.setItem('user', JSON.stringify(updatedProfile));
     } catch (error) {
-      throw error;
+      console.error('Erreur mise à jour profil:', error);
+      throw error; // Pour que profile.tsx gère l'erreur
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -313,7 +312,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     verifyOTP,
     resendOTP,
     getOTPFromAPI,
-    updateUserProfile,
+    updateUserProfile, // Ajouté
   };
 
   // Si le children n'est pas un élément React, on le met dans un fragment

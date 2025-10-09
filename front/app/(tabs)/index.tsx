@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -11,7 +11,6 @@ import { RouteService, type PopularRoute } from '../../src/services/routeService
 
 export default function HomeTab() {
   const { user } = useAuth();
-  const [isVoirToutOpen, setVoirToutOpen] = useState(false);
   const [popularRoutes, setPopularRoutes] = useState<PopularRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorPopularRoutes, setErrorPopularRoutes] = useState<string | null>(null);
@@ -21,8 +20,8 @@ export default function HomeTab() {
     try {
       setErrorPopularRoutes(null);
       setLoading(true);
-  const routes = await RouteService.getPopularRoutes();
-  console.log('Trajets populaires chargés:', routes);
+      const routes = await RouteService.getPopularRoutes();
+      console.log('Trajets populaires chargés:', routes);
       setPopularRoutes(routes);
     } catch (error) {
       console.error('Erreur lors du chargement des trajets populaires:', error);
@@ -107,7 +106,12 @@ export default function HomeTab() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trajets populaires</Text>
-            <TouchableOpacity onPress={async () => { await loadPopularRoutes(); setVoirToutOpen(true); }}>
+            <TouchableOpacity onPress={() => {
+              router.push({ 
+                pathname: '/(tabs)/search', 
+                params: { scrollTo: 'lignes-disponibles' } 
+              });
+            }}>
               <Text style={styles.seeAllText}>Voir tout</Text>
             </TouchableOpacity>
           </View>
@@ -143,120 +147,15 @@ export default function HomeTab() {
           )}
         </View>
 
-        {/* Modal Trajets populaires - Design moderne */}
-        <Modal
+        {/* Supprimé : Modal Trajets populaires - Design moderne */}
+        {/* <Modal
           visible={isVoirToutOpen}
           animationType="fade"
           transparent={true}
           onRequestClose={() => setVoirToutOpen(false)}
         >
-          <View style={modalStyles.overlay}>
-            <View style={modalStyles.modalContainer}>
-              {/* Header avec dégradé */}
-              <View style={modalStyles.modalHeader}>
-                <View style={modalStyles.headerContent}>
-                  <View style={modalStyles.headerIcon}>
-                    <Ionicons name="trending-up" size={24} color={theme.colors.white} />
-                  </View>
-                  <View style={modalStyles.headerText}>
-                    <Text style={modalStyles.modalTitle}>Trajets populaires</Text>
-                    <Text style={modalStyles.modalSubtitle}>10 destinations les plus demandées</Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  onPress={() => setVoirToutOpen(false)} 
-                  style={modalStyles.closeButton}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="close" size={24} color={theme.colors.white} />
-                </TouchableOpacity>
-              </View>
-
-              {/* Liste avec scroll */}
-              {/* Modal list */}
-
-              <ScrollView 
-                showsVerticalScrollIndicator={false} 
-                style={modalStyles.scrollContainer}
-                contentContainerStyle={modalStyles.scrollContent}
-              >
-                {loading ? (
-                  <View style={modalStyles.emptyState}>
-                    <Text style={modalStyles.emptyText}>Chargement des trajets...</Text>
-                  </View>
-                ) : popularRoutes.length > 0 ? (
-                  // Toujours afficher 10 éléments (répéter si moins)
-                  Array.from({ length: 10 }).map((_, i) => {
-                    const item = popularRoutes.length > 0 ? popularRoutes[i % popularRoutes.length] : null;
-                    if (!item) return null;
-                    const transportIcon = item.type === 'Bus rapide' ? 'bus' : 
-                                        item.type === 'Métro' ? 'train' : 'bus-outline';
-                    
-                    return (
-                      <TouchableOpacity
-                        key={i}
-                        style={modalStyles.routeItem}
-                        onPress={() => {
-                          router.push({ 
-                            pathname: '/(tabs)/search', 
-                            params: { focus: 'true', focusTs: String(Date.now()), from: item.from, to: item.to } 
-                          });
-                          setVoirToutOpen(false);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <View style={modalStyles.routeContent}>
-                          <View style={modalStyles.transportIconContainer}>
-                            <Ionicons name={transportIcon} size={20} color={theme.colors.primary[600]} />
-                          </View>
-                          
-                          <View style={modalStyles.routeDetailsModal}>
-                            <View style={modalStyles.routePath}>
-                              <Text style={modalStyles.routeFromTo} numberOfLines={1} ellipsizeMode="tail">{item.from}</Text>
-                              <View style={modalStyles.arrowContainer}>
-                                <Ionicons name="arrow-forward" size={14} color={theme.colors.secondary[400]} />
-                              </View>
-                              <Text style={modalStyles.routeFromTo} numberOfLines={1} ellipsizeMode="tail">{item.to}</Text>
-                            </View>
-                            <View style={modalStyles.routeInfoModal}>
-                              <View style={modalStyles.typeTag}>
-                                <Text style={modalStyles.typeText} numberOfLines={1} ellipsizeMode="tail">{item.type}</Text>
-                              </View>
-                              <Text style={modalStyles.durationText} numberOfLines={1} ellipsizeMode="tail">{item.duration}</Text>
-                            </View>
-                          </View>
-                          
-                          <View style={modalStyles.priceContainer}>
-                            <Text style={modalStyles.priceText}>{item.price}</Text>
-                            <View style={modalStyles.chevronContainer}>
-                              <Ionicons name="chevron-forward" size={16} color={theme.colors.secondary[400]} />
-                            </View>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                    })
-                  ) : errorPopularRoutes ? (
-                    <View style={modalStyles.emptyState}>
-                      <Text style={modalStyles.emptyText}>Erreur: {errorPopularRoutes}</Text>
-                      <TouchableOpacity onPress={async () => { setErrorPopularRoutes(null); await loadPopularRoutes(); }} style={modalStyles.retryButton}>
-                        <Text style={modalStyles.retryText}>Réessayer</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                  <View style={modalStyles.emptyState}>
-                    <Text style={modalStyles.emptyText}>Aucun trajet disponible pour le moment</Text>
-                  </View>
-                )}
-              </ScrollView>
-              
-              {/* Footer avec action */}
-              <View style={modalStyles.modalFooter}>
-                <Text style={modalStyles.footerText}>Appuyez sur un trajet pour commencer votre recherche</Text>
-              </View>
-            </View>
-          </View>
-        </Modal>
+          ... (tout le contenu du modal supprimé)
+        </Modal> */}
 
   {/* Section activité récente supprimée */}
 
@@ -520,252 +419,6 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.secondary[500],
-    fontStyle: 'italic',
-  },
-});
-
-const modalStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  // debug styles were removed per user request
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  headerText: {
-    flex: 1,
-  },
-  modalContainer: {
-    width: '100%',
-    maxWidth: 720,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.primary[600],
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.primary[600],
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.colors.white,
-    marginBottom: 2,
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  scrollContainer: {
-    // Use a fixed maxHeight so the ScrollView always has visible space inside the modal
-    maxHeight: '65%',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 24,
-  },
-  routeItem: {
-    backgroundColor: theme.colors.white,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.secondary[100],
-    overflow: 'hidden',
-    ...theme.shadows.sm,
-  },
-  routeContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-  },
-  transportIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  routeDetails: {
-    flex: 1,
-  },
-  routeDetailsModal: {
-    flex: 1,
-    minWidth: 0,
-  },
-  routePath: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  routeFromTo: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.secondary[900],
-    flexShrink: 1,
-    maxWidth: '70%',
-  },
-  arrowContainer: {
-    marginHorizontal: 8,
-    paddingHorizontal: 4,
-  },
-  routeInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  routeInfoModal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  typeTag: {
-    backgroundColor: theme.colors.primary[50],
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  typeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: theme.colors.primary[600],
-  },
-  durationText: {
-    fontSize: 12,
-    color: theme.colors.secondary[500],
-    fontWeight: '500',
-  },
-  priceContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  priceText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.primary[600],
-    marginBottom: 2,
-  },
-  chevronContainer: {
-    opacity: 0.6,
-  },
-  modalFooter: {
-    backgroundColor: theme.colors.secondary[50],
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.secondary[100],
-  },
-  footerText: {
-    fontSize: 12,
-    color: theme.colors.secondary[500],
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  retryButton: {
-    marginTop: 12,
-    backgroundColor: theme.colors.primary[600],
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: theme.colors.white,
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  // debug styles removed
-  // Styles legacy pour compatibilité
-  card: {
-    width: '100%',
-    maxWidth: 700,
-    maxHeight: '80%',
-    backgroundColor: theme.colors.white,
-    borderRadius: 16,
-    padding: 16,
-  },
-  cardLarge: {
-    width: '100%',
-    maxWidth: 740,
-    maxHeight: '85%',
-    backgroundColor: theme.colors.white,
-    borderRadius: 16,
-    padding: 12,
-    overflow: 'hidden',
-  },
-  list: {
-    marginTop: 8,
-  },
-  listItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.secondary[100],
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  routeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 6,
-    backgroundColor: theme.colors.primary[600],
-    marginRight: 12,
-  },
-  itemTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: theme.colors.secondary[900],
-  },
-  itemMeta: {
-    fontSize: 12,
-    color: theme.colors.secondary[500],
-    marginTop: 2,
-  },
-  itemPrice: {
-    fontSize: 13,
-    color: theme.colors.primary[600],
-    fontWeight: '700',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.xl,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: theme.colors.secondary[500],
-    textAlign: 'center',
     fontStyle: 'italic',
   },
 });

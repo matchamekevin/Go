@@ -220,54 +220,67 @@ export default function SearchTab() {
     loadTickets();
   }, []);
 
+  const [availableLines, setAvailableLines] = useState<any[]>([]); // Changé en any[] pour éviter les erreurs de type sur les propriétés
+  const [linesLoading, setLinesLoading] = useState(false);
+  const [filteredLines, setFilteredLines] = useState<any[]>([]); // Nouvel état pour les lignes filtrées
+
+  // Charger les lignes disponibles depuis l'API (remplacé getAvailableLines par search('') pour charger toutes les lignes)
+  useEffect(() => {
+    const loadLines = async () => {
+      try {
+        setLinesLoading(true);
+        console.log('[SearchTab] Chargement des lignes disponibles...');
+
+        const data = await sotralUnifiedService.search(''); // Utilise search('') pour obtenir toutes les lignes
+        setAvailableLines(data.searchResults); // Stocke les résultats directement
+
+        console.log('[SearchTab] Lignes récupérées:', data.searchResults);
+      } catch (error) {
+        console.error('[SearchTab] Erreur chargement lignes:', error);
+        setAvailableLines([]);
+      } finally {
+        setLinesLoading(false);
+      }
+    };
+
+    loadLines();
+  }, []);
+
+  // Filtrer les lignes disponibles en fonction de la requête de recherche et de la disponibilité des tickets
+  useEffect(() => {
+    // D'abord, filtrer les lignes qui ont des tickets disponibles
+    const linesWithTickets = availableLines.filter(r => {
+      const lineId = r.line ? r.line.id : r.id;
+      return availableTickets.some(ticket => ticket.line_id === lineId);
+    });
+
+    // Puis, appliquer le filtre de recherche sur ce sous-ensemble
+    if (searchQuery.length >= MIN_QUERY_LENGTH) {
+      const q = searchQuery.toLowerCase();
+      const filtered = linesWithTickets.filter((r) =>
+        (r.from || '').toLowerCase().includes(q) ||
+        (r.to || '').toLowerCase().includes(q) ||
+        (r.company || '').toLowerCase().includes(q)
+      );
+      setFilteredLines(filtered);
+    } else {
+      setFilteredLines(linesWithTickets); // Afficher toutes les lignes avec tickets si pas de requête
+    }
+  }, [searchQuery, availableLines, availableTickets]);
+
   const renderAvailableTicket = (ticket: UnifiedSotralTicket) => (
     <View key={ticket.id} style={styles.ticketCard}>
       {/* Ticket Header */}
       <View style={styles.ticketHeader}>
         <View style={styles.ticketInfo}>
-          <View style={styles.transportBadge}>
-            <Text style={styles.transportBadgeText}>SOTRAL</Text>
-          </View>
-          <Text style={styles.routeText}>
-            {(ticket as any).line_name || `Ligne ${ticket.line_id}`}
-          </Text>
         </View>
         <View style={styles.statusBadge}>
           <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Disponible</Text>
         </View>
       </View>
       {/* Ticket Body */}
       <View style={styles.ticketBody}>
         <View style={styles.ticketDetails}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="pricetag" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Code</Text>
-              <Text style={styles.detailValue}>{ticket.ticket_code}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="refresh" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Trajets</Text>
-              <Text style={styles.detailValue}>{ticket.trips_remaining}</Text>
-            </View>
-          </View>
-          <View style={styles.detailRow}>
-            <View style={styles.detailItem}>
-              <Ionicons name="cash" size={16} color={theme.colors.secondary[500]} />
-              <Text style={styles.detailLabel}>Prix</Text>
-              <Text style={styles.detailValue}>{ticket.price_paid_fcfa} FCFA</Text>
-            </View>
-            {ticket.expires_at && (
-              <View style={styles.detailItem}>
-                <Ionicons name="time" size={16} color={theme.colors.secondary[500]} />
-                <Text style={styles.detailLabel}>Expire</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(ticket.expires_at).toLocaleDateString('fr-FR')}
-                </Text>
-              </View>
-            )}
-          </View>
         </View>
         {/* QR Code */}
         <View style={styles.qrContainer}>
@@ -283,7 +296,6 @@ export default function SearchTab() {
       <View style={styles.ticketFooter}>
         <View style={styles.expiryInfo}>
           <Ionicons name="time-outline" size={16} color={theme.colors.warning[600]} />
-          <Text style={styles.expiryText}>Généré par l'admin</Text>
         </View>
         <TouchableOpacity style={styles.showButton} onPress={() => handlePurchaseTicket(ticket)}>
           <Text style={styles.showButtonText}>Acheter</Text>
@@ -326,8 +338,8 @@ export default function SearchTab() {
               <Ionicons name="arrow-forward" size={18} color={theme.colors.white} />
             </TouchableOpacity>
           </View>
-          {/* Search results panel */}
-          <View style={styles.searchResultsCard}>
+          {/* Search results panel - Supprimé pour éviter la duplication avec les lignes disponibles filtrées */}
+          {/* <View style={styles.searchResultsCard}>
             {searchLoading ? (
               <View style={styles.loadingContainer}>
                 <Text style={styles.loadingText}>Recherche en cours...</Text>
@@ -382,7 +394,7 @@ export default function SearchTab() {
                 </TouchableOpacity>
               ))
             )}
-          </View>
+          </View> */}
         </View>
         {/* Search Results */}
         {viewMode === 'search' && (
@@ -392,20 +404,50 @@ export default function SearchTab() {
             {/* Search Results */}
             {/* ...existing code... */}
 
-            {/* Tickets disponibles (générés par admin) */}
+            {/* Lignes disponibles */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Billets disponibles SOTRAL</Text>
-              {ticketsLoading ? (
+              <Text style={styles.sectionTitle}>Lignes disponibles</Text>
+              {linesLoading ? (
                 <View style={styles.loadingContainer}>
-                  <Text style={styles.loadingText}>Chargement des tickets disponibles...</Text>
+                  <Text style={styles.loadingText}>Chargement des lignes disponibles...</Text>
                 </View>
-              ) : availableTickets.length > 0 ? (
-                availableTickets.map(renderAvailableTicket)
+              ) : filteredLines.length > 0 ? (
+                filteredLines.map((r) => ( // Utilise filteredLines au lieu de availableLines
+                  <TouchableOpacity key={r.id} style={styles.resultCard} onPress={() => {
+                    router.push({
+                      pathname: '/line-details',
+                      params: { lineId: r.line ? r.line.id.toString() : r.id.toString() }
+                    });
+                  }}>
+                    <View style={styles.resultHeader}>
+                      <View style={styles.transportInfo}>
+                        <View style={styles.transportType}>
+                          <Text style={styles.transportTypeText}>{r.type || 'Transport'}</Text>
+                        </View>
+                        <Text style={styles.companyName}>{r.company || 'Opérateur inconnu'}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.price}>{r.price || 'Prix variable'}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.timeInfo}>
+                      <View style={styles.timePoint}>
+                        <Text style={styles.timeText}>{r.from || 'Départ'}</Text>
+                        <Text style={styles.locationText}>Départ</Text>
+                      </View>
+                      <View style={styles.journeyLine} />
+                      <View style={styles.timePoint}>
+                        <Text style={styles.timeText}>{r.to || 'Arrivée'}</Text>
+                        <Text style={styles.locationText}>Arrivée</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))
               ) : (
                 <View style={styles.emptyContainer}>
                   <Ionicons name="bus" size={48} color={theme.colors.secondary[300]} />
-                  <Text style={styles.emptyText}>Aucun ticket disponible</Text>
-                  <Text style={styles.emptySubtext}>Les tickets générés par l'admin apparaîtront ici</Text>
+                  <Text style={styles.emptyText}>Aucune ligne disponible</Text>
+                  <Text style={styles.emptySubtext}>Les lignes apparaîtront ici</Text>
                 </View>
               )}
             </View>

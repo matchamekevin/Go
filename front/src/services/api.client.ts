@@ -46,8 +46,9 @@ class ApiClient {
     // Request interceptor
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        if (this.token) {
-          config.headers.Authorization = `Bearer ${this.token}`;
+        const token = await AsyncStorage.getItem(TOKEN_KEY);
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
         }
         console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
         return config;
