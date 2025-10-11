@@ -140,14 +140,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchUserProfile = async () => {
     try {
       const profile = await UserService.getProfile(); // Récupère les vraies infos depuis l'API
-      setUser(profile);
-      if (profile) {
-        await AsyncStorage.setItem("user", JSON.stringify(profile));
+      console.log("🔄 Profil récupéré depuis l'API:", profile);
+
+      if (profile && typeof profile === "object") {
+        setUser(profile);
+        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(profile));
+        console.log("💾 Profil utilisateur sauvegardé");
       } else {
-        await AsyncStorage.removeItem("user");
+        console.warn("⚠️ Profil utilisateur invalide ou vide");
+        await AsyncStorage.removeItem(USER_STORAGE_KEY);
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
-      console.error("Erreur récupération profil:", error);
+      console.error("❌ Erreur récupération profil:", error);
+      // Ne pas déconnecter l'utilisateur en cas d'erreur de réseau temporaire
+      // Garder les données en cache si disponibles
     }
   };
 
@@ -247,7 +255,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Token manquant dans la réponse de l'API");
       }
 
-      await AsyncStorage.setItem("token", token);
+      // Utiliser apiClient pour stocker le token de façon cohérente
+      await apiClient.setToken(token);
       await fetchUserProfile();
       setIsAuthenticated(true);
     } catch (error: any) {
@@ -411,8 +420,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setIsLoading(true);
       const updatedProfile = await UserService.updateProfile(userData); // Envoie les changements à l'API
-      setUser(updatedProfile); // Met à jour localement avec la réponse de l'API
-      await AsyncStorage.setItem("user", JSON.stringify(updatedProfile));
+
+      // Vérifier que updatedProfile n'est pas undefined avant de l'utiliser
+      if (updatedProfile) {
+        setUser(updatedProfile); // Met à jour localement avec la réponse de l'API
+        await AsyncStorage.setItem(
+          USER_STORAGE_KEY,
+          JSON.stringify(updatedProfile),
+        );
+      } else {
+        console.warn(
+          "updateProfile a retourné undefined, conservation du profil actuel",
+        );
+      }
     } catch (error) {
       console.error("Erreur mise à jour profil:", error);
       throw error; // Pour que profile.tsx gère l'erreur

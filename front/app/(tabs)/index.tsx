@@ -1,55 +1,94 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import HelpFAB from '../../src/components/HelpFAB';
-import React, { useState, useEffect } from 'react';
-import { theme } from '../../src/styles/theme';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { LinearGradient } from 'expo-linear-gradient';
-import { RouteService, type PopularRoute } from '../../src/services/routeService';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  RefreshControl,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import HelpFAB from "../../src/components/HelpFAB";
+import React, { useState, useEffect } from "react";
+import { theme } from "../../src/styles/theme";
+import { useAuth } from "../../src/contexts/AuthContext";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  RouteService,
+  type PopularRoute,
+} from "../../src/services/routeService";
 
 export default function HomeTab() {
-  const { user } = useAuth();
+  const { user, refreshAuth } = useAuth();
   const [popularRoutes, setPopularRoutes] = useState<PopularRoute[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorPopularRoutes, setErrorPopularRoutes] = useState<string | null>(null);
-  
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorPopularRoutes, setErrorPopularRoutes] = useState<string | null>(
+    null,
+  );
+
   // Charger les trajets populaires depuis l'API
   const loadPopularRoutes = async () => {
     try {
       setErrorPopularRoutes(null);
       setLoading(true);
       const routes = await RouteService.getPopularRoutes();
-      console.log('Trajets populaires chargés:', routes);
+      console.log("Trajets populaires chargés:", routes);
       setPopularRoutes(routes);
     } catch (error) {
-      console.error('Erreur lors du chargement des trajets populaires:', error);
-      const msg = (error && (error as any).message) ? (error as any).message : String(error);
+      console.error("Erreur lors du chargement des trajets populaires:", error);
+      const msg =
+        error && (error as any).message
+          ? (error as any).message
+          : String(error);
       setErrorPopularRoutes(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  // Rafraîchir le profil utilisateur au montage
   useEffect(() => {
+    const refreshProfile = async () => {
+      try {
+        console.log("🔄 Rafraîchissement du profil utilisateur...");
+        await refreshAuth();
+      } catch (error) {
+        console.warn("⚠️ Erreur lors du rafraîchissement du profil:", error);
+      }
+    };
+
     loadPopularRoutes();
+    refreshProfile();
   }, []);
-  
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      console.log("🔄 Rafraîchissement de la page d'accueil...");
+      await Promise.all([loadPopularRoutes(), refreshAuth()]);
+    } catch (error) {
+      console.warn("⚠️ Erreur lors du rafraîchissement:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const quickActions = [
     {
       id: 1,
-      title: 'Acheter un billet',
-      subtitle: 'Ticket bus, metro',
-      icon: 'ticket' as const,
+      title: "Acheter un billet",
+      subtitle: "Ticket bus, metro",
+      icon: "ticket" as const,
       color: theme.colors.primary[600],
       bgColor: theme.colors.primary[50],
     },
     {
       id: 3,
-      title: 'Mes trajets',
-      subtitle: 'Historique',
-      icon: 'time' as const,
+      title: "Mes trajets",
+      subtitle: "Historique",
+      icon: "time" as const,
       color: theme.colors.warning[600],
       bgColor: theme.colors.warning[50],
     },
@@ -57,21 +96,26 @@ export default function HomeTab() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Header avec gradient */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.greeting}>
               <Text style={styles.greetingText}>Bonjour</Text>
-              <Text style={styles.userName}>{user?.name || 'Utilisateur'}</Text>
+              <Text style={styles.userName}>{user?.name || "Utilisateur"}</Text>
             </View>
             <TouchableOpacity style={styles.notificationButton}>
               <Ionicons name="bus" size={24} color={theme.colors.white} />
               <View style={styles.notificationBadge} />
             </TouchableOpacity>
           </View>
-          
-    {/* Section solde supprimée */}
+
+          {/* Section solde supprimée */}
         </View>
 
         {/* Quick Actions */}
@@ -85,18 +129,28 @@ export default function HomeTab() {
                 onPress={() => {
                   if (action.id === 1) {
                     // Navigue vers l'onglet Recherche et demande focus sur la barre
-                    router.push({ pathname: '/(tabs)/search', params: { focus: 'true', focusTs: String(Date.now()) } });
+                    router.push({
+                      pathname: "/(tabs)/search",
+                      params: { focus: "true", focusTs: String(Date.now()) },
+                    });
                   } else if (action.id === 3) {
                     // Navigue vers la page Historique dédiée
-                    router.push('/(tabs)/history');
+                    router.push("/(tabs)/history");
                   }
                 }}
               >
-                <View style={[styles.quickActionIcon, { backgroundColor: action.bgColor }]}>
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: action.bgColor },
+                  ]}
+                >
                   <Ionicons name={action.icon} size={24} color={action.color} />
                 </View>
                 <Text style={styles.quickActionTitle}>{action.title}</Text>
-                <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                <Text style={styles.quickActionSubtitle}>
+                  {action.subtitle}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -106,16 +160,18 @@ export default function HomeTab() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trajets populaires</Text>
-            <TouchableOpacity onPress={() => {
-              router.push({ 
-                pathname: '/(tabs)/search', 
-                params: { scrollTo: 'lignes-disponibles' } 
-              });
-            }}>
+            <TouchableOpacity
+              onPress={() => {
+                router.push({
+                  pathname: "/(tabs)/search",
+                  params: { scrollTo: "lignes-disponibles" },
+                });
+              }}
+            >
               <Text style={styles.seeAllText}>Voir tout</Text>
             </TouchableOpacity>
           </View>
-          
+
           {loading ? (
             <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>Chargement des trajets...</Text>
@@ -126,14 +182,37 @@ export default function HomeTab() {
                 <View style={styles.routeInfo}>
                   <View style={styles.routeHeader}>
                     <View style={styles.routePoints}>
-                      <Text style={styles.routeFrom} numberOfLines={1} ellipsizeMode="tail">{route.from}</Text>
+                      <Text
+                        style={styles.routeFrom}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {route.from}
+                      </Text>
                       <View style={styles.routeArrow}>
-                        <Ionicons name="arrow-forward" size={16} color={theme.colors.secondary[400]} />
+                        <Ionicons
+                          name="arrow-forward"
+                          size={16}
+                          color={theme.colors.secondary[400]}
+                        />
                       </View>
-                      <Text style={styles.routeTo} numberOfLines={1} ellipsizeMode="tail">{route.to}</Text>
+                      <Text
+                        style={styles.routeTo}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {route.to}
+                      </Text>
                     </View>
                   </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: 4,
+                    }}
+                  >
                     <View style={styles.routeTag}>
                       <Text style={styles.routeTagText}>{route.type}</Text>
                     </View>
@@ -141,7 +220,11 @@ export default function HomeTab() {
                     {/* <Text style={styles.routePrice}>{route.price}</Text> */}
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={theme.colors.secondary[300]} />
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={theme.colors.secondary[300]}
+                />
               </TouchableOpacity>
             ))
           )}
@@ -157,7 +240,7 @@ export default function HomeTab() {
           ... (tout le contenu du modal supprimé)
         </Modal> */}
 
-  {/* Section activité récente supprimée */}
+        {/* Section activité récente supprimée */}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -181,27 +264,27 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: theme.borderRadius.xxl,
   },
   headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: theme.spacing.lg,
   },
   greeting: {},
   greetingText: {
     fontSize: theme.typography.fontSize.base,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: "rgba(255, 255, 255, 0.8)",
     fontWeight: theme.typography.fontWeight.normal,
   },
   userName: {
-    fontSize: theme.typography.fontSize['2xl'],
+    fontSize: theme.typography.fontSize["2xl"],
     color: theme.colors.white,
     fontWeight: theme.typography.fontWeight.bold,
   },
   notificationButton: {
-    position: 'relative',
+    position: "relative",
   },
   notificationBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -2,
     right: -2,
     width: 8,
@@ -216,9 +299,9 @@ const styles = StyleSheet.create({
     ...theme.shadows.md,
   },
   walletHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: theme.spacing.sm,
   },
   walletTitle: {
@@ -227,19 +310,19 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.medium,
   },
   walletAmount: {
-    fontSize: theme.typography.fontSize['3xl'],
+    fontSize: theme.typography.fontSize["3xl"],
     color: theme.colors.secondary[900],
     fontWeight: theme.typography.fontWeight.bold,
     marginBottom: theme.spacing.md,
   },
   addMoneyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: theme.colors.primary[600],
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.lg,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   addMoneyText: {
     color: theme.colors.white,
@@ -251,9 +334,9 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: theme.spacing.md,
   },
   sectionTitle: {
@@ -268,16 +351,16 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.semibold,
   },
   quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   quickActionCard: {
-    width: '48%',
+    width: "48%",
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.md,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: theme.spacing.md,
     ...theme.shadows.sm,
   },
@@ -285,29 +368,29 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: theme.borderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: theme.spacing.sm,
   },
   quickActionTitle: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.secondary[900],
     fontWeight: theme.typography.fontWeight.semibold,
-    textAlign: 'center',
+    textAlign: "center",
     flexShrink: 1,
     minWidth: 0,
   },
   quickActionSubtitle: {
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.secondary[500],
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 2,
     flexShrink: 1,
     minWidth: 0,
   },
   routeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.md,
@@ -318,14 +401,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   routeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: theme.spacing.xs,
   },
   routePoints: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     minWidth: 0,
   },
@@ -334,7 +417,7 @@ const styles = StyleSheet.create({
     color: theme.colors.secondary[900],
     fontWeight: theme.typography.fontWeight.semibold,
     flexShrink: 1,
-    maxWidth: '60%',
+    maxWidth: "60%",
   },
   routeArrow: {
     marginHorizontal: theme.spacing.sm,
@@ -344,7 +427,7 @@ const styles = StyleSheet.create({
     color: theme.colors.secondary[900],
     fontWeight: theme.typography.fontWeight.semibold,
     flexShrink: 1,
-    maxWidth: '60%',
+    maxWidth: "60%",
   },
   routePrice: {
     fontSize: theme.typography.fontSize.base,
@@ -352,9 +435,9 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.bold,
   },
   routeDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   routeTag: {
     backgroundColor: theme.colors.primary[50],
@@ -372,8 +455,8 @@ const styles = StyleSheet.create({
     color: theme.colors.secondary[500],
   },
   activityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.md,
@@ -413,12 +496,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.lg,
-    alignItems: 'center',
+    alignItems: "center",
     ...theme.shadows.sm,
   },
   loadingText: {
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.secondary[500],
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
 });

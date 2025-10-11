@@ -1,18 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Mail, Phone, Calendar, Shield, ShieldCheck, Users } from 'lucide-react';
-import userService from '../services/userService';
-import { User } from '../types/api';
-import SearchBar from '../components/SearchBar';
-import StatusBadge from '../components/StatusBadge';
-import Pagination from '../components/Pagination';
-import StatsCard from '../components/StatsCard';
-import DataTable from '../components/DataTable';
-import UserActionsModal from '../components/UserActionsModal';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import React, { useState, useEffect } from "react";
+import {
+  Mail,
+  Phone,
+  Calendar,
+  Shield,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import userService from "../services/userService";
+import { User } from "../types/api";
+import SearchBar from "../components/SearchBar";
+import StatusBadge from "../components/StatusBadge";
+import Pagination from "../components/Pagination";
+import StatsCard from "../components/StatsCard";
+import DataTable from "../components/DataTable";
+import UserActionsModal from "../components/UserActionsModal";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
 
 const UsersPage: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -28,7 +35,7 @@ const UsersPage: React.FC = () => {
   // Utiliser le hook de réactualisation automatique
   const { isRefreshing } = useAutoRefresh(refreshAllData, {
     interval: 30000, // 30 secondes
-    enabled: true
+    enabled: true,
   });
 
   useEffect(() => {
@@ -42,17 +49,17 @@ const UsersPage: React.FC = () => {
         currentPage,
         10,
         searchQuery || undefined,
-        filterStatus !== 'all' ? filterStatus : undefined
+        filterStatus !== "all" ? filterStatus : undefined,
       );
       if (response && response.items) {
         setUsers(response.items);
         setTotalPages(response.totalPages || 1);
       } else {
-        console.warn('Aucune donnée utilisateur reçue:', response);
+        console.warn("Aucune donnée utilisateur reçue:", response);
         setUsers([]);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des utilisateurs:', error);
+      console.error("Erreur lors du chargement des utilisateurs:", error);
       setUsers([]);
     } finally {
       setLoading(false);
@@ -70,28 +77,31 @@ const UsersPage: React.FC = () => {
 
   const userColumns = [
     {
-      key: 'name',
-      header: 'Utilisateur',
+      key: "name",
+      header: "Utilisateur",
       render: (_value: string, user: User) => (
         <div className="flex items-center">
           <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
             <span className="text-sm font-medium text-gray-700">
-              {user.name.split(' ').map(n => n[0]).join('')}
+              {user.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
             </span>
           </div>
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900">{user.name}</div>
             <div className="text-sm text-gray-500 flex items-center">
               <Calendar className="h-4 w-4 mr-1" />
-              Inscrit le {new Date(user.created_at).toLocaleDateString('fr-FR')}
+              Inscrit le {new Date(user.created_at).toLocaleDateString("fr-FR")}
             </div>
           </div>
         </div>
-      )
+      ),
     },
     {
-      key: 'email',
-      header: 'Contact',
+      key: "email",
+      header: "Contact",
       render: (_value: string, user: User) => (
         <div className="space-y-1">
           <div className="text-sm text-gray-900 flex items-center">
@@ -100,33 +110,31 @@ const UsersPage: React.FC = () => {
           </div>
           <div className="text-sm text-gray-500 flex items-center">
             <Phone className="h-4 w-4 mr-2 text-gray-400" />
-            {user.phone || 'Non renseigné'}
+            {user.phone || "Non renseigné"}
           </div>
         </div>
-      )
+      ),
     },
     {
-      key: 'is_suspended',
-      header: 'Statut',
+      key: "is_suspended",
+      header: "Statut",
       render: (_value: boolean, user: User) => (
-        <StatusBadge status={user.is_suspended ? 'suspended' : 'active'} />
-      )
+        <StatusBadge status={user.is_suspended ? "suspended" : "active"} />
+      ),
     },
     {
-      key: 'tickets',
-      header: 'Tickets',
-      render: () => (
-        <span className="text-sm text-gray-900">0</span>
-      )
+      key: "tickets",
+      header: "Tickets",
+      render: () => <span className="text-sm text-gray-900">0</span>,
     },
     {
-      key: 'updated_at',
-      header: 'Dernière connexion',
+      key: "updated_at",
+      header: "Dernière connexion",
       render: (value: string) => (
         <span className="text-sm text-gray-500">
-          {new Date(value).toLocaleDateString('fr-FR')}
+          {new Date(value).toLocaleDateString("fr-FR")}
         </span>
-      )
+      ),
     },
   ];
 
@@ -136,7 +144,9 @@ const UsersPage: React.FC = () => {
       <div className="mb-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestion des utilisateurs</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Gestion des utilisateurs
+            </h1>
             <p className="mt-2 text-sm text-gray-600">
               Gérez les comptes utilisateurs et leurs permissions
             </p>
@@ -149,14 +159,20 @@ const UsersPage: React.FC = () => {
             <SearchBar
               placeholder="Rechercher par nom, email ou téléphone..."
               value={searchQuery}
-              onChange={(v) => { setSearchQuery(v); setCurrentPage(1); }}
+              onChange={(v) => {
+                setSearchQuery(v);
+                setCurrentPage(1);
+              }}
               className="flex-1"
             />
             <div className="flex gap-2 items-center">
               <select
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#065f46] text-black bg-white"
                 value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
               >
                 <option value="all">Tous les statuts</option>
                 <option value="verified">Vérifiés</option>
@@ -169,18 +185,14 @@ const UsersPage: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="relative">
           {isRefreshing && (
             <div className="absolute top-2 right-2 z-10">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             </div>
           )}
-          <StatsCard
-            title="Total"
-            value={users.length}
-            icon={Users}
-          />
+          <StatsCard title="Total" value={users.length} icon={Users} />
         </div>
         <div className="relative">
           {isRefreshing && (
@@ -190,7 +202,7 @@ const UsersPage: React.FC = () => {
           )}
           <StatsCard
             title="Vérifiés"
-            value={users.filter(u => u.is_verified === true).length}
+            value={users.filter((u) => u.is_verified === true).length}
             icon={ShieldCheck}
           />
         </div>
@@ -202,7 +214,19 @@ const UsersPage: React.FC = () => {
           )}
           <StatsCard
             title="Non vérifiés"
-            value={users.filter(u => u.is_verified === false).length}
+            value={users.filter((u) => u.is_verified === false).length}
+            icon={Shield}
+          />
+        </div>
+        <div className="relative">
+          {isRefreshing && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          )}
+          <StatsCard
+            title="Suspendus"
+            value={users.filter((u) => u.is_suspended === true).length}
             icon={Shield}
           />
         </div>
@@ -211,7 +235,9 @@ const UsersPage: React.FC = () => {
       {/* Users Table */}
       <div className="bg-white shadow-sm rounded-lg border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Liste des utilisateurs</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            Liste des utilisateurs
+          </h3>
         </div>
         <DataTable
           data={users}
@@ -233,7 +259,10 @@ const UsersPage: React.FC = () => {
       <UserActionsModal
         user={selectedUser}
         isOpen={actionsModalOpen}
-        onClose={() => { setActionsModalOpen(false); setSelectedUser(null); }}
+        onClose={() => {
+          setActionsModalOpen(false);
+          setSelectedUser(null);
+        }}
         onActionComplete={onActionComplete}
       />
     </div>

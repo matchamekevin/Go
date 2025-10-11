@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from "./apiClient";
 
 export interface User {
   id: string;
@@ -29,7 +29,7 @@ class UserService {
     page: number = 1,
     limit: number = 20,
     search?: string,
-    status?: string
+    status?: string,
   ): Promise<UsersResponse> {
     try {
       const response = await apiClient.getAllUsers({
@@ -40,9 +40,10 @@ class UserService {
       });
       return response.data;
     } catch (error: any) {
-      console.error('Erreur récupération utilisateurs:', error);
+      console.error("Erreur récupération utilisateurs:", error);
       throw new Error(
-        error.response?.data?.message || 'Erreur de chargement des utilisateurs'
+        error.response?.data?.message ||
+          "Erreur de chargement des utilisateurs",
       );
     }
   }
@@ -55,39 +56,39 @@ class UserService {
       const response = await apiClient.getUserById(userId);
       return response.user || response;
     } catch (error: any) {
-      console.error('Erreur récupération utilisateur:', error);
+      console.error("Erreur récupération utilisateur:", error);
       throw new Error(
-        error.response?.data?.message || 'Utilisateur introuvable'
+        error.response?.data?.message || "Utilisateur introuvable",
       );
     }
   }
 
   /**
-   * Suspendre un utilisateur
+   * Basculer le statut de suspension d'un utilisateur
    */
-  async suspendUser(userId: string, reason?: string): Promise<void> {
+  async toggleUserSuspension(userId: string, reason?: string): Promise<void> {
     try {
       await apiClient.suspendUser(userId, reason);
     } catch (error: any) {
-      console.error('Erreur suspension utilisateur:', error);
+      console.error("Erreur basculement suspension utilisateur:", error);
       throw new Error(
-        error.response?.data?.message || 'Erreur de suspension'
+        error.response?.data?.message || "Erreur de basculement de suspension",
       );
     }
   }
 
   /**
-   * Réactiver un utilisateur
+   * Suspendre un utilisateur (alias pour toggleUserSuspension)
+   */
+  async suspendUser(userId: string, reason?: string): Promise<void> {
+    return this.toggleUserSuspension(userId, reason);
+  }
+
+  /**
+   * Réactiver un utilisateur (alias pour toggleUserSuspension)
    */
   async unsuspendUser(userId: string): Promise<void> {
-    try {
-      await apiClient.unsuspendUser(userId);
-    } catch (error: any) {
-      console.error('Erreur réactivation utilisateur:', error);
-      throw new Error(
-        error.response?.data?.message || 'Erreur de réactivation'
-      );
-    }
+    return this.toggleUserSuspension(userId);
   }
 
   /**
@@ -103,10 +104,10 @@ class UserService {
    */
   getStatusLabel(status: string): string {
     const labels: { [key: string]: string } = {
-      active: 'Actif',
-      inactive: 'Inactif',
-      suspended: 'Suspendu',
-      pending: 'En attente',
+      active: "Actif",
+      inactive: "Inactif",
+      suspended: "Suspendu",
+      pending: "En attente",
     };
     return labels[status] || status;
   }
@@ -116,10 +117,10 @@ class UserService {
    */
   getRoleLabel(role: string): string {
     const labels: { [key: string]: string } = {
-      user: 'Utilisateur',
-      admin: 'Administrateur',
-      super_admin: 'Super Admin',
-      controller: 'Contrôleur',
+      user: "Utilisateur",
+      admin: "Administrateur",
+      super_admin: "Super Admin",
+      controller: "Contrôleur",
     };
     return labels[role] || role;
   }
@@ -128,12 +129,12 @@ class UserService {
    * Formater la date
    */
   formatDate(date: string | Date): string {
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(date).toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   }
 }
