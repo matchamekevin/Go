@@ -95,6 +95,10 @@ export class AuthService {
     const existing = await UserRepository.findByEmail(data.email);
     if (existing) throw new Error("Email déjà utilisé");
 
+    // Vérifier l'unicité du numéro de téléphone
+    const existingPhone = await UserRepository.findByPhone(storedPhone);
+    if (existingPhone) throw new Error("Numéro de téléphone déjà utilisé");
+
     const hashed = await hashPassword(data.password);
     // Normaliser le nom
     const name = data.name.trim();

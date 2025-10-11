@@ -21,13 +21,23 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.matchamekevin.gosotral"
     },
     "web": {
       "bundler": "metro"
     },
-    "plugins": [["expo-router"]]
-    ,
-    "sdkVersion": "54.0.0"
+    "plugins": [
+      [
+        "expo-router"
+      ]
+    ],
+    "sdkVersion": "54.0.0",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d75d0674-3008-45ec-ba35-8d8da190ee75"
+      }
+    }
   }
 }

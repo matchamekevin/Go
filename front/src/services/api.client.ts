@@ -3,20 +3,24 @@
  * Basé sur les routes: /api/auth, /api/tickets, /api/payments, /api/sotral
  */
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  InternalAxiosRequestConfig,
+} from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Configuration
 // Force production API même en développement pour les tests
-const API_BASE_URL = 'https://go-j2rr.onrender.com';
+const API_BASE_URL = "https://go-j2rr.onrender.com";
 
 // Configuration normale (décommenter pour dev local):
-// const API_BASE_URL = __DEV__ 
+// const API_BASE_URL = __DEV__
 //   ? 'http://192.168.1.78:7000'
 //   : 'https://go-j2rr.onrender.com';
 
-const TOKEN_KEY = 'auth_token';
-const USER_KEY = 'auth_user';
+const TOKEN_KEY = "auth_token";
+const USER_KEY = "auth_user";
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -34,7 +38,7 @@ class ApiClient {
       baseURL: API_BASE_URL,
       timeout: 30000,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
@@ -54,22 +58,24 @@ class ApiClient {
         return config;
       },
       (error) => {
-        console.error('❌ Request error:', error);
+        console.error("❌ Request error:", error);
         return Promise.reject(error);
-      }
+      },
     );
 
     // Response interceptor
     this.client.interceptors.response.use(
       (response) => {
-        console.log(`✅ ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`);
+        console.log(
+          `✅ ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status}`,
+        );
         return response;
       },
       async (error: AxiosError) => {
         const status = error.response?.status;
         const url = error.config?.url;
         const method = error.config?.method?.toUpperCase();
-        
+
         // Log différent selon le type d'erreur
         if (error.response) {
           // Erreur du serveur (4xx, 5xx)
@@ -79,16 +85,19 @@ class ApiClient {
           console.error(`❌ ${method} ${url} - Erreur réseau (pas de réponse)`);
         } else {
           // Erreur lors de la configuration de la requête
-          console.error(`❌ ${method} ${url} - Erreur configuration:`, error.message);
+          console.error(
+            `❌ ${method} ${url} - Erreur configuration:`,
+            error.message,
+          );
         }
-        
+
         // Si 401, déconnecter l'utilisateur
-        if (status === 401 && !url?.includes('/auth/login')) {
+        if (status === 401 && !url?.includes("/auth/login")) {
           await this.clearAuth();
         }
 
         return Promise.reject(this.handleError(error));
-      }
+      },
     );
   }
 
@@ -96,7 +105,7 @@ class ApiClient {
     try {
       this.token = await AsyncStorage.getItem(TOKEN_KEY);
     } catch (error) {
-      console.error('Erreur chargement token:', error);
+      console.error("Erreur chargement token:", error);
     }
   }
 
@@ -106,7 +115,7 @@ class ApiClient {
   }
 
   async getToken(): Promise<string | null> {
-    return this.token || await AsyncStorage.getItem(TOKEN_KEY);
+    return this.token || (await AsyncStorage.getItem(TOKEN_KEY));
   }
 
   async removeToken() {
@@ -139,27 +148,64 @@ class ApiClient {
   private handleError(error: AxiosError): ApiResponse {
     if (error.response) {
       const data = error.response.data as any;
+      const status = error.response.status;
+
+      // Messages d'erreur spécifiques selon le statut HTTP
+      let message = data?.message || data?.error;
+
+      if (!message) {
+        switch (status) {
+          case 400:
+            message = "Données invalides";
+            break;
+          case 401:
+            message = "Identifiants invalides";
+            break;
+          case 403:
+            message = "Accès refusé";
+            break;
+          case 404:
+            message = "Ressource introuvable";
+            break;
+          case 409:
+            message = "Conflit de données";
+            break;
+          case 422:
+            message = "Données invalides";
+            break;
+          case 429:
+            message = "Trop de tentatives";
+            break;
+          case 500:
+            message = "Erreur serveur";
+            break;
+          default:
+            message = "Erreur serveur";
+        }
+      }
+
       return {
         success: false,
-        message: data?.message || 'Erreur serveur',
-        status: error.response.status,
+        message,
+        status,
         ...data,
       };
     } else if (error.request) {
       return {
         success: false,
-        message: 'Impossible de contacter le serveur',
+        message:
+          "Impossible de contacter le serveur. Vérifiez votre connexion internet.",
       };
     } else {
       return {
         success: false,
-        message: error.message || 'Erreur inconnue',
+        message: error.message || "Erreur inconnue",
       };
     }
   }
 
   // ==================== AUTH ROUTES ====================
-  
+
   /**
    * POST /auth/register
    * Inscription avec email/phone + mot de passe
@@ -170,7 +216,7 @@ class ApiClient {
     phone?: string;
     password: string;
   }): Promise<ApiResponse> {
-    const response = await this.client.post('/auth/register', data);
+    const response = await this.client.post("/auth/register", data);
     return response.data;
   }
 
@@ -183,7 +229,7 @@ class ApiClient {
     phone?: string;
     password: string;
   }): Promise<ApiResponse> {
-    const response = await this.client.post('/auth/login', data);
+    const response = await this.client.post("/auth/login", data);
     const resData = response.data;
     // Stocker le token si présent
     if (resData.success && resData.token) {
@@ -197,7 +243,7 @@ class ApiClient {
    * Vérification OTP email
    */
   async verifyEmail(email: string, otp: string): Promise<ApiResponse> {
-    const response = await this.client.post('/auth/verify-otp', { email, otp });
+    const response = await this.client.post("/auth/verify-otp", { email, otp });
     return response.data;
   }
 
@@ -206,7 +252,7 @@ class ApiClient {
    * Renvoyer l'OTP de vérification
    */
   async resendOTP(email: string): Promise<ApiResponse> {
-    const response = await this.client.post('/auth/resend-otp', { email });
+    const response = await this.client.post("/auth/resend-otp", { email });
     return response.data;
   }
 
@@ -215,7 +261,7 @@ class ApiClient {
    * Demande de réinitialisation de mot de passe
    */
   async forgotPassword(email: string): Promise<ApiResponse> {
-    const response = await this.client.post('/auth/forgot-password', { email });
+    const response = await this.client.post("/auth/forgot-password", { email });
     return response.data;
   }
 
@@ -223,8 +269,12 @@ class ApiClient {
    * POST /auth/reset-password
    * Réinitialiser le mot de passe avec OTP
    */
-  async resetPassword(email: string, otp: string, newPassword: string): Promise<ApiResponse> {
-    const response = await this.client.post('/auth/reset-password', {
+  async resetPassword(
+    email: string,
+    otp: string,
+    newPassword: string,
+  ): Promise<ApiResponse> {
+    const response = await this.client.post("/auth/reset-password", {
       email,
       otp,
       newPassword,
@@ -237,7 +287,7 @@ class ApiClient {
    * Récupérer l'utilisateur connecté
    */
   async getCurrentUser(): Promise<ApiResponse> {
-    const response = await this.client.get('/auth/me');
+    const response = await this.client.get("/auth/me");
     return response.data;
   }
 
@@ -248,11 +298,11 @@ class ApiClient {
    * Récupérer les tickets de l'utilisateur
    */
   async getMyTickets(params?: {
-    status?: 'active' | 'used' | 'expired';
+    status?: "active" | "used" | "expired";
     limit?: number;
     offset?: number;
   }): Promise<ApiResponse> {
-    const response = await this.client.get('/tickets/my-tickets', { params });
+    const response = await this.client.get("/tickets/my-tickets", { params });
     return response.data;
   }
 
@@ -279,7 +329,7 @@ class ApiClient {
    * Statistiques des tickets de l'utilisateur
    */
   async getTicketStats(): Promise<ApiResponse> {
-    const response = await this.client.get('/tickets/stats');
+    const response = await this.client.get("/tickets/stats");
     return response.data;
   }
 
@@ -290,12 +340,12 @@ class ApiClient {
    * Initier un paiement mobile (TMoney/Flooz)
    */
   async initiatePayment(data: {
-    ticket_type: 'single' | 'day_pass' | 'week_pass' | 'month_pass';
-    payment_method: 'tmoney' | 'flooz';
+    ticket_type: "single" | "day_pass" | "week_pass" | "month_pass";
+    payment_method: "tmoney" | "flooz";
     phone_number: string;
     quantity?: number;
   }): Promise<ApiResponse> {
-    const response = await this.client.post('/payments/initiate', data);
+    const response = await this.client.post("/payments/initiate", data);
     return response.data;
   }
 
@@ -316,7 +366,7 @@ class ApiClient {
     limit?: number;
     offset?: number;
   }): Promise<ApiResponse> {
-    const response = await this.client.get('/payments/history', { params });
+    const response = await this.client.get("/payments/history", { params });
     return response.data;
   }
 
@@ -327,7 +377,7 @@ class ApiClient {
    * Récupérer toutes les lignes de bus
    */
   async getSotralLines(): Promise<ApiResponse> {
-    const response = await this.client.get('/sotral/lines');
+    const response = await this.client.get("/sotral/lines");
     return response.data;
   }
 
@@ -349,7 +399,7 @@ class ApiClient {
     longitude?: number;
     radius?: number;
   }): Promise<ApiResponse> {
-    const response = await this.client.get('/sotral/stops', { params });
+    const response = await this.client.get("/sotral/stops", { params });
     return response.data;
   }
 
@@ -366,8 +416,11 @@ class ApiClient {
    * GET /sotral/route
    * Calculer un itinéraire entre deux arrêts
    */
-  async calculateRoute(fromStopId: number, toStopId: number): Promise<ApiResponse> {
-    const response = await this.client.get('/sotral/route', {
+  async calculateRoute(
+    fromStopId: number,
+    toStopId: number,
+  ): Promise<ApiResponse> {
+    const response = await this.client.get("/sotral/route", {
       params: { from_stop_id: fromStopId, to_stop_id: toStopId },
     });
     return response.data;
@@ -377,7 +430,10 @@ class ApiClient {
    * GET /sotral/schedules/:lineId
    * Récupérer les horaires d'une ligne
    */
-  async getLineSchedules(lineId: number, dayType?: 'weekday' | 'weekend'): Promise<ApiResponse> {
+  async getLineSchedules(
+    lineId: number,
+    dayType?: "weekday" | "weekend",
+  ): Promise<ApiResponse> {
     const response = await this.client.get(`/sotral/schedules/${lineId}`, {
       params: { day_type: dayType },
     });
@@ -398,7 +454,7 @@ class ApiClient {
    * Ajouter un arrêt aux favoris
    */
   async addFavoriteStop(stopId: number, alias?: string): Promise<ApiResponse> {
-    const response = await this.client.post('/sotral/favorite', {
+    const response = await this.client.post("/sotral/favorite", {
       stop_id: stopId,
       alias,
     });
@@ -410,7 +466,7 @@ class ApiClient {
    * Récupérer les arrêts favoris
    */
   async getFavoriteStops(): Promise<ApiResponse> {
-    const response = await this.client.get('/sotral/favorites');
+    const response = await this.client.get("/sotral/favorites");
     return response.data;
   }
 
@@ -433,9 +489,9 @@ class ApiClient {
     subject: string;
     category: string;
     description: string;
-    priority?: 'low' | 'medium' | 'high';
+    priority?: "low" | "medium" | "high";
   }): Promise<ApiResponse> {
-    const response = await this.client.post('/support/tickets', data);
+    const response = await this.client.post("/support/tickets", data);
     return response.data;
   }
 
@@ -448,7 +504,7 @@ class ApiClient {
     limit?: number;
     offset?: number;
   }): Promise<ApiResponse> {
-    const response = await this.client.get('/support/tickets', { params });
+    const response = await this.client.get("/support/tickets", { params });
     return response.data;
   }
 
@@ -457,7 +513,7 @@ class ApiClient {
    * Récupérer la FAQ
    */
   async getFAQ(category?: string): Promise<ApiResponse> {
-    const response = await this.client.get('/support/faq', {
+    const response = await this.client.get("/support/faq", {
       params: { category },
     });
     return response.data;
@@ -470,8 +526,8 @@ class ApiClient {
    * Vérifier l'état du serveur
    */
   async healthCheck(): Promise<ApiResponse> {
-    const response = await this.client.get('/health', {
-      baseURL: API_BASE_URL.replace('/api', ''),
+    const response = await this.client.get("/health", {
+      baseURL: API_BASE_URL.replace("/api", ""),
     });
     return response.data;
   }

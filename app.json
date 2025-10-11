@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "da2a2bbc-f632-496b-80c9-d88cd799386a"
+      }
+    },
+    "android": {
+      "package": "com.matchamekevin.go"
+    }
+  }
+}

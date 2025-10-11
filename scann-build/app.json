@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "scann",
+    "slug": "scann",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.matchamekevin.scann"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"],
+      "package": "com.matchamekevin.scann"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-camera"],
+    "extra": {
+      "eas": {
+        "projectId": "b6478bd4-f357-42e3-aeaa-89253dc5e911"
+      }
+    }
+  }
+}
