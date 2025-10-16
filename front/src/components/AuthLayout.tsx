@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   StyleSheet,
@@ -6,9 +6,9 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { theme } from '../styles/theme';
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { theme } from "../styles/theme";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -16,18 +16,31 @@ interface AuthLayoutProps {
   topInset?: number;
 }
 
-export default function AuthLayout({ children, showGradient = true, topInset = 0 }: AuthLayoutProps) {
-  // allow optional per-screen top inset to fine-tune spacing above the content
-  // (useful for auth screens where we want different header spacing)
+export default function AuthLayout({
+  children,
+  showGradient = true,
+  topInset = 0,
+}: AuthLayoutProps) {
   const content = (
     <ScrollView
       style={styles.scrollView}
-      contentContainerStyle={[
-        styles.scrollContent,
-        { paddingTop: topInset }
-      ]}
+      contentContainerStyle={[styles.scrollContent, { paddingTop: topInset }]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      bounces={false}
+      // Améliore le scroll sur Android quand le clavier est ouvert
+      nestedScrollEnabled={true}
+      // Permet au scroll de s'ajuster automatiquement au clavier
+      automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+      // Garde le contenu visible quand le clavier apparaît
+      maintainVisibleContentPosition={
+        Platform.OS === "android"
+          ? {
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 100,
+            }
+          : undefined
+      }
     >
       {children}
     </ScrollView>
@@ -36,8 +49,10 @@ export default function AuthLayout({ children, showGradient = true, topInset = 0
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        enabled
       >
         {showGradient ? (
           <LinearGradient
@@ -47,9 +62,7 @@ export default function AuthLayout({ children, showGradient = true, topInset = 0
             {content}
           </LinearGradient>
         ) : (
-          <View style={styles.plainBackground}>
-            {content}
-          </View>
+          <View style={styles.plainBackground}>{content}</View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -76,7 +89,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    minHeight: '100%',
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: Platform.OS === "android" ? 40 : theme.spacing.lg,
   },
 });
