@@ -1,5 +1,5 @@
-import pool from '../../shared/database/client';
-import { Payment } from './Payment.model';
+import pool from "../../shared/database/client";
+import { Payment } from "./Payment.model";
 
 export const PaymentRepository = {
   // Placeholder repository - implement payment database operations here
@@ -10,7 +10,7 @@ export const PaymentRepository = {
 
   async create(paymentData: Partial<Payment>): Promise<Payment> {
     // Implementation needed
-    throw new Error('Payment creation not yet implemented');
+    throw new Error("Payment creation not yet implemented");
   },
 
   // Enregistrements des reçus de paiement pour idempotence des webhooks
@@ -32,22 +32,52 @@ export const PaymentRepository = {
 
   async findReceiptByExternalId(externalId: string) {
     await this.ensureReceiptTable();
-    const res = await pool.query('SELECT * FROM payment_receipts WHERE external_id = $1 LIMIT 1', [externalId]);
+    const res = await pool.query(
+      "SELECT * FROM payment_receipts WHERE external_id = $1 LIMIT 1",
+      [externalId],
+    );
     return res.rows[0] || null;
   },
 
-  async createReceipt(data: { external_id: string; user_id: number; amount: number; currency?: string; status: string; meta?: any }) {
+  async createReceipt(data: {
+    external_id: string;
+    user_id: number;
+    amount: number;
+    currency?: string;
+    status: string;
+    meta?: any;
+  }) {
     await this.ensureReceiptTable();
-    const res = await pool.query(
+    // Tente d'update d'abord
+    const updateRes = await pool.query(
+      `UPDATE payment_receipts
+       SET amount = $3, currency = $4, status = $5, meta = $6
+       WHERE external_id = $1 AND user_id = $2
+       RETURNING *`,
+      [
+        data.external_id,
+        data.user_id,
+        data.amount,
+        data.currency || "FCFA",
+        data.status,
+        data.meta || {},
+      ],
+    );
+    if (updateRes.rows[0]) return updateRes.rows[0];
+    // Sinon, insert
+    const insertRes = await pool.query(
       `INSERT INTO payment_receipts (external_id, user_id, amount, currency, status, meta)
        VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (external_id) DO NOTHING
        RETURNING *`,
-      [data.external_id, data.user_id, data.amount, data.currency || 'FCFA', data.status, data.meta || {}]
+      [
+        data.external_id,
+        data.user_id,
+        data.amount,
+        data.currency || "FCFA",
+        data.status,
+        data.meta || {},
+      ],
     );
-    if (res.rows[0]) return res.rows[0];
-    // Si conflit, renvoyer l’existant
-    const existing = await this.findReceiptByExternalId(data.external_id);
-    return existing;
-  }
+    return insertRes.rows[0];
+  },
 };
